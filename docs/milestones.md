@@ -5,14 +5,14 @@
 **Goal**: Standing project with Convex schema and working issue management via Convex functions.
 
 **Work**:
-- [ ] Initialize project: `bun init` in `tools/flux/`, set up package.json with React, Convex, Tailwind, DaisyUI
-- [ ] `bunx convex init` (may need interactive setup)
+- [x] Initialize project: `bun init` in `tools/flux/`, set up package.json with React, Convex, Tailwind, DaisyUI
+- [x] `bunx convex init` (may need interactive setup)
 - [ ] Implement full Convex schema (all tables above, including labels)
 - [ ] Implement Convex functions as needed:
   - [ ] Start with `projects` (create, get) and `issues` (create, list, get, update)
   - [ ] Add `issues_claim` (atomic mutation - needed for orchestrator)
   - [ ] Defer the rest until their consuming feature is built
-- [ ] Font Awesome Pro kit in index.html
+- [x] Font Awesome Pro kit in index.html
 - [ ] Bun.serve() entry point (`src/server/index.ts`) with HTML import for web, health endpoint, MCP route stub
 - [ ] Convex Node client setup (`src/server/convex.ts`)
 - [ ] Seed project record and default labels:
