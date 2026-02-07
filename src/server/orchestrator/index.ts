@@ -341,14 +341,25 @@ class Orchestrator {
       return;
     }
 
-    // Route to phase-specific handler
-    const { phase } = this.activeSession;
-    if (phase === "work") {
-      await this.handleWorkExit(exitCode);
-    } else if (phase === "retro") {
-      await this.handleRetroExit(exitCode);
-    } else if (phase === "review") {
-      await this.handleReviewExit(exitCode);
+    // Route to phase-specific handler.
+    // CRITICAL: finalize() MUST run regardless of errors, otherwise the orchestrator
+    // wedges in Busy state forever. Any throw in a phase handler that skips finalize()
+    // means the scheduler stops picking up new work.
+    try {
+      const { phase } = this.activeSession;
+      if (phase === "work") {
+        await this.handleWorkExit(exitCode);
+      } else if (phase === "retro") {
+        await this.handleRetroExit(exitCode);
+      } else if (phase === "review") {
+        await this.handleReviewExit(exitCode);
+      }
+    } catch (err) {
+      console.error(
+        "[Orchestrator] Exit handler crashed — forcing finalize:",
+        err,
+      );
+      this.finalize();
     }
   }
 

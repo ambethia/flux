@@ -180,8 +180,11 @@ export const close = mutation({
   handler: async (ctx, { issueId, closeType, closeReason }) => {
     const issue = await ctx.db.get(issueId);
     if (!issue) throw new Error(`Issue ${issueId} not found`);
-    if (issue.status === IssueStatus.Closed)
-      throw new Error(`Issue ${issueId} already closed`);
+    // Idempotent: closing an already-closed issue is a no-op.
+    // The orchestrator's noop path calls close after the agent may have already
+    // closed the issue via MCP during the session. Throwing here would crash
+    // the exit handler and wedge the orchestrator in Busy state.
+    if (issue.status === IssueStatus.Closed) return issue;
 
     await ctx.db.patch(issueId, {
       status: IssueStatus.Closed,
