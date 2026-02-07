@@ -1,7 +1,7 @@
 import type { ConvexClient } from "convex/browser";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
-import { IssueStatus } from "$convex/schema";
+import { CommentAuthor, IssueStatus } from "$convex/schema";
 import type { Orchestrator } from "../orchestrator";
 import type {
   CloseTypeValue,
@@ -333,7 +333,7 @@ const issues_defer: ToolHandler = async (args, ctx) => {
     await ctx.convex.mutation(api.comments.create, {
       issueId: issueId as Id<"issues">,
       content: `Deferred: ${note}`,
-      author: "flux",
+      author: CommentAuthor.Flux,
     });
     return ok(ctx, { issue: updated });
   } catch (err) {
@@ -366,7 +366,7 @@ const issues_undefer: ToolHandler = async (args, ctx) => {
     await ctx.convex.mutation(api.comments.create, {
       issueId: issueId as Id<"issues">,
       content: `Undeferred: ${note}`,
-      author: "flux",
+      author: CommentAuthor.Flux,
     });
     return ok(ctx, { issue: updated });
   } catch (err) {

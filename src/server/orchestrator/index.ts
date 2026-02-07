@@ -1,6 +1,7 @@
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import {
+  CommentAuthor,
   IssueStatus,
   SessionPhase,
   SessionStatus,
@@ -718,7 +719,7 @@ class Orchestrator {
           issueId,
           content:
             "Retro skipped — no agent session ID captured from stream-json output.",
-          author: "flux",
+          author: CommentAuthor.Flux,
         });
       } catch (err) {
         console.error(
