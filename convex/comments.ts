@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { commentAuthorValidator } from "./schema";
+import { CommentAuthor, commentAuthorValidator } from "./schema";
 
 export const create = mutation({
   args: {
@@ -17,7 +17,7 @@ export const create = mutation({
     const commentId = await ctx.db.insert("comments", {
       issueId: args.issueId,
       content: args.content,
-      author: args.author ?? "agent",
+      author: args.author ?? CommentAuthor.Agent,
       createdAt: now,
     });
 

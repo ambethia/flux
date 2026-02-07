@@ -3,7 +3,7 @@ import { useQuery } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
-import type { SessionPhase } from "$convex/schema";
+import { SessionPhase } from "$convex/schema";
 import { callTool } from "../lib/api";
 import { FontAwesomeIcon, faPlay, faSkull, faStop } from "./Icon";
 
@@ -28,15 +28,15 @@ type OrchestratorStatusData = {
 // ── Helpers ──────────────────────────────────────────────────────────
 
 const PHASE_LABELS: Record<SessionPhaseValue, string> = {
-  work: "Working",
-  retro: "Retro",
-  review: "Review",
+  [SessionPhase.Work]: "Working",
+  [SessionPhase.Retro]: "Retro",
+  [SessionPhase.Review]: "Review",
 };
 
 const PHASE_ABBREV: Record<SessionPhaseValue, string> = {
-  work: "W",
-  retro: "R",
-  review: "Rev",
+  [SessionPhase.Work]: "W",
+  [SessionPhase.Retro]: "R",
+  [SessionPhase.Review]: "Rev",
 };
 
 // ── Component ────────────────────────────────────────────────────────
