@@ -7,7 +7,7 @@
     },
     "daisyui-blueprint": {
       "type": "local",
-      "command": [ "bunx", "daisyui-blueprint@latest"],
+      "command": ["bunx", "daisyui-blueprint@latest"],
       "environment": {
         "LICENSE": "{env:DAISYUI_BLUEPRINT_LICENSE}",
         "EMAIL": "{env:DAISYUI_BLUEPRINT_EMAIL}"

@@ -80,6 +80,27 @@ export const get = query({
   },
 });
 
+export const claim = mutation({
+  args: {
+    issueId: v.id("issues"),
+    assignee: v.string(),
+  },
+  handler: async (ctx, { issueId, assignee }) => {
+    const issue = await ctx.db.get(issueId);
+    if (!issue) throw new Error(`Issue ${issueId} not found`);
+    if (issue.status !== IssueStatus.Open) {
+      return { success: false as const, reason: "not_open" };
+    }
+    await ctx.db.patch(issueId, {
+      status: IssueStatus.InProgress,
+      assignee,
+      updatedAt: Date.now(),
+    });
+    const updated = await ctx.db.get(issueId);
+    return { success: true as const, issue: updated! };
+  },
+});
+
 export const update = mutation({
   args: {
     issueId: v.id("issues"),

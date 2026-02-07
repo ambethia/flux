@@ -14,6 +14,24 @@ export const IssuePriority = {
   Low: "low",
 } as const;
 
+export const SessionStatus = {
+  Running: "running",
+  Completed: "completed",
+  Failed: "failed",
+} as const;
+
+export const sessionStatusValidator = v.union(
+  v.literal(SessionStatus.Running),
+  v.literal(SessionStatus.Completed),
+  v.literal(SessionStatus.Failed),
+);
+
+export const SessionType = {
+  Work: "work",
+} as const;
+
+export const sessionTypeValidator = v.union(v.literal(SessionType.Work));
+
 export const issueStatusValidator = v.union(
   v.literal(IssueStatus.Open),
   v.literal(IssueStatus.InProgress),
@@ -60,6 +78,20 @@ export default defineSchema({
     inputTokenCost: v.number(),
     outputTokenCost: v.number(),
   }).index("by_model", ["model"]),
+
+  sessions: defineTable({
+    projectId: v.id("projects"),
+    issueId: v.id("issues"),
+    type: sessionTypeValidator,
+    agent: v.string(),
+    status: sessionStatusValidator,
+    startedAt: v.number(),
+    endedAt: v.optional(v.number()),
+    exitCode: v.optional(v.number()),
+    pid: v.optional(v.number()),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_issue", ["issueId"]),
 
   orchestratorConfig: defineTable({
     projectId: v.id("projects"),

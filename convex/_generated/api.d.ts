@@ -15,6 +15,7 @@ import type * as nuke from "../nuke.js";
 import type * as orchestratorConfig from "../orchestratorConfig.js";
 import type * as projects from "../projects.js";
 import type * as seeds from "../seeds.js";
+import type * as sessions from "../sessions.js";
 
 import type {
   ApiFromModules,
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   orchestratorConfig: typeof orchestratorConfig;
   projects: typeof projects;
   seeds: typeof seeds;
+  sessions: typeof sessions;
 }>;
 
 /**
