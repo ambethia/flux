@@ -1,4 +1,6 @@
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
+import type { MutationCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import {
   closeTypeValidator,
@@ -17,6 +19,15 @@ const PRIORITY_ORDER = {
 
 function generateShortId(slug: string, counter: number): string {
   return `${slug.toUpperCase()}-${counter}`;
+}
+
+/** Fetch an issue by ID, throwing if it doesn't exist or is soft-deleted. */
+async function getActiveIssue(ctx: MutationCtx, issueId: Id<"issues">) {
+  const issue = await ctx.db.get(issueId);
+  if (!issue) throw new Error(`Issue ${issueId} not found`);
+  if (issue.deletedAt !== undefined)
+    throw new Error(`Issue ${issueId} is deleted`);
+  return issue;
 }
 
 export const create = mutation({
@@ -205,8 +216,7 @@ export const claim = mutation({
     assignee: v.string(),
   },
   handler: async (ctx, { issueId, assignee }) => {
-    const issue = await ctx.db.get(issueId);
-    if (!issue) throw new Error(`Issue ${issueId} not found`);
+    const issue = await getActiveIssue(ctx, issueId);
     if (issue.status !== IssueStatus.Open) {
       return { success: false as const, reason: "not_open" };
     }
@@ -235,8 +245,7 @@ export const update = mutation({
     labelIds: v.optional(v.array(v.id("labels"))),
   },
   handler: async (ctx, args) => {
-    const issue = await ctx.db.get(args.issueId);
-    if (!issue) throw new Error(`Issue ${args.issueId} not found`);
+    await getActiveIssue(ctx, args.issueId);
 
     const updates: Record<string, unknown> = { updatedAt: Date.now() };
     if (args.title !== undefined) updates.title = args.title;
@@ -263,8 +272,7 @@ export const close = mutation({
     closeReason: v.optional(v.string()),
   },
   handler: async (ctx, { issueId, closeType, closeReason }) => {
-    const issue = await ctx.db.get(issueId);
-    if (!issue) throw new Error(`Issue ${issueId} not found`);
+    const issue = await getActiveIssue(ctx, issueId);
     // Idempotent: closing an already-closed issue is a no-op.
     // The orchestrator's noop path calls close after the agent may have already
     // closed the issue via MCP during the session. Throwing here would crash
@@ -286,8 +294,7 @@ export const close = mutation({
 export const unstick = mutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {
-    const issue = await ctx.db.get(issueId);
-    if (!issue) throw new Error(`Issue ${issueId} not found`);
+    const issue = await getActiveIssue(ctx, issueId);
     if (issue.status !== IssueStatus.Stuck)
       throw new Error(
         `Issue ${issueId} is not stuck (status: ${issue.status})`,
@@ -311,8 +318,7 @@ export const incrementFailure = mutation({
     reopenToOpen: v.optional(v.boolean()),
   },
   handler: async (ctx, { issueId, maxFailures, reopenToOpen }) => {
-    const issue = await ctx.db.get(issueId);
-    if (!issue) throw new Error(`Issue ${issueId} not found`);
+    const issue = await getActiveIssue(ctx, issueId);
 
     const newCount = issue.failureCount + 1;
     const updates: Record<string, unknown> = {
@@ -336,8 +342,7 @@ export const incrementFailure = mutation({
 export const incrementReviewIterations = mutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {
-    const issue = await ctx.db.get(issueId);
-    if (!issue) throw new Error(`Issue ${issueId} not found`);
+    const issue = await getActiveIssue(ctx, issueId);
 
     const newCount = (issue.reviewIterations ?? 0) + 1;
     await ctx.db.patch(issueId, {
@@ -394,8 +399,7 @@ export const search = query({
 export const retry = mutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {
-    const issue = await ctx.db.get(issueId);
-    if (!issue) throw new Error(`Issue ${issueId} not found`);
+    await getActiveIssue(ctx, issueId);
 
     await ctx.db.patch(issueId, {
       failureCount: 0,
