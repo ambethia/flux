@@ -1072,14 +1072,17 @@ class Orchestrator {
     // inference for sessions created before the phase field existed.
     let phase: SessionPhaseValue;
     if (
-      session.phase === "work" ||
-      session.phase === "retro" ||
-      session.phase === "review"
+      session.phase === SessionPhase.Work ||
+      session.phase === SessionPhase.Retro ||
+      session.phase === SessionPhase.Review
     ) {
       phase = session.phase;
     } else {
       // Legacy fallback: infer from session type
-      phase = session.type === SessionType.Review ? "review" : "work";
+      phase =
+        session.type === SessionType.Review
+          ? SessionPhase.Review
+          : SessionPhase.Work;
     }
 
     console.log(
