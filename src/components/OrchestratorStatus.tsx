@@ -127,7 +127,7 @@ export function OrchestratorStatus({
 
   // Button visibility
   const showEnable = state !== "busy" && !enabled;
-  const showStop = enabled && state !== "busy";
+  const showStop = enabled;
   const showKill = state === "busy";
 
   // ── Render ───────────────────────────────────────────────────────
