@@ -184,6 +184,24 @@ class Orchestrator {
       throw new Error("Orchestrator is busy. Kill the current session first.");
     }
 
+    // Lock immediately to prevent re-entrant spawns from subscription callbacks.
+    // The onUpdate subscription can fire between any two awaits, and scheduleNext()
+    // checks this guard synchronously. Without this, multiple agents spawn in parallel.
+    const previousState = this.state;
+    this.state = OrchestratorState.Busy;
+
+    try {
+      return await this.executeRun(issueId);
+    } catch (err) {
+      // Restore previous state so the scheduler can retry with the next issue
+      this.state = previousState;
+      throw err;
+    }
+  }
+
+  private async executeRun(
+    issueId: Id<"issues">,
+  ): Promise<{ sessionId: Id<"sessions">; pid: number }> {
     const convex = getConvexClient();
 
     // 1. Claim the issue atomically
@@ -239,7 +257,6 @@ class Orchestrator {
     const monitorDone = monitor.consume(agentProcess.stdout);
 
     // 8. Track active session
-    this.state = OrchestratorState.Busy;
     this.activeSession = {
       sessionId: session._id,
       issueId,
