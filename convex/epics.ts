@@ -66,14 +66,14 @@ export const show = query({
     const epic = await ctx.db.get(args.epicId);
     if (!epic) return null;
 
-    const allIssues = await ctx.db
+    const epicIssues = await ctx.db
       .query("issues")
-      .withIndex("by_project", (q) => q.eq("projectId", epic.projectId))
+      .withIndex("by_epic", (q) => q.eq("epicId", args.epicId))
       .collect();
 
-    // Filter to this epic's issues and strip descriptions for token efficiency
-    const issues = allIssues
-      .filter((i) => i.epicId === args.epicId && i.deletedAt === undefined)
+    // Strip descriptions for token efficiency, exclude soft-deleted
+    const issues = epicIssues
+      .filter((i) => i.deletedAt === undefined)
       .map(({ description: _description, ...rest }) => rest);
 
     return { ...epic, issues };

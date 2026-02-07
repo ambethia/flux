@@ -138,6 +138,7 @@ export default defineSchema({
     deletedAt: v.optional(v.number()),
   })
     .index("by_project", ["projectId"])
+    .index("by_epic", ["epicId"])
     .searchIndex("search_title", {
       searchField: "title",
       filterFields: ["projectId"],
