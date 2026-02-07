@@ -46,17 +46,17 @@
 
 ---
 
-- [ ] ### F3a: Orchestrator — Manual Trigger
+- [x] ### F3a: Orchestrator — Manual Trigger
 
 **Goal**: Issues can be executed manually via MCP, establishing the core lifecycle.
 
 **Work**:
-- [ ] Define `AgentProvider` interface and implement `ClaudeCodeProvider` — spawn `claude` CLI with stream-json
-- [ ] Convex: `sessions` table and `sessions_create`, `sessions_update` mutations
-- [ ] Add `issues_claim` (atomic mutation - needed for orchestrator)
-- [ ] MCP tools: `orchestrator_run` (claim issue, spawn agent), `orchestrator_kill`, `sessions_list`
-- [ ] Basic session recording (start time, status, PID)
-- [ ] Simple close: mark done/failed based on exit code (no structured response yet)
+- [x] Define `AgentProvider` interface and implement `ClaudeCodeProvider` — spawn `claude` CLI with stream-json
+- [x] Convex: `sessions` table and `sessions_create`, `sessions_update` mutations
+- [x] Add `issues_claim` (atomic mutation - needed for orchestrator)
+- [x] MCP tools: `orchestrator_run` (claim issue, spawn agent), `orchestrator_kill`, `sessions_list`
+- [x] Basic session recording (start time, status, PID)
+- [x] Simple close: mark done/failed based on exit code (no structured response yet)
 
 **Checkpoint**: Call `orchestrator_run` via MCP → agent spawns → issue shows as `in_progress` → session record created → can kill via MCP.
 

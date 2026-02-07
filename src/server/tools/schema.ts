@@ -1,3 +1,4 @@
+// Tool schema definitions — single source of truth for all MCP tool names, descriptions, and input schemas.
 import { z } from "zod";
 
 export interface ToolDef {

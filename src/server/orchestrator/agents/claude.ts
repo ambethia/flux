@@ -9,8 +9,8 @@ export class ClaudeCodeProvider implements AgentProvider {
         "claude",
         "--output-format",
         "stream-json",
+        "--dangerously-skip-permissions",
         "--print",
-        "-p",
         opts.prompt,
       ],
       {
