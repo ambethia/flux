@@ -38,7 +38,7 @@ export const enable = mutation({
         agent: "claude",
         sessionTimeoutMs: 30 * 60 * 1000,
         maxFailures: 3,
-        maxReviewIterations: 2,
+        maxReviewIterations: 10,
       });
     }
     return { success: true };

@@ -64,7 +64,7 @@ class Orchestrator {
   private pendingStop = false;
   private readyIssues: Array<{ _id: Id<"issues"> }> = [];
   private maxFailures = 3;
-  private maxReviewIterations = 5;
+  private maxReviewIterations = 10;
 
   constructor(projectId: Id<"projects">, provider?: AgentProvider) {
     this.projectId = projectId;
@@ -734,15 +734,21 @@ class Orchestrator {
 
     // Check iteration limit
     if (newIterations >= this.maxReviewIterations) {
-      console.warn(
-        `[Orchestrator] ${StatusMessages.reviewLoopExhausted(issue.shortId, newIterations, this.maxReviewIterations)}`,
+      // Reviewer said "done" — trust the disposition and close, even though
+      // inline fixes can't be verified with another pass. Marking stuck here
+      // penalises reviews that made trivial last-iteration fixes.
+      console.log(
+        `[Orchestrator] Review iteration limit reached for ${issue.shortId} (${newIterations}/${this.maxReviewIterations}), but disposition is "done" — closing.`,
       );
-      await convex.mutation(api.issues.update, {
+      await convex.mutation(api.issues.close, {
         issueId,
-        status: IssueStatus.Stuck,
+        closeType: "completed",
+        closeReason:
+          note ||
+          `Review passed on final iteration (${newIterations}/${this.maxReviewIterations}) with inline fixes. Closing based on reviewer disposition.`,
       });
       this.finalize();
-      return false;
+      return true;
     }
 
     // Loop: start another review

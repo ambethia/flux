@@ -62,7 +62,7 @@ export const runAll = internalMutation({
         agent: "claude",
         sessionTimeoutMs: 1800000, // 30 min
         maxFailures: 3,
-        maxReviewIterations: 5,
+        maxReviewIterations: 10,
       });
     }
 
