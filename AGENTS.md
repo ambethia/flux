@@ -104,6 +104,8 @@ git commit -m "FLUX-XX: ..."    # ← nothing left to commit
 
 **Fast Apply:** Use `edit_file` over `Edit`, `Update`, `Write`, and full file writes for **all** file edits and creation. It works with partial code snippets using `// ... existing code ...` markers — no need to read the full file first. This replaces the Read → Edit/Write workflow entirely.
 
+**Known limitation:** `edit_file` can create new files, but only when the parent directory already exists. If the parent directory doesn't exist, it fails with a cryptic `name is not defined` error. When creating files in new directories, run `mkdir -p <dir>` first, then use `edit_file`.
+
 **Warp Grep:** Use `warpgrep_codebase_search` for broad semantic searches at the start of codebase exploration. Best for: "Find the XYZ flow", "How does XYZ work?", "Where is XYZ handled?" Use regular `Grep` for pinpointing specific keywords or symbols.
 
 ### DaisyUI Blueprint
