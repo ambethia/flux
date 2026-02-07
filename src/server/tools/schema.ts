@@ -176,7 +176,7 @@ const comments_create: ToolDef = {
   },
 };
 
-// ── Epics (stubs) ─────────────────────────────────────────────────────
+// ── Epics ─────────────────────────────────────────────────────────────
 
 const epics_list: ToolDef = {
   name: "epics_list",
