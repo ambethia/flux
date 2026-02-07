@@ -908,8 +908,12 @@ class Orchestrator {
   }
 
   /**
-   * Recover orphaned sessions — running sessions whose PID is no longer alive.
-   * Marks them as failed and reopens their issues for retry.
+   * Recover orphaned sessions — running sessions whose PID is no longer alive,
+   * or re-adopt live sessions that were orphaned by a hot reload.
+   *
+   * Dead PIDs: mark session failed, reopen issue.
+   * Live PIDs (no activeSession): re-adopt the first one found so the
+   * orchestrator regains lifecycle control (exit handling, retro, review).
    */
   private async recoverOrphanedSessions(): Promise<void> {
     const convex = getConvexClient();
@@ -942,8 +946,177 @@ class Orchestrator {
           issueId: session.issueId,
           status: IssueStatus.Open,
         });
+        continue;
+      }
+
+      // Live PID with no in-memory handle — re-adopt it.
+      // Only re-adopt one; others will be picked up on the next cycle.
+      if (this.activeSession === null) {
+        const adopted = await this.adoptOrphanedSession(session, pid!);
+        if (adopted) break;
       }
     }
+  }
+
+  /**
+   * Re-adopt a live orphaned session after a hot reload.
+   * Creates a lightweight ActiveSession (no stdout stream) and polls PID
+   * liveness until the process exits, then runs the normal exit handler path.
+   */
+  private async adoptOrphanedSession(
+    session: {
+      _id: Id<"sessions">;
+      issueId: Id<"issues">;
+      type: string;
+      agentSessionId?: string;
+      startHead?: string;
+    },
+    pid: number,
+  ): Promise<boolean> {
+    const convex = getConvexClient();
+
+    // Fetch the issue for WorkPromptContext
+    const issue = await convex.query(api.issues.get, {
+      issueId: session.issueId,
+    });
+    if (!issue) {
+      console.error(
+        `[Orchestrator] Cannot re-adopt session ${session._id}: issue ${session.issueId} not found`,
+      );
+      return false;
+    }
+
+    // Map session type to phase. Work sessions could be in work or retro phase,
+    // but we can't distinguish them from the record alone. Since retro reuses the
+    // work session record (same type), we treat re-adopted work sessions as "work"
+    // and route through handleWorkExit which will check for commits and proceed
+    // to retro/review as normal.
+    const phase: SessionPhase =
+      session.type === SessionType.Review ? "review" : "work";
+
+    console.log(
+      `[Orchestrator] Re-adopting orphaned session ${session._id} (PID ${pid}, phase: ${phase}) for ${issue.shortId}`,
+    );
+
+    // Lock orchestrator as busy
+    this.state = OrchestratorState.Busy;
+
+    // Create a lightweight ActiveSession — no real process handle or monitor,
+    // just enough metadata for the exit handlers to function.
+    const tmpPath = `/tmp/flux-session-${session._id}.log`;
+
+    // Create a no-op monitor stub for the exit handler. The real monitor
+    // was lost in the hot reload, but the tmp log file has the output.
+    const stubMonitor = new SessionMonitor(session._id, this.projectId);
+
+    // Build a no-op AgentProcess that only provides pid and a wait()
+    // that resolves when we detect the PID has died.
+    const { promise: exitPromise, resolve: resolveExit } =
+      Promise.withResolvers<{ exitCode: number }>();
+
+    const stubProcess: AgentProcess = {
+      pid,
+      stdout: new ReadableStream<Uint8Array>(),
+      stderr: new ReadableStream<Uint8Array>(),
+      kill: () => {
+        try {
+          process.kill(pid, 9);
+        } catch {
+          // Already dead
+        }
+      },
+      wait: () => exitPromise,
+    };
+
+    this.activeSession = {
+      sessionId: session._id,
+      issueId: session.issueId,
+      process: stubProcess,
+      monitor: stubMonitor,
+      monitorDone: Promise.resolve(), // No stream to drain
+      killed: false,
+      startHead: session.startHead ?? "",
+      agentSessionId: session.agentSessionId ?? null,
+      issue: {
+        shortId: issue.shortId,
+        title: issue.title,
+        description: issue.description,
+      },
+      phase,
+    };
+
+    // Poll PID liveness and trigger exit handler when it dies
+    this.pollPidAndHandleExit(pid, tmpPath, stubMonitor, resolveExit);
+
+    // Fire-and-forget: handle exit when the PID dies (mirrors executeRun pattern)
+    stubProcess.wait().then(
+      ({ exitCode }) => this.handleExit(exitCode),
+      () => this.handleExit(1),
+    );
+
+    return true;
+  }
+
+  /**
+   * Poll a PID's liveness at 2s intervals. When the PID dies:
+   * 1. Load output from the tmp log file into the monitor's buffer
+   * 2. Resolve the exit promise (which triggers handleExit via the wait() chain)
+   */
+  private pollPidAndHandleExit(
+    pid: number,
+    tmpPath: string,
+    monitor: SessionMonitor,
+    resolveExit: (value: { exitCode: number }) => void,
+  ): void {
+    const interval = setInterval(async () => {
+      let alive = false;
+      try {
+        process.kill(pid, 0);
+        alive = true;
+      } catch {
+        alive = false;
+      }
+
+      if (alive) return; // Still running, keep polling
+
+      clearInterval(interval);
+
+      // PID died — load tmp log into the monitor buffer for disposition parsing
+      try {
+        const logFile = Bun.file(tmpPath);
+        if (await logFile.exists()) {
+          const text = await logFile.text();
+          for (const line of text.split("\n")) {
+            if (!line.trim()) continue;
+            try {
+              const entry = JSON.parse(line) as {
+                seq: number;
+                dir: string;
+                ts: number;
+                content: string;
+              };
+              if (entry.dir === "output" && entry.content) {
+                monitor.buffer.push(entry.content);
+              }
+            } catch {
+              // Malformed log line — skip
+            }
+          }
+        } else {
+          console.warn(
+            `[Orchestrator] No tmp log file at ${tmpPath} for re-adopted session`,
+          );
+        }
+      } catch (err) {
+        console.error(
+          `[Orchestrator] Failed to read tmp log for re-adopted session:`,
+          err,
+        );
+      }
+
+      // Resolve with exit code -1 (unknown — process was not our child)
+      resolveExit({ exitCode: -1 });
+    }, 2_000);
   }
 }
 
