@@ -9,6 +9,7 @@
  */
 
 import type * as comments from "../comments.js";
+import type * as deps from "../deps.js";
 import type * as epics from "../epics.js";
 import type * as issues from "../issues.js";
 import type * as labels from "../labels.js";
@@ -28,6 +29,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   comments: typeof comments;
+  deps: typeof deps;
   epics: typeof epics;
   issues: typeof issues;
   labels: typeof labels;
