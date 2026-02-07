@@ -30,13 +30,19 @@ export const list = query({
   handler: async (ctx, args) => {
     const cap = Math.min(args.limit ?? 50, 200);
 
-    let epics = await ctx.db
-      .query("epics")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .take(cap);
-
+    let epics;
     if (args.status) {
-      epics = epics.filter((e) => e.status === args.status);
+      // Collect all then filter — take() before filter would under-count
+      const all = await ctx.db
+        .query("epics")
+        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+        .collect();
+      epics = all.filter((e) => e.status === args.status).slice(0, cap);
+    } else {
+      epics = await ctx.db
+        .query("epics")
+        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+        .take(cap);
     }
 
     // Most recent first
