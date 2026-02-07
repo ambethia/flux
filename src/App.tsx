@@ -1,6 +1,7 @@
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import type { Id } from "$convex/_generated/dataModel";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { createAppRouter } from "./lib/router";
 import "./index.css";
 
@@ -51,5 +52,9 @@ export function App() {
     );
   }
 
-  return <RouterProvider router={router} />;
+  return (
+    <ErrorBoundary>
+      <RouterProvider router={router} />
+    </ErrorBoundary>
+  );
 }

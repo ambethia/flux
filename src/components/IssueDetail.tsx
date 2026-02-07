@@ -45,6 +45,9 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
   );
   const [closeReason, setCloseReason] = useState("");
 
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+
   const titleInputRef = useRef<HTMLInputElement>(null);
   const descTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -55,6 +58,13 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
   useEffect(() => {
     if (editingDesc) descTextareaRef.current?.focus();
   }, [editingDesc]);
+
+  // Clear error timer on unmount
+  useEffect(() => {
+    return () => {
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    };
+  }, []);
 
   if (issue === undefined) {
     return (
@@ -79,15 +89,27 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
   const currentIssue = issue;
   const isClosed = currentIssue.status === IssueStatus.Closed;
 
+  function showError(err: unknown) {
+    setMutationError(
+      err instanceof Error ? err.message : "An unexpected error occurred",
+    );
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    errorTimerRef.current = setTimeout(() => setMutationError(null), 8000);
+  }
+
   function startEditTitle() {
     setTitleDraft(currentIssue.title);
     setEditingTitle(true);
   }
 
-  function saveTitle() {
+  async function saveTitle() {
     const trimmed = titleDraft.trim();
     if (trimmed && trimmed !== currentIssue.title) {
-      updateIssue({ issueId, title: trimmed });
+      try {
+        await updateIssue({ issueId, title: trimmed });
+      } catch (err) {
+        showError(err);
+      }
     }
     setEditingTitle(false);
   }
@@ -106,10 +128,14 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
     setEditingDesc(true);
   }
 
-  function saveDesc() {
+  async function saveDesc() {
     const trimmed = descDraft.trim();
     if (trimmed !== (currentIssue.description ?? "")) {
-      updateIssue({ issueId, description: trimmed });
+      try {
+        await updateIssue({ issueId, description: trimmed });
+      } catch (err) {
+        showError(err);
+      }
     }
     setEditingDesc(false);
   }
@@ -120,22 +146,44 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
     }
   }
 
-  function handlePriorityChange(value: string) {
-    updateIssue({ issueId, priority: value as PriorityValue });
+  async function handlePriorityChange(value: string) {
+    try {
+      await updateIssue({ issueId, priority: value as PriorityValue });
+    } catch (err) {
+      showError(err);
+    }
   }
 
-  function handleClose() {
-    closeIssue({
-      issueId,
-      closeType,
-      closeReason: closeReason.trim() || undefined,
-    });
-    setShowCloseForm(false);
-    setCloseReason("");
+  async function handleClose() {
+    try {
+      await closeIssue({
+        issueId,
+        closeType,
+        closeReason: closeReason.trim() || undefined,
+      });
+      setShowCloseForm(false);
+      setCloseReason("");
+    } catch (err) {
+      showError(err);
+    }
   }
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Mutation error banner */}
+      {mutationError && (
+        <div role="alert" className="alert alert-error text-sm">
+          <span>{mutationError}</span>
+          <button
+            type="button"
+            className="btn btn-ghost btn-xs"
+            onClick={() => setMutationError(null)}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-2">
         <Link to="/issues" className="btn btn-ghost btn-sm">
