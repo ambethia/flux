@@ -75,6 +75,21 @@ export const remove = mutation({
   handler: async (ctx, { labelId }) => {
     const label = await ctx.db.get(labelId);
     if (!label) throw new Error(`Label ${labelId} not found`);
+
+    // Clean up stale labelIds from all issues in this project
+    const issues = await ctx.db
+      .query("issues")
+      .withIndex("by_project_deletedAt_status", (q) =>
+        q.eq("projectId", label.projectId),
+      )
+      .collect();
+    for (const issue of issues) {
+      if (!issue.labelIds?.includes(labelId)) continue;
+      await ctx.db.patch(issue._id, {
+        labelIds: issue.labelIds.filter((id) => id !== labelId),
+      });
+    }
+
     await ctx.db.delete(labelId);
   },
 });
