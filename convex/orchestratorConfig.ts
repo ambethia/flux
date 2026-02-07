@@ -62,8 +62,8 @@ export const update = mutation({
     }
     // Strip undefined values
     const updates: Record<string, number> = {};
-    for (const [k, v] of Object.entries(patch)) {
-      if (v !== undefined) updates[k] = v;
+    for (const [k, val] of Object.entries(patch)) {
+      if (val !== undefined) updates[k] = val;
     }
     await ctx.db.patch(config._id, updates);
     return { success: true };
