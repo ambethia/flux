@@ -37,6 +37,17 @@ export async function startServer(
           uptime: process.uptime(),
         }),
 
+      "/api/config": () => {
+        const convexUrl = process.env.CONVEX_URL;
+        if (!convexUrl) {
+          return Response.json(
+            { error: "CONVEX_URL not configured" },
+            { status: 500 },
+          );
+        }
+        return Response.json({ convexUrl });
+      },
+
       "/mcp": (req) => handleMcp(req),
       "/api/tools": (req) => handleApi(req),
       "/sse/activity": (req) => handleSSE(req),

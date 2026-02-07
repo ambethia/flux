@@ -5,12 +5,24 @@
  * It is included in `src/index.html`.
  */
 
+import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 
-function start() {
+async function start() {
+  const res = await fetch("/api/config");
+  if (!res.ok) {
+    throw new Error(`Failed to fetch /api/config: ${res.status}`);
+  }
+  const { convexUrl } = (await res.json()) as { convexUrl: string };
+
+  const convex = new ConvexReactClient(convexUrl);
   const root = createRoot(document.getElementById("root")!);
-  root.render(<App />);
+  root.render(
+    <ConvexProvider client={convex}>
+      <App />
+    </ConvexProvider>,
+  );
 }
 
 if (document.readyState === "loading") {
