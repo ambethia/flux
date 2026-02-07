@@ -1,14 +1,19 @@
 import {
-  createRootRoute,
+  createRootRouteWithContext,
   createRoute,
   createRouter,
   redirect,
 } from "@tanstack/react-router";
+import type { Id } from "$convex/_generated/dataModel";
 import { AppShell } from "../components/AppShell";
 import { IssueDetailPage } from "../pages/IssueDetailPage";
 import { IssuesPage } from "../pages/IssuesPage";
 
-const rootRoute = createRootRoute({
+export interface RouterContext {
+  projectId: Id<"projects">;
+}
+
+const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: AppShell,
 });
 
@@ -37,10 +42,14 @@ const routeTree = rootRoute.addChildren([
   issuesRoute.addChildren([issueDetailRoute]),
 ]);
 
-export const router = createRouter({ routeTree });
+export function createAppRouter(context: RouterContext) {
+  return createRouter({ routeTree, context });
+}
+
+export type AppRouter = ReturnType<typeof createAppRouter>;
 
 declare module "@tanstack/react-router" {
   interface Register {
-    router: typeof router;
+    router: AppRouter;
   }
 }

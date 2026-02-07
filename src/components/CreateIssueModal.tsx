@@ -1,9 +1,8 @@
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
 import { useRef, useState } from "react";
 import { api } from "$convex/_generated/api";
 import { IssuePriority } from "$convex/schema";
-import { useProjectId } from "../lib/ProjectContext";
 
 type PriorityValue = (typeof IssuePriority)[keyof typeof IssuePriority];
 

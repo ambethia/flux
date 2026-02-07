@@ -1,13 +1,14 @@
 import { RouterProvider } from "@tanstack/react-router";
+import { useMemo } from "react";
 import type { Id } from "$convex/_generated/dataModel";
-import { ProjectProvider } from "./lib/ProjectContext";
-import { router } from "./lib/router";
+import { createAppRouter } from "./lib/router";
 import "./index.css";
 
 export function App({ projectId }: { projectId: string }) {
-  return (
-    <ProjectProvider projectId={projectId as Id<"projects">}>
-      <RouterProvider router={router} />
-    </ProjectProvider>
+  const router = useMemo(
+    () => createAppRouter({ projectId: projectId as Id<"projects"> }),
+    [projectId],
   );
+
+  return <RouterProvider router={router} />;
 }

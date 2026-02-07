@@ -10,6 +10,7 @@ export function ProjectProvider({
   projectId: Id<"projects">;
   children: React.ReactNode;
 }) {
+  console.log("[ProjectProvider] rendering with projectId:", projectId);
   return (
     <ProjectContext.Provider value={projectId}>
       {children}
@@ -19,6 +20,7 @@ export function ProjectProvider({
 
 export function useProjectId(): Id<"projects"> {
   const id = useContext(ProjectContext);
+  console.log("[useProjectId] context value:", id);
   if (!id) throw new Error("useProjectId must be used within ProjectProvider");
   return id;
 }
