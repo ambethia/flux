@@ -18,14 +18,27 @@ type DispositionValue = (typeof Disposition)[keyof typeof Disposition];
 function dispositionLabel(disposition: DispositionValue): {
   label: string;
   className: string;
+  icon: string;
 } {
   switch (disposition) {
     case Disposition.Done:
-      return { label: "Done", className: "badge-success" };
+      return {
+        label: "Done",
+        className: "badge-success",
+        icon: "fa-circle-check",
+      };
     case Disposition.Noop:
-      return { label: "No-op", className: "badge-info" };
+      return {
+        label: "No-op",
+        className: "badge-info",
+        icon: "fa-circle-minus",
+      };
     case Disposition.Fault:
-      return { label: "Fault", className: "badge-error" };
+      return {
+        label: "Fault",
+        className: "badge-error",
+        icon: "fa-circle-exclamation",
+      };
     default: {
       const _exhaustive: never = disposition;
       throw new Error(`Unhandled disposition: ${_exhaustive}`);
@@ -47,7 +60,7 @@ function OutputContent({ parsed }: { parsed: ParsedLine }) {
     case "tool_use":
       return (
         <div className="flex items-center gap-2 text-info">
-          <span className="font-bold">⚙</span>
+          <i className="fa-solid fa-screwdriver-wrench" aria-hidden="true" />
           <span className="font-semibold">{parsed.toolName}</span>
         </div>
       );
@@ -55,7 +68,7 @@ function OutputContent({ parsed }: { parsed: ParsedLine }) {
       return (
         <details className="group">
           <summary className="cursor-pointer select-none text-success">
-            <span className="font-bold">✓</span>{" "}
+            <i className="fa-solid fa-circle-check" aria-hidden="true" />{" "}
             <span className="text-neutral-content/60 text-xs">Tool result</span>
           </summary>
           <div className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded bg-base-300/20 p-2 text-xs">
@@ -163,7 +176,8 @@ export function SessionDetail({ sessionId }: { sessionId: Id<"sessions"> }) {
         >
           <div className="flex items-center gap-2">
             <span className="font-medium text-sm">Disposition:</span>
-            <span className={`badge badge-sm ${dispo?.className}`}>
+            <span className={`badge badge-sm gap-1 ${dispo?.className}`}>
+              <i className={`fa-solid ${dispo?.icon}`} aria-hidden="true" />
               {dispo?.label}
             </span>
           </div>

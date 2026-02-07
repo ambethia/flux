@@ -391,6 +391,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
                   {deferring && (
                     <span className="loading loading-spinner loading-xs" />
                   )}
+                  <i className="fa-solid fa-circle-pause" aria-hidden="true" />
                   Confirm Defer
                 </button>
                 <button
@@ -412,6 +413,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
               className="btn btn-outline btn-warning btn-sm"
               onClick={() => setShowDeferForm(true)}
             >
+              <i className="fa-solid fa-circle-pause" aria-hidden="true" />
               Defer Issue
             </button>
           )}
@@ -430,6 +432,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
             {undeferring && (
               <span className="loading loading-spinner loading-xs" />
             )}
+            <i className="fa-solid fa-circle-play" aria-hidden="true" />
             Undefer Issue
           </button>
         </div>
@@ -476,6 +479,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
                   className="btn btn-error btn-sm"
                   onClick={handleClose}
                 >
+                  <i className="fa-solid fa-circle-xmark" aria-hidden="true" />
                   Confirm Close
                 </button>
                 <button
@@ -493,6 +497,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
               className="btn btn-outline btn-error btn-sm"
               onClick={() => setShowCloseForm(true)}
             >
+              <i className="fa-solid fa-circle-xmark" aria-hidden="true" />
               Close Issue
             </button>
           )}

@@ -10,11 +10,11 @@ type CommentAuthorValue = (typeof CommentAuthor)[keyof typeof CommentAuthor];
 
 const AUTHOR_BADGE: Record<
   CommentAuthorValue,
-  { label: string; className: string }
+  { label: string; className: string; icon: string }
 > = {
-  user: { label: "User", className: "badge-primary" },
-  agent: { label: "Agent", className: "badge-secondary" },
-  flux: { label: "Flux", className: "badge-accent" },
+  user: { label: "User", className: "badge-primary", icon: "fa-user" },
+  agent: { label: "Agent", className: "badge-secondary", icon: "fa-robot" },
+  flux: { label: "Flux", className: "badge-accent", icon: "fa-bolt" },
 };
 
 export function CommentsThread({ issueId }: { issueId: Id<"issues"> }) {
@@ -67,7 +67,11 @@ export function CommentsThread({ issueId }: { issueId: Id<"issues"> }) {
             return (
               <div key={comment._id} className="rounded-lg bg-base-200 p-3">
                 <div className="mb-1 flex items-center gap-2">
-                  <span className={`badge badge-sm ${badge.className}`}>
+                  <span className={`badge badge-sm gap-1 ${badge.className}`}>
+                    <i
+                      className={`fa-solid ${badge.icon}`}
+                      aria-hidden="true"
+                    />
                     {badge.label}
                   </span>
                   <span className="text-base-content/40 text-xs">
@@ -115,7 +119,10 @@ export function CommentsThread({ issueId }: { issueId: Id<"issues"> }) {
             {submitting ? (
               <span className="loading loading-spinner loading-xs" />
             ) : (
-              "Comment"
+              <>
+                <i className="fa-solid fa-paper-plane" aria-hidden="true" />
+                Comment
+              </>
             )}
           </button>
         </div>

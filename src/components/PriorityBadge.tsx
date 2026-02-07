@@ -4,10 +4,23 @@ const PRIORITY_CONFIG = {
   [IssuePriority.Critical]: {
     label: "Critical",
     className: "badge-error",
+    icon: "fa-fire",
   },
-  [IssuePriority.High]: { label: "High", className: "badge-warning" },
-  [IssuePriority.Medium]: { label: "Medium", className: "badge-info" },
-  [IssuePriority.Low]: { label: "Low", className: "badge-ghost" },
+  [IssuePriority.High]: {
+    label: "High",
+    className: "badge-warning",
+    icon: "fa-arrow-up",
+  },
+  [IssuePriority.Medium]: {
+    label: "Medium",
+    className: "badge-info",
+    icon: "fa-minus",
+  },
+  [IssuePriority.Low]: {
+    label: "Low",
+    className: "badge-ghost",
+    icon: "fa-arrow-down",
+  },
 } as const;
 
 type Priority = (typeof IssuePriority)[keyof typeof IssuePriority];
@@ -15,7 +28,8 @@ type Priority = (typeof IssuePriority)[keyof typeof IssuePriority];
 export function PriorityBadge({ priority }: { priority: Priority }) {
   const config = PRIORITY_CONFIG[priority];
   return (
-    <span className={`badge badge-sm badge-outline ${config.className}`}>
+    <span className={`badge badge-sm badge-outline gap-1 ${config.className}`}>
+      <i className={`fa-solid ${config.icon}`} aria-hidden="true" />
       {config.label}
     </span>
   );

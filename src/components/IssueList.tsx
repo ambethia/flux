@@ -205,6 +205,10 @@ export function IssueList() {
                         {undeferringId === issue._id && (
                           <span className="loading loading-spinner loading-xs" />
                         )}
+                        <i
+                          className="fa-solid fa-circle-play"
+                          aria-hidden="true"
+                        />
                         Undefer
                       </button>
                     ) : issue.status !== IssueStatus.Closed ? (
@@ -213,6 +217,10 @@ export function IssueList() {
                         className="btn btn-ghost btn-xs"
                         onClick={() => openDeferModal(issue._id)}
                       >
+                        <i
+                          className="fa-solid fa-circle-pause"
+                          aria-hidden="true"
+                        />
                         Defer
                       </button>
                     ) : null}
@@ -262,6 +270,7 @@ export function IssueList() {
               {deferring && (
                 <span className="loading loading-spinner loading-sm" />
               )}
+              <i className="fa-solid fa-circle-pause" aria-hidden="true" />
               Defer
             </button>
           </div>

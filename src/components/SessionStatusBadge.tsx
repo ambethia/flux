@@ -2,14 +2,30 @@ import { SessionStatus } from "$convex/schema";
 
 type Status = (typeof SessionStatus)[keyof typeof SessionStatus];
 
-function statusConfig(status: Status): { label: string; className: string } {
+function statusConfig(status: Status): {
+  label: string;
+  className: string;
+  icon: string;
+} {
   switch (status) {
     case SessionStatus.Running:
-      return { label: "Running", className: "badge-warning" };
+      return {
+        label: "Running",
+        className: "badge-warning",
+        icon: "fa-spinner fa-spin",
+      };
     case SessionStatus.Completed:
-      return { label: "Completed", className: "badge-success" };
+      return {
+        label: "Completed",
+        className: "badge-success",
+        icon: "fa-circle-check",
+      };
     case SessionStatus.Failed:
-      return { label: "Failed", className: "badge-error" };
+      return {
+        label: "Failed",
+        className: "badge-error",
+        icon: "fa-circle-xmark",
+      };
     default: {
       const _exhaustive: never = status;
       throw new Error(`Unhandled session status: ${_exhaustive}`);
@@ -20,6 +36,9 @@ function statusConfig(status: Status): { label: string; className: string } {
 export function SessionStatusBadge({ status }: { status: Status }) {
   const config = statusConfig(status);
   return (
-    <span className={`badge badge-sm ${config.className}`}>{config.label}</span>
+    <span className={`badge badge-sm gap-1 ${config.className}`}>
+      <i className={`fa-solid ${config.icon}`} aria-hidden="true" />
+      {config.label}
+    </span>
   );
 }

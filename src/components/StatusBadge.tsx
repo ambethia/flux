@@ -1,14 +1,31 @@
 import { IssueStatus } from "$convex/schema";
 
 const STATUS_CONFIG = {
-  [IssueStatus.Open]: { label: "Open", className: "badge-info" },
+  [IssueStatus.Open]: {
+    label: "Open",
+    className: "badge-info",
+    icon: "fa-circle",
+  },
   [IssueStatus.InProgress]: {
     label: "In Progress",
     className: "badge-warning",
+    icon: "fa-spinner",
   },
-  [IssueStatus.Closed]: { label: "Closed", className: "badge-success" },
-  [IssueStatus.Stuck]: { label: "Stuck", className: "badge-error" },
-  [IssueStatus.Deferred]: { label: "Deferred", className: "badge-ghost" },
+  [IssueStatus.Closed]: {
+    label: "Closed",
+    className: "badge-success",
+    icon: "fa-circle-check",
+  },
+  [IssueStatus.Stuck]: {
+    label: "Stuck",
+    className: "badge-error",
+    icon: "fa-triangle-exclamation",
+  },
+  [IssueStatus.Deferred]: {
+    label: "Deferred",
+    className: "badge-ghost",
+    icon: "fa-circle-pause",
+  },
 } as const;
 
 type Status = (typeof IssueStatus)[keyof typeof IssueStatus];
@@ -16,6 +33,9 @@ type Status = (typeof IssueStatus)[keyof typeof IssueStatus];
 export function StatusBadge({ status }: { status: Status }) {
   const config = STATUS_CONFIG[status];
   return (
-    <span className={`badge badge-sm ${config.className}`}>{config.label}</span>
+    <span className={`badge badge-sm gap-1 ${config.className}`}>
+      <i className={`fa-solid ${config.icon}`} aria-hidden="true" />
+      {config.label}
+    </span>
   );
 }
