@@ -34,7 +34,7 @@ export function SessionList() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="font-semibold text-xl">Sessions</h2>
+          <h2 className="font-bold text-xl">Sessions</h2>
           {sessions && (
             <span className="text-base-content/60 text-sm">
               {sessions.length} {sessions.length === 1 ? "session" : "sessions"}
@@ -70,7 +70,7 @@ export function SessionList() {
           <table className="table-zebra table">
             <thead>
               <tr>
-                <th>Session</th>
+                <th>#</th>
                 <th>Type</th>
                 <th>Phase</th>
                 <th>Status</th>
@@ -81,7 +81,7 @@ export function SessionList() {
               </tr>
             </thead>
             <tbody>
-              {sessions.map((session) => (
+              {sessions.map((session, i) => (
                 <tr
                   key={session._id}
                   className="cursor-pointer hover:bg-base-200"
@@ -92,7 +92,9 @@ export function SessionList() {
                     })
                   }
                 >
-                  <td className="font-mono text-sm">{session._id.slice(-8)}</td>
+                  <td className="font-mono text-base-content/60 text-sm">
+                    #{sessions.length - i}
+                  </td>
                   <td>{typeLabel(session.type)}</td>
                   <td className="text-sm">
                     {session.phase ? phaseLabel(session.phase) : "—"}

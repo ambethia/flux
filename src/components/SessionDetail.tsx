@@ -147,11 +147,8 @@ export function SessionDetail({ sessionId }: { sessionId: Id<"sessions"> }) {
       <div className="flex items-center gap-2">
         <Link to="/sessions" className="btn btn-ghost btn-sm">
           <i className="fa-solid fa-arrow-left" aria-hidden="true" />
-          Back
+          Sessions
         </Link>
-        <span className="font-mono text-base-content/60 text-sm">
-          {session._id.slice(-8)}
-        </span>
       </div>
 
       {/* Title row */}
