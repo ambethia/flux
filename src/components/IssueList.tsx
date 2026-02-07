@@ -7,6 +7,7 @@ import { IssueStatus } from "$convex/schema";
 import { callTool } from "../lib/api";
 import { CreateIssueModal } from "./CreateIssueModal";
 import { FontAwesomeIcon, faCirclePause, faCirclePlay } from "./Icon";
+import { LabelBadge } from "./LabelBadge";
 import { PriorityBadge } from "./PriorityBadge";
 import { StatusBadge } from "./StatusBadge";
 
@@ -107,6 +108,9 @@ export function IssueList() {
     status: statusFilter ?? undefined,
   });
 
+  const allLabels = useQuery(api.labels.list, { projectId });
+  const labelMap = new Map((allLabels ?? []).map((l) => [l._id, l]));
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -163,6 +167,7 @@ export function IssueList() {
               <tr>
                 <th>ID</th>
                 <th>Title</th>
+                <th>Labels</th>
                 <th>Status</th>
                 <th>Priority</th>
                 <th>Actions</th>
@@ -188,6 +193,21 @@ export function IssueList() {
                     >
                       {issue.title}
                     </Link>
+                  </td>
+                  <td>
+                    <div className="flex flex-wrap gap-1">
+                      {(issue.labelIds ?? []).map((id) => {
+                        const label = labelMap.get(id);
+                        if (!label) return null;
+                        return (
+                          <LabelBadge
+                            key={id}
+                            name={label.name}
+                            color={label.color}
+                          />
+                        );
+                      })}
+                    </div>
                   </td>
                   <td>
                     <StatusBadge status={issue.status} />
