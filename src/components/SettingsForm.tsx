@@ -114,7 +114,7 @@ export function SettingsForm() {
             <legend className="fieldset-legend">Project Name</legend>
             <input
               type="text"
-              className="input input-bordered w-full"
+              className="input w-full"
               value={project?.name ?? ""}
               readOnly
             />
@@ -123,7 +123,7 @@ export function SettingsForm() {
             <legend className="fieldset-legend">Project ID</legend>
             <input
               type="text"
-              className="input input-bordered w-full font-mono text-sm"
+              className="input w-full font-mono text-sm"
               value={projectId}
               readOnly
             />
@@ -139,7 +139,7 @@ export function SettingsForm() {
             <fieldset className="fieldset">
               <legend className="fieldset-legend">Focus Epic</legend>
               <select
-                className="select select-bordered w-full"
+                className="select w-full"
                 value={focusEpicId}
                 onChange={(e) => {
                   setFocusEpicId(e.target.value);
@@ -159,7 +159,7 @@ export function SettingsForm() {
               <legend className="fieldset-legend">Max Review Iterations</legend>
               <input
                 type="number"
-                className="input input-bordered w-full"
+                className="input w-full"
                 min={1}
                 step={1}
                 value={maxReviewIterations}
@@ -176,7 +176,7 @@ export function SettingsForm() {
               </legend>
               <input
                 type="number"
-                className="input input-bordered w-full"
+                className="input w-full"
                 min={1}
                 step={1}
                 value={maxFailures}
@@ -193,7 +193,7 @@ export function SettingsForm() {
               </legend>
               <input
                 type="number"
-                className="input input-bordered w-full"
+                className="input w-full"
                 min={1}
                 step={1}
                 value={sessionTimeoutMin}

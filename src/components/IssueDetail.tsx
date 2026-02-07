@@ -257,7 +257,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
           <input
             ref={titleInputRef}
             type="text"
-            className="input input-bordered w-full font-semibold text-xl"
+            className="input w-full font-semibold text-xl"
             value={titleDraft}
             onChange={(e) => setTitleDraft(e.target.value)}
             onBlur={saveTitle}
@@ -281,7 +281,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
       <div className="flex flex-wrap items-center gap-3">
         <StatusBadge status={currentIssue.status} />
         <select
-          className="select select-bordered select-sm"
+          className="select select-sm"
           value={currentIssue.priority}
           onChange={(e) => handlePriorityChange(e.target.value)}
           disabled={isClosed}
@@ -340,7 +340,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
         {editingDesc ? (
           <textarea
             ref={descTextareaRef}
-            className="textarea textarea-bordered min-h-32 w-full"
+            className="textarea min-h-32 w-full"
             value={descDraft}
             onChange={(e) => setDescDraft(e.target.value)}
             onBlur={saveDesc}
@@ -375,7 +375,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
             <div className="flex flex-col gap-3 rounded-lg border border-warning/30 bg-base-200 p-4">
               <h3 className="font-medium">Defer Issue</h3>
               <textarea
-                className="textarea textarea-bordered"
+                className="textarea"
                 placeholder="Reason for deferring (optional)"
                 value={deferNote}
                 onChange={(e) => setDeferNote(e.target.value)}
@@ -458,7 +458,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
                 </label>
                 <select
                   id="close-type-select"
-                  className="select select-bordered select-sm"
+                  className="select select-sm"
                   value={closeType}
                   onChange={(e) =>
                     setCloseType(e.target.value as CloseTypeValue)
@@ -472,7 +472,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
                 </select>
               </div>
               <textarea
-                className="textarea textarea-bordered"
+                className="textarea"
                 placeholder="Reason (optional)"
                 value={closeReason}
                 onChange={(e) => setCloseReason(e.target.value)}

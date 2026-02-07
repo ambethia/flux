@@ -104,7 +104,7 @@ export function CreateIssueModal() {
               <input
                 ref={titleInputRef}
                 type="text"
-                className={`input input-bordered w-full ${titleError ? "input-error" : ""}`}
+                className={`input w-full ${titleError ? "input-error" : ""}`}
                 placeholder="Issue title"
                 value={title}
                 onChange={(e) => {
@@ -121,7 +121,7 @@ export function CreateIssueModal() {
             <fieldset className="fieldset">
               <legend className="fieldset-legend">Description</legend>
               <textarea
-                className="textarea textarea-bordered w-full"
+                className="textarea w-full"
                 placeholder="Optional description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -133,7 +133,7 @@ export function CreateIssueModal() {
             <fieldset className="fieldset">
               <legend className="fieldset-legend">Priority</legend>
               <select
-                className="select select-bordered w-full"
+                className="select w-full"
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as PriorityValue)}
               >

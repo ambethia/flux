@@ -71,7 +71,7 @@ function CreateLabelForm({
         <input
           ref={nameInputRef}
           type="text"
-          className="input input-bordered input-sm"
+          className="input input-sm"
           placeholder="Label name"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -212,7 +212,7 @@ function LabelRow({
             <input
               ref={nameInputRef}
               type="text"
-              className="input input-bordered input-sm"
+              className="input input-sm"
               value={nameDraft}
               onChange={(e) => setNameDraft(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -335,19 +335,21 @@ export function LabelsList() {
       {labels.length === 0 ? (
         <p className="text-base-content/60">No labels yet. Create one above.</p>
       ) : (
-        <table className="table-zebra table">
-          <thead>
-            <tr>
-              <th>Label</th>
-              <th className="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {labels.map((label) => (
-              <LabelRow key={label._id} label={label} />
-            ))}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="table-zebra table">
+            <thead>
+              <tr>
+                <th>Label</th>
+                <th className="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {labels.map((label) => (
+                <LabelRow key={label._id} label={label} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

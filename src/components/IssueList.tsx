@@ -110,7 +110,7 @@ export function IssueList() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="font-semibold text-xl">Issues</h2>
+          <h2 className="font-bold text-xl">Issues</h2>
           {issues && (
             <span className="text-base-content/60 text-sm">
               {issues.length} {issues.length === 1 ? "issue" : "issues"}
@@ -241,7 +241,7 @@ export function IssueList() {
             <legend className="fieldset-legend">Reason (optional)</legend>
             <textarea
               ref={noteRef}
-              className="textarea textarea-bordered w-full"
+              className="textarea w-full"
               placeholder="Why is this being deferred?"
               value={deferNote}
               onChange={(e) => setDeferNote(e.target.value)}

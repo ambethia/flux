@@ -15,7 +15,7 @@ function ActivityContent({ parsed }: { parsed: ParsedLine }) {
     case "tool_use":
       return (
         <div className="flex items-center gap-2 text-info">
-          <span className="font-bold">⚙</span>
+          <i className="fa-solid fa-screwdriver-wrench" aria-hidden="true" />
           <span className="font-semibold">{parsed.toolName}</span>
         </div>
       );
@@ -23,7 +23,7 @@ function ActivityContent({ parsed }: { parsed: ParsedLine }) {
       return (
         <details className="group">
           <summary className="cursor-pointer select-none text-success">
-            <span className="font-bold">✓</span>{" "}
+            <i className="fa-solid fa-circle-check" aria-hidden="true" />{" "}
             <span className="text-base-content/60 text-xs">Tool result</span>
           </summary>
           <div className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded bg-base-300/20 p-2 text-xs">

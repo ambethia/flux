@@ -268,7 +268,7 @@ function IssuePicker({
       <input
         ref={searchInputRef}
         type="text"
-        className="input input-bordered input-sm mb-2 w-full"
+        className="input input-sm mb-2 w-full"
         placeholder="Search issues..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}

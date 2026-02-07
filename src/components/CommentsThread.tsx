@@ -96,7 +96,7 @@ export function CommentsThread({ issueId }: { issueId: Id<"issues"> }) {
       {/* Add comment form */}
       <form onSubmit={handleSubmit} className="flex flex-col gap-2">
         <textarea
-          className="textarea textarea-bordered min-h-20 w-full text-sm"
+          className="textarea min-h-20 w-full text-sm"
           placeholder="Add a comment..."
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
