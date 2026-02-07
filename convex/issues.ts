@@ -183,7 +183,9 @@ export const ready = query({
 export const get = query({
   args: { issueId: v.id("issues") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.issueId);
+    const issue = await ctx.db.get(args.issueId);
+    if (!issue || issue.deletedAt !== undefined) return null;
+    return issue;
   },
 });
 
