@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import { SessionEventDirection } from "$convex/schema";
@@ -229,5 +230,16 @@ export class SessionMonitor {
 
     // Clear listeners
     this.lineListeners.clear();
+  }
+
+  /**
+   * Delete the tmp log file. Call after shutdown() for successful sessions.
+   * Skipped on failure paths so the file remains for debugging.
+   */
+  async cleanupTmpFile(): Promise<void> {
+    const file = Bun.file(this.tmpPath);
+    if (await file.exists()) {
+      await fs.unlink(this.tmpPath);
+    }
   }
 }

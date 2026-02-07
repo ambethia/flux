@@ -342,7 +342,11 @@ class Orchestrator {
     }
     await this.activeSession.monitor.shutdown();
 
+    // Capture monitor ref before phase handlers call finalize() (which nulls activeSession)
+    const monitor = this.activeSession.monitor;
+
     // Kill path: hand-off to human — session failed, issue stays in_progress
+    // Keep tmp file for debugging.
     if (this.activeSession.killed) {
       const convex = getConvexClient();
       await convex.mutation(api.sessions.update, {
@@ -368,7 +372,10 @@ class Orchestrator {
       } else if (phase === "review") {
         await this.handleReviewExit(exitCode);
       }
+      // Phase completed — clean up tmp file (keep on failure for debugging)
+      await monitor.cleanupTmpFile();
     } catch (err) {
+      // Exit handler crashed — keep tmp file for debugging
       console.error(
         "[Orchestrator] Exit handler crashed — forcing finalize:",
         err,
