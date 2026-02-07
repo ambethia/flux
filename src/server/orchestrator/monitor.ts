@@ -170,6 +170,8 @@ export class SessionMonitor {
       this.convexFailures = 0; // Reset on success
     } catch (err) {
       this.convexFailures++;
+      // Restore events before any potential throw so shutdown() can retry
+      this.pendingEvents.unshift(...batch);
       console.error(
         `[SessionMonitor] Convex write failed (${this.convexFailures}/${SessionMonitor.MAX_CONVEX_FAILURES}):`,
         err,
@@ -179,8 +181,6 @@ export class SessionMonitor {
           `[SessionMonitor] Convex write failed ${SessionMonitor.MAX_CONVEX_FAILURES} times consecutively. Aborting monitor.`,
         );
       }
-      // Put events back for next attempt
-      this.pendingEvents.unshift(...batch);
     }
   }
 
