@@ -262,6 +262,23 @@ export function parseStreamLine(line: string): ParsedLine[] {
   return [{ kind: "text", text: line }];
 }
 
+/**
+ * Extract concatenated text content from a single NDJSON line.
+ *
+ * Parses the line via `parseStreamLine` and joins all text-kind results.
+ * Returns `null` if the line contains no text content (e.g. tool_use, skip).
+ *
+ * Used server-side for disposition parsing where only the text matters.
+ */
+export function extractTextFromLine(line: string): string | null {
+  const parsed = parseStreamLine(line);
+  const texts: string[] = [];
+  for (const p of parsed) {
+    if (p.kind === "text") texts.push(p.text);
+  }
+  return texts.length > 0 ? texts.join("") : null;
+}
+
 /** Safely extract tool input, returning null if not a valid object. */
 function extractToolInput(input: unknown): Record<string, unknown> | null {
   if (input && typeof input === "object" && !Array.isArray(input)) {

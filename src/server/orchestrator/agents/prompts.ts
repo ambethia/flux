@@ -1,3 +1,4 @@
+import { extractTextFromLine } from "../../../lib/parseStreamLine";
 import type {
   Disposition,
   DispositionResult,
@@ -309,7 +310,7 @@ export function parseDisposition(lines: string[]): DispositionResult {
     const line = lines[i] as string | undefined;
     if (!line) continue;
     // Try stream-json envelope extraction, fall back to raw line
-    const text = extractTextContent(line) ?? line;
+    const text = extractTextFromLine(line) ?? line;
     const result = tryParseDisposition(text);
     if (result) return result;
   }
@@ -346,60 +347,6 @@ function tryParseDisposition(text: string): DispositionResult | null {
   }
 
   return null;
-}
-
-/**
- * Extract text content from a Claude stream-json envelope line.
- *
- * Claude's `--output-format stream-json` emits NDJSON lines like:
- *   {"type":"content_block_delta","delta":{"type":"text_delta","text":"..."}}
- *   {"type":"result","result":[{"type":"text","text":"..."}]}
- */
-function extractTextContent(line: string): string | null {
-  try {
-    const obj = JSON.parse(line) as Record<string, unknown>;
-
-    // content_block_delta with text_delta
-    if (obj.type === "content_block_delta") {
-      const delta = obj.delta as Record<string, unknown> | undefined;
-      if (delta?.type === "text_delta" && typeof delta.text === "string") {
-        return delta.text;
-      }
-    }
-
-    // assistant message with content array
-    if (obj.type === "assistant") {
-      const message = obj.message as Record<string, unknown> | undefined;
-      if (message && Array.isArray(message.content)) {
-        const texts = (message.content as Array<Record<string, unknown>>)
-          .filter((b) => b.type === "text" && typeof b.text === "string")
-          .map((b) => b.text as string);
-        if (texts.length > 0) return texts.join("");
-      }
-    }
-
-    // result — either array of text blocks or a plain string
-    if (obj.type === "result") {
-      if (Array.isArray(obj.result)) {
-        const texts = (obj.result as Array<Record<string, unknown>>)
-          .filter((b) => b.type === "text" && typeof b.text === "string")
-          .map((b) => b.text as string);
-        if (texts.length > 0) return texts.join("");
-      }
-      if (typeof obj.result === "string") {
-        return obj.result;
-      }
-    }
-
-    // Direct content string
-    if (typeof obj.content === "string") {
-      return obj.content;
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
 }
 
 // ── Status Messages ──────────────────────────────────────────────────
