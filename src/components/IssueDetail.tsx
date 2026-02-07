@@ -1,10 +1,12 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouteContext } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import { CloseType, IssuePriority, IssueStatus } from "$convex/schema";
 import { CommentsThread } from "./CommentsThread";
+import { LabelBadge } from "./LabelBadge";
+import { LabelPicker } from "./LabelPicker";
 import { Markdown } from "./Markdown";
 import { StatusBadge } from "./StatusBadge";
 
@@ -30,7 +32,9 @@ function formatTime(ts: number): string {
 }
 
 export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
+  const { projectId } = useRouteContext({ from: "__root__" });
   const issue = useQuery(api.issues.get, { issueId });
+  const allLabels = useQuery(api.labels.list, { projectId });
   const updateIssue = useMutation(api.issues.update);
   const closeIssue = useMutation(api.issues.close);
 
@@ -88,6 +92,20 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
   // Captured after null checks — safe to use in handlers without non-null assertions
   const currentIssue = issue;
   const isClosed = currentIssue.status === IssueStatus.Closed;
+
+  // Build a lookup map for label data
+  const labelMap = new Map((allLabels ?? []).map((l) => [l._id, l]));
+  const assignedLabels = (currentIssue.labelIds ?? [])
+    .map((id) => labelMap.get(id))
+    .filter((l): l is NonNullable<typeof l> => l !== undefined);
+
+  async function handleLabelsChange(labelIds: Id<"labels">[]) {
+    try {
+      await updateIssue({ issueId, labelIds });
+    } catch (err) {
+      showError(err);
+    }
+  }
 
   function showError(err: unknown) {
     setMutationError(
@@ -240,6 +258,32 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
           <span className="badge badge-sm badge-outline">
             {CLOSE_TYPE_LABELS[currentIssue.closeType as CloseTypeValue]}
           </span>
+        )}
+      </div>
+
+      {/* Labels */}
+      <div>
+        <div className="flex items-center gap-2">
+          <h3 className="font-medium text-base-content/60 text-sm">Labels</h3>
+          {!isClosed && (
+            <LabelPicker
+              selectedIds={currentIssue.labelIds ?? []}
+              onChange={handleLabelsChange}
+            />
+          )}
+        </div>
+        {assignedLabels.length > 0 ? (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {assignedLabels.map((label) => (
+              <LabelBadge
+                key={label._id}
+                name={label.name}
+                color={label.color}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="mt-1 text-base-content/40 text-sm">No labels</p>
         )}
       </div>
 

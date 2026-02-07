@@ -9,6 +9,7 @@ import { AppShell } from "../components/AppShell";
 import { ActivityPage } from "../pages/ActivityPage";
 import { IssueDetailPage } from "../pages/IssueDetailPage";
 import { IssuesPage } from "../pages/IssuesPage";
+import { LabelsPage } from "../pages/LabelsPage";
 import { SessionDetailPage } from "../pages/SessionDetailPage";
 import { SessionsPage } from "../pages/SessionsPage";
 
@@ -58,11 +59,18 @@ const sessionDetailRoute = createRoute({
   component: SessionDetailPage,
 });
 
+const labelsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/labels",
+  component: LabelsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   issuesRoute.addChildren([issueDetailRoute]),
   activityRoute,
   sessionsRoute.addChildren([sessionDetailRoute]),
+  labelsRoute,
 ]);
 
 export function createAppRouter(context: RouterContext) {

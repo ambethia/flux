@@ -15,6 +15,16 @@ export function Sidebar() {
       </li>
       <li>
         <Link
+          to="/labels"
+          activeProps={{ className: "menu-active" }}
+          inactiveProps={{ className: "" }}
+        >
+          <i className="fa-solid fa-tags" aria-hidden="true" />
+          Labels
+        </Link>
+      </li>
+      <li>
+        <Link
           to="/activity"
           activeProps={{ className: "menu-active" }}
           inactiveProps={{ className: "" }}
