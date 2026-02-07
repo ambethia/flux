@@ -12,7 +12,7 @@ if [[ ! "$FILE_PATH" =~ \.tsx?$ ]]; then
   exit 0
 fi
 
-cd "$(echo "$INPUT" | jq -r '.cwd')"
+cd "$(echo "$INPUT" | jq -r '.cwd')" || exit 0
 OUTPUT=$(bun run check 2>&1)
 EXIT_CODE=$?
 
