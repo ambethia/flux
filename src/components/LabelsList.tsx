@@ -134,6 +134,7 @@ function LabelRow({
   const [error, setError] = useState<string | null>(null);
 
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     if (editing) nameInputRef.current?.focus();
@@ -147,6 +148,8 @@ function LabelRow({
   }
 
   async function saveEdit() {
+    if (savingRef.current) return;
+
     const trimmed = nameDraft.trim();
     if (!trimmed) {
       setEditing(false);
@@ -160,6 +163,7 @@ function LabelRow({
       return;
     }
 
+    savingRef.current = true;
     try {
       await updateLabel({
         labelId: label._id,
@@ -170,6 +174,8 @@ function LabelRow({
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update label");
+    } finally {
+      savingRef.current = false;
     }
   }
 
