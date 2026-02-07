@@ -746,6 +746,13 @@ class Orchestrator {
     }
 
     // Loop: start another review
+    // Review loop creates a new session (different tmp path). Clean up the
+    // current review's tmp file now — it would otherwise be orphaned.
+    try {
+      await active.monitor.cleanupTmpFile();
+    } catch {
+      // Non-fatal: best-effort cleanup
+    }
     await this.startReviewLoop();
     return true;
   }
