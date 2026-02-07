@@ -8,6 +8,8 @@ import {
   SessionStatus,
   SessionType,
 } from "$convex/schema";
+import { type ParsedLine, parseStreamLine } from "../lib/parseStreamLine";
+import { Markdown } from "./Markdown";
 import { SessionStatusBadge } from "./SessionStatusBadge";
 
 type DispositionValue = (typeof Disposition)[keyof typeof Disposition];
@@ -58,6 +60,61 @@ function formatDuration(startedAt: number, endedAt?: number): string {
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
   return `${hours}h ${remainingMinutes}m`;
+}
+
+/** Render a single parsed output line (text, tool_use, tool_result). */
+function OutputContent({ parsed }: { parsed: ParsedLine }) {
+  switch (parsed.kind) {
+    case "text":
+      return (
+        <div className="whitespace-pre-wrap break-words">{parsed.text}</div>
+      );
+    case "tool_use":
+      return (
+        <div className="flex items-center gap-2 text-info">
+          <span className="font-bold">⚙</span>
+          <span className="font-semibold">{parsed.toolName}</span>
+        </div>
+      );
+    case "tool_result":
+      return (
+        <details className="group">
+          <summary className="cursor-pointer select-none text-success">
+            <span className="font-bold">✓</span>{" "}
+            <span className="text-neutral-content/60 text-xs">Tool result</span>
+          </summary>
+          <div className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded bg-base-300/20 p-2 text-xs">
+            {parsed.content}
+          </div>
+        </details>
+      );
+    case "skip":
+      return null;
+  }
+}
+
+/** Render transcript event content: parse output JSON, render input as markdown. */
+function TranscriptEventContent({
+  direction,
+  content,
+}: {
+  direction: string;
+  content: string;
+}) {
+  if (direction === SessionEventDirection.Input) {
+    return <Markdown content={content} />;
+  }
+
+  // Output events are NDJSON lines from Claude's stream-json — parse and render
+  const parsed = parseStreamLine(content);
+  if (parsed.kind === "skip") return null;
+  return <OutputContent parsed={parsed} />;
+}
+
+/** Check if an output event should be displayed (non-skip after parsing). */
+function isDisplayableEvent(direction: string, content: string): boolean {
+  if (direction === SessionEventDirection.Input) return true;
+  return parseStreamLine(content).kind !== "skip";
 }
 
 export function SessionDetail({ sessionId }: { sessionId: Id<"sessions"> }) {
@@ -270,26 +327,33 @@ export function SessionDetail({ sessionId }: { sessionId: Id<"sessions"> }) {
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            {events.map((event) => (
-              <div
-                key={event._id}
-                className={
-                  event.direction === SessionEventDirection.Output
-                    ? "overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-neutral p-3 font-mono text-neutral-content text-sm"
-                    : "whitespace-pre-wrap break-words rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm"
-                }
-              >
-                <div className="mb-1 flex items-center gap-2 text-xs opacity-60">
-                  <span className="font-medium">
-                    {event.direction === SessionEventDirection.Input
-                      ? "Input"
-                      : "Output"}
-                  </span>
-                  <span>#{event.sequence}</span>
+            {events
+              .filter((event) =>
+                isDisplayableEvent(event.direction, event.content),
+              )
+              .map((event) => (
+                <div
+                  key={event._id}
+                  className={
+                    event.direction === SessionEventDirection.Output
+                      ? "overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-neutral p-3 font-mono text-neutral-content text-sm"
+                      : "whitespace-pre-wrap break-words rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm"
+                  }
+                >
+                  <div className="mb-1 flex items-center gap-2 text-xs opacity-60">
+                    <span className="font-medium">
+                      {event.direction === SessionEventDirection.Input
+                        ? "Input"
+                        : "Output"}
+                    </span>
+                    <span>#{event.sequence}</span>
+                  </div>
+                  <TranscriptEventContent
+                    direction={event.direction}
+                    content={event.content}
+                  />
                 </div>
-                {event.content}
-              </div>
-            ))}
+              ))}
           </div>
         )}
       </div>
