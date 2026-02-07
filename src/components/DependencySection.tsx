@@ -46,10 +46,10 @@ export function DependencySection({
         // Adding to blocks: this issue blocks targetIssue
         await addDep({ blockerId: issueId, blockedId: targetIssueId });
       }
+      setAddingDirection(null);
     } catch (err) {
       onError(err);
     }
-    setAddingDirection(null);
   }
 
   if (deps === undefined) {
