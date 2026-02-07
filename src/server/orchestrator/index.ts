@@ -13,9 +13,9 @@ import {
   getCurrentHead,
   getDiff,
   hasNewCommits,
-  isProcessAlive,
   resolveRepoRoot,
 } from "../git";
+import { isProcessAlive } from "../process";
 import type { AgentProcess, AgentProvider, WorkPromptContext } from "./agents";
 import {
   ClaudeCodeProvider,

@@ -1,4 +1,5 @@
 import { $ } from "bun";
+import { isProcessAlive } from "./process";
 
 export async function resolveRepoRoot(): Promise<string> {
   try {
@@ -80,19 +81,6 @@ export async function getCommitLog(
   since: string,
 ): Promise<string> {
   return (await $`git -C ${cwd} log ${since}..HEAD --oneline`.text()).trim();
-}
-
-/**
- * Check if a process with the given PID is still alive.
- * Returns false if the process has exited or the PID is invalid.
- */
-export function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /**
