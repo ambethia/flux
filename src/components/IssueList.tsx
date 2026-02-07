@@ -30,7 +30,7 @@ export function IssueList() {
   const [deferring, setDeferring] = useState(false);
   const [deferError, setDeferError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [undeferingId, setUndeferingId] = useState<Id<"issues"> | null>(null);
+  const [undeferringId, setUndeferringId] = useState<Id<"issues"> | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
@@ -88,7 +88,7 @@ export function IssueList() {
   }
 
   async function handleUndefer(issueId: Id<"issues">) {
-    setUndeferingId(issueId);
+    setUndeferringId(issueId);
     try {
       await callTool("issues_undefer", {
         issueId,
@@ -97,7 +97,7 @@ export function IssueList() {
     } catch (err) {
       showActionError(err);
     } finally {
-      setUndeferingId(null);
+      setUndeferringId(null);
     }
   }
 
@@ -200,9 +200,9 @@ export function IssueList() {
                         type="button"
                         className="btn btn-ghost btn-xs"
                         onClick={() => handleUndefer(issue._id)}
-                        disabled={undeferingId === issue._id}
+                        disabled={undeferringId === issue._id}
                       >
-                        {undeferingId === issue._id && (
+                        {undeferringId === issue._id && (
                           <span className="loading loading-spinner loading-xs" />
                         )}
                         Undefer
