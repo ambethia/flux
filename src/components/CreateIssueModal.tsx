@@ -23,6 +23,7 @@ export function CreateIssueModal() {
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<PriorityValue>(IssuePriority.Medium);
   const [titleError, setTitleError] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   function open() {
@@ -38,6 +39,7 @@ export function CreateIssueModal() {
     setDescription("");
     setPriority(IssuePriority.Medium);
     setTitleError(false);
+    setSubmitError(null);
     setSubmitting(false);
   }
 
@@ -51,12 +53,23 @@ export function CreateIssueModal() {
     }
 
     setSubmitting(true);
-    const issueId = await createIssue({
-      projectId,
-      title: trimmedTitle,
-      description: description.trim() || undefined,
-      priority,
-    });
+    setSubmitError(null);
+
+    let issueId: string;
+    try {
+      issueId = await createIssue({
+        projectId,
+        title: trimmedTitle,
+        description: description.trim() || undefined,
+        priority,
+      });
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : "Failed to create issue",
+      );
+      setSubmitting(false);
+      return;
+    }
 
     close();
     navigate({ to: "/issues/$issueId", params: { issueId } });
@@ -122,6 +135,12 @@ export function CreateIssueModal() {
                 ))}
               </select>
             </fieldset>
+
+            {submitError && (
+              <div role="alert" className="alert alert-error text-sm">
+                {submitError}
+              </div>
+            )}
 
             {/* Actions */}
             <div className="modal-action">
