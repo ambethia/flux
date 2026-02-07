@@ -3,11 +3,9 @@
  * All tool invocations from the frontend go through here.
  */
 
-export type ToolResponse<T = unknown> = {
+export type ToolResponse = {
   content: { type: "text"; text: string }[];
   isError?: boolean;
-  /** Parsed payload — only present when isError is falsy. */
-  data?: T;
 };
 
 /**
