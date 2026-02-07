@@ -3,6 +3,7 @@ import { useQuery } from "convex/react";
 import { useState } from "react";
 import { api } from "$convex/_generated/api";
 import { SessionStatus, SessionType } from "$convex/schema";
+import { formatRelativeTime } from "../lib/format";
 import { SessionStatusBadge } from "./SessionStatusBadge";
 
 type StatusFilter = (typeof SessionStatus)[keyof typeof SessionStatus] | null;
@@ -26,17 +27,6 @@ function typeLabel(type: SessionTypeValue): string {
       throw new Error(`Unhandled session type: ${_exhaustive}`);
     }
   }
-}
-
-function formatRelativeTime(ts: number): string {
-  const seconds = Math.max(0, Math.floor((Date.now() - ts) / 1000));
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
 }
 
 function formatDuration(startedAt: number, endedAt?: number): string {
