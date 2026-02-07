@@ -63,12 +63,16 @@ export const list = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    let issues = await ctx.db
+    const cap = args.limit || 100;
+
+    // Collect all then filter — take() before filter would under-count
+    // when status or deletedAt filters discard rows.
+    const all = await ctx.db
       .query("issues")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .take(args.limit || 100);
+      .collect();
 
-    issues = issues.filter((i) => i.deletedAt === undefined);
+    let issues = all.filter((i) => i.deletedAt === undefined);
     if (args.status) issues = issues.filter((i) => i.status === args.status);
 
     issues.sort((a, b) => {
@@ -78,7 +82,7 @@ export const list = query({
         : (a._creationTime || 0) - (b._creationTime || 0);
     });
 
-    return issues;
+    return issues.slice(0, cap);
   },
 });
 
