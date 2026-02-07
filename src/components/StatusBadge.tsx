@@ -9,7 +9,7 @@ const STATUS_CONFIG = {
   [IssueStatus.InProgress]: {
     label: "In Progress",
     className: "badge-warning",
-    icon: "fa-spinner",
+    icon: "fa-spinner fa-spin",
   },
   [IssueStatus.Closed]: {
     label: "Closed",
