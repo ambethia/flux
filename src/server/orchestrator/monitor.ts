@@ -84,7 +84,7 @@ export class SessionMonitor {
 
     try {
       while (true) {
-        // Check abort before each read so shutdown mid-consume exits promptly
+        // Check abort before each read so shutdown mid-consume stops after the current read completes
         if (this.abortController.signal.aborted) break;
 
         const { done, value } = await reader.read();
