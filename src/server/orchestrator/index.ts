@@ -8,9 +8,12 @@ import { ClaudeCodeProvider } from "./agents";
 
 /**
  * Orchestrator states — runtime state of the Flux daemon.
- * IDLE: not processing work. BUSY: active session in progress.
+ * STOPPED: scheduler disabled, no auto-scheduling.
+ * IDLE: scheduler enabled, waiting for work.
+ * BUSY: active session in progress.
  */
 const OrchestratorState = {
+  Stopped: "stopped",
   Idle: "idle",
   Busy: "busy",
 } as const;
@@ -27,10 +30,14 @@ interface ActiveSession {
 
 /** Orchestrator manages claiming issues, spawning agents, and session lifecycle. */
 class Orchestrator {
-  private state: OrchestratorState = OrchestratorState.Idle;
+  private state: OrchestratorState = OrchestratorState.Stopped;
   private activeSession: ActiveSession | null = null;
   private provider: AgentProvider;
   private projectId: Id<"projects">;
+  private unsubscribeReady: (() => void) | null = null;
+  private pendingStop = false;
+  private readyIssues: Array<{ _id: Id<"issues"> }> = [];
+  private maxFailures = 3;
 
   constructor(projectId: Id<"projects">, provider?: AgentProvider) {
     this.projectId = projectId;
@@ -39,6 +46,8 @@ class Orchestrator {
 
   getStatus(): {
     state: OrchestratorState;
+    schedulerEnabled: boolean;
+    readyCount: number;
     activeSession: {
       sessionId: string;
       issueId: string;
@@ -47,6 +56,8 @@ class Orchestrator {
   } {
     return {
       state: this.state,
+      schedulerEnabled: this.unsubscribeReady !== null,
+      readyCount: this.readyIssues.length,
       activeSession: this.activeSession
         ? {
             sessionId: this.activeSession.sessionId,
@@ -55,6 +66,75 @@ class Orchestrator {
           }
         : null,
     };
+  }
+
+  /**
+   * Enable the auto-scheduler: persist config, recover orphans, subscribe to ready issues.
+   * Transitions from Stopped → Idle and begins watching for work.
+   */
+  async enable(): Promise<void> {
+    if (this.state === OrchestratorState.Busy) {
+      throw new Error(
+        "Cannot enable scheduler while busy. Wait for current session to complete.",
+      );
+    }
+
+    const convex = getConvexClient();
+
+    // Persist to DB (upsert handled by the mutation)
+    await convex.mutation(api.orchestratorConfig.enable, {
+      projectId: this.projectId,
+    });
+
+    // Fetch config for maxFailures
+    const config = await convex.query(api.orchestratorConfig.get, {
+      projectId: this.projectId,
+    });
+    if (config) {
+      this.maxFailures = config.maxFailures;
+    }
+
+    // Recover orphaned sessions before subscribing
+    await this.recoverOrphanedSessions();
+
+    // Subscribe to ready issues
+    this.pendingStop = false;
+    this.unsubscribeReady = convex.onUpdate(
+      api.issues.ready,
+      { projectId: this.projectId, maxFailures: this.maxFailures },
+      (issues) => {
+        this.readyIssues = issues;
+        this.scheduleNext();
+      },
+    );
+
+    this.state = OrchestratorState.Idle;
+  }
+
+  /**
+   * Stop the auto-scheduler. Unsubscribes from ready issues and persists config.
+   * If busy, sets pendingStop so the current session finishes before transitioning to Stopped.
+   */
+  async stop(): Promise<void> {
+    // Unsubscribe first
+    if (this.unsubscribeReady) {
+      this.unsubscribeReady();
+      this.unsubscribeReady = null;
+    }
+    this.readyIssues = [];
+
+    const convex = getConvexClient();
+    await convex.mutation(api.orchestratorConfig.disable, {
+      projectId: this.projectId,
+    });
+
+    if (this.state === OrchestratorState.Busy) {
+      // Let the current session finish, then transition to stopped
+      this.pendingStop = true;
+    } else {
+      this.state = OrchestratorState.Stopped;
+      this.pendingStop = false;
+    }
   }
 
   /**
@@ -179,7 +259,74 @@ class Orchestrator {
     }
 
     this.activeSession = null;
-    this.state = OrchestratorState.Idle;
+
+    if (this.pendingStop || !this.unsubscribeReady) {
+      this.state = OrchestratorState.Stopped;
+      this.pendingStop = false;
+    } else {
+      this.state = OrchestratorState.Idle;
+      this.scheduleNext();
+    }
+  }
+
+  /**
+   * Try to pick up the next ready issue. No-op if not idle or queue is empty.
+   * Iterates through ready issues until one claim succeeds (others may be race-lost).
+   */
+  private scheduleNext(): void {
+    if (this.state !== OrchestratorState.Idle) return;
+    if (this.readyIssues.length === 0) return;
+
+    // Try each ready issue until one claim succeeds (others may race)
+    const issues = [...this.readyIssues];
+    const tryNext = async () => {
+      for (const issue of issues) {
+        try {
+          await this.run(issue._id);
+          return; // Successfully started
+        } catch {}
+      }
+    };
+    tryNext();
+  }
+
+  /**
+   * Recover orphaned sessions — running sessions whose PID is no longer alive.
+   * Marks them as failed and reopens their issues for retry.
+   */
+  private async recoverOrphanedSessions(): Promise<void> {
+    const convex = getConvexClient();
+    const sessions = await convex.query(api.sessions.list, {
+      projectId: this.projectId,
+      status: SessionStatus.Running,
+    });
+
+    for (const session of sessions) {
+      const pid = session.pid;
+      let alive = false;
+
+      if (pid) {
+        try {
+          process.kill(pid, 0);
+          alive = true;
+        } catch {
+          alive = false;
+        }
+      }
+
+      if (!alive) {
+        await convex.mutation(api.sessions.update, {
+          sessionId: session._id,
+          status: SessionStatus.Failed,
+          endedAt: Date.now(),
+          exitCode: -1,
+        });
+        await convex.mutation(api.issues.update, {
+          issueId: session.issueId,
+          status: IssueStatus.Open,
+        });
+      }
+    }
   }
 }
 

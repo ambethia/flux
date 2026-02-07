@@ -73,6 +73,28 @@ export const list = query({
   },
 });
 
+export const ready = query({
+  args: {
+    projectId: v.id("projects"),
+    maxFailures: v.number(),
+  },
+  handler: async (ctx, { projectId, maxFailures }) => {
+    const issues = await ctx.db
+      .query("issues")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .collect();
+
+    return issues
+      .filter(
+        (i) => i.status === IssueStatus.Open && i.failureCount < maxFailures,
+      )
+      .sort((a, b) => {
+        const diff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+        return diff !== 0 ? diff : a._creationTime - b._creationTime;
+      });
+  },
+});
+
 export const get = query({
   args: { issueId: v.id("issues") },
   handler: async (ctx, args) => {

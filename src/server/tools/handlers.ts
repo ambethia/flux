@@ -110,6 +110,25 @@ const issues_update: ToolHandler = async (args, ctx) => {
   return ok(ctx, { issue: updated });
 };
 
+const issues_ready: ToolHandler = async (args, ctx) => {
+  const { limit } = args as { limit?: number };
+
+  // Fetch config for maxFailures
+  const config = await ctx.convex.query(api.orchestratorConfig.get, {
+    projectId: ctx.projectId,
+  });
+  const maxFailures = config?.maxFailures ?? 3;
+
+  const issues = await ctx.convex.query(api.issues.ready, {
+    projectId: ctx.projectId,
+    maxFailures,
+  });
+
+  const capped = issues.slice(0, Math.min(limit ?? 50, 200));
+  const summary = capped.map(({ description: _description, ...rest }) => rest);
+  return ok(ctx, { issues: summary, count: summary.length, maxFailures });
+};
+
 const orchestrator_run: ToolHandler = async (args, ctx) => {
   const { issueId } = args as { issueId: string };
 
@@ -140,6 +159,28 @@ const orchestrator_status: ToolHandler = async (_args, ctx) => {
   return ok(ctx, { status });
 };
 
+const orchestrator_enable: ToolHandler = async (_args, ctx) => {
+  try {
+    const orchestrator = ctx.getOrchestrator();
+    await orchestrator.enable();
+    const status = orchestrator.getStatus();
+    return ok(ctx, { status });
+  } catch (err) {
+    return error(String(err instanceof Error ? err.message : err));
+  }
+};
+
+const orchestrator_stop: ToolHandler = async (_args, ctx) => {
+  try {
+    const orchestrator = ctx.getOrchestrator();
+    await orchestrator.stop();
+    const status = orchestrator.getStatus();
+    return ok(ctx, { status });
+  } catch (err) {
+    return error(String(err instanceof Error ? err.message : err));
+  }
+};
+
 const sessions_list: ToolHandler = async (args, ctx) => {
   const { status } = args as {
     status?: "running" | "completed" | "failed";
@@ -159,8 +200,11 @@ export const handlers: Record<string, ToolHandler> = {
   issues_list,
   issues_get,
   issues_update,
+  issues_ready,
   orchestrator_run,
   orchestrator_kill,
   orchestrator_status,
+  orchestrator_enable,
+  orchestrator_stop,
   sessions_list,
 };
