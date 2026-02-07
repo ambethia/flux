@@ -12,12 +12,16 @@ export const create = mutation({
     const issue = await ctx.db.get(args.issueId);
     if (!issue) throw new Error(`Issue ${args.issueId} not found`);
 
+    const now = Date.now();
+
     const commentId = await ctx.db.insert("comments", {
       issueId: args.issueId,
       content: args.content,
       author: args.author ?? "agent",
-      createdAt: Date.now(),
+      createdAt: now,
     });
+
+    await ctx.db.patch(args.issueId, { updatedAt: now });
 
     return commentId;
   },
