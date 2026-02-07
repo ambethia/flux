@@ -124,7 +124,19 @@ export default defineSchema({
     epicId: v.optional(v.id("epics")),
     labelIds: v.optional(v.array(v.id("labels"))),
     deletedAt: v.optional(v.number()),
-  }).index("by_project", ["projectId"]),
+  })
+    .index("by_project", ["projectId"])
+    .searchIndex("search_title", {
+      searchField: "title",
+      filterFields: ["projectId"],
+    }),
+
+  comments: defineTable({
+    issueId: v.id("issues"),
+    content: v.string(),
+    author: v.union(v.literal("user"), v.literal("agent"), v.literal("flux")),
+    createdAt: v.number(),
+  }).index("by_issue", ["issueId"]),
 
   labels: defineTable({
     projectId: v.id("projects"),

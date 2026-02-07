@@ -152,7 +152,7 @@ const issues_search: ToolDef = {
   },
 };
 
-// ── Comments (stubs) ──────────────────────────────────────────────────
+// ── Comments ─────────────────────────────────────────────────────────
 
 const comments_list: ToolDef = {
   name: "comments_list",

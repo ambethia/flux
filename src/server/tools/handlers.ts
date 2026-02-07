@@ -298,6 +298,68 @@ const issues_retry: ToolHandler = async (args, ctx) => {
   }
 };
 
+const issues_search: ToolHandler = async (args, ctx) => {
+  const { query, limit } = args as { query: string; limit?: number };
+
+  const issues = await ctx.convex.query(api.issues.search, {
+    projectId: ctx.projectId,
+    query,
+    limit: Math.min(limit ?? 20, 100),
+  });
+  const summary = issues.map(({ description: _description, ...rest }) => rest);
+  return ok(ctx, { issues: summary, count: summary.length, query });
+};
+
+const comments_create: ToolHandler = async (args, ctx) => {
+  const { issueId, content, author } = args as {
+    issueId: string;
+    content: string;
+    author?: "user" | "agent" | "flux";
+  };
+
+  const commentId = await ctx.convex.mutation(api.comments.create, {
+    issueId: issueId as Id<"issues">,
+    content,
+    author,
+  });
+  return ok(ctx, { commentId });
+};
+
+const issues_bulk_create: ToolHandler = async (args, ctx) => {
+  const { issues } = args as {
+    issues: Array<{
+      title: string;
+      description?: string;
+      priority?: "critical" | "high" | "medium" | "low";
+    }>;
+  };
+
+  const created = [];
+  for (const issue of issues) {
+    const issueId = await ctx.convex.mutation(api.issues.create, {
+      projectId: ctx.projectId,
+      title: issue.title,
+      description: issue.description,
+      priority: issue.priority,
+    });
+    const full = await ctx.convex.query(api.issues.get, {
+      issueId: issueId as Id<"issues">,
+    });
+    created.push(full);
+  }
+  return ok(ctx, { issues: created, count: created.length });
+};
+
+const comments_list: ToolHandler = async (args, ctx) => {
+  const { issueId, limit } = args as { issueId: string; limit?: number };
+
+  const comments = await ctx.convex.query(api.comments.list, {
+    issueId: issueId as Id<"issues">,
+    limit: Math.min(limit ?? 50, 200),
+  });
+  return ok(ctx, { comments, count: comments.length });
+};
+
 // ── Export all implemented handlers ───────────────────────────────────
 
 export const handlers: Record<string, ToolHandler> = {
@@ -309,6 +371,10 @@ export const handlers: Record<string, ToolHandler> = {
   issues_ready,
   issues_unstick,
   issues_retry,
+  issues_search,
+  issues_bulk_create,
+  comments_create,
+  comments_list,
   orchestrator_run,
   orchestrator_kill,
   orchestrator_status,

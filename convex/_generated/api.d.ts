@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as comments from "../comments.js";
 import type * as epics from "../epics.js";
 import type * as issues from "../issues.js";
 import type * as labels from "../labels.js";
@@ -26,6 +27,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  comments: typeof comments;
   epics: typeof epics;
   issues: typeof issues;
   labels: typeof labels;

@@ -263,6 +263,27 @@ export const incrementReviewIterations = mutation({
   },
 });
 
+export const search = query({
+  args: {
+    projectId: v.id("projects"),
+    query: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const cap = Math.min(args.limit ?? 20, 100);
+
+    // Full-text search on title, scoped to project
+    const titleMatches = await ctx.db
+      .query("issues")
+      .withSearchIndex("search_title", (q) =>
+        q.search("title", args.query).eq("projectId", args.projectId),
+      )
+      .take(cap);
+
+    return titleMatches.filter((i) => i.deletedAt === undefined);
+  },
+});
+
 export const retry = mutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {

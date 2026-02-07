@@ -47,7 +47,9 @@ You have access to the \`flux\` MCP server. Use it to:
 - Search related issues: \`issues_search\`, \`issues_list\`
 - Create follow-up issues: \`issues_create\` or \`issues_bulk_create\`
 - Add comments to this issue: \`comments_create\`
-- Check system health via \`_meta\` in any response`);
+- Check system health via \`_meta\` in any response
+
+**Do NOT close, update status, or modify the assigned issue.** The orchestrator manages the full issue lifecycle (work → retro → review → close) based on your disposition. Report your outcome via the disposition JSON and let the orchestrator handle the rest.`);
 
   // Issue (with injection defense)
   parts.push(`
