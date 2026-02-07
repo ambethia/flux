@@ -274,7 +274,7 @@ class Orchestrator {
       startHead,
       agentSessionId: null,
       issue: issueCtx,
-      phase: "work",
+      phase: SessionPhase.Work,
     };
 
     // 9. Wire up agentSessionId extraction from stream-json
@@ -373,11 +373,11 @@ class Orchestrator {
     try {
       const { phase } = this.activeSession;
       let cleanExit = false;
-      if (phase === "work") {
+      if (phase === SessionPhase.Work) {
         cleanExit = await this.handleWorkExit(exitCode);
-      } else if (phase === "retro") {
+      } else if (phase === SessionPhase.Retro) {
         cleanExit = await this.handleRetroExit(exitCode);
-      } else if (phase === "review") {
+      } else if (phase === SessionPhase.Review) {
         cleanExit = await this.handleReviewExit(exitCode);
       }
       // Only clean up tmp file on success — keep on failure for debugging.
@@ -820,7 +820,7 @@ class Orchestrator {
     active.process = retroProcess;
     active.monitor = retroMonitor;
     active.monitorDone = retroMonitorDone;
-    active.phase = "retro";
+    active.phase = SessionPhase.Retro;
 
     // Persist phase transition so re-adoption can route correctly
     await getConvexClient().mutation(api.sessions.update, {
@@ -940,7 +940,7 @@ class Orchestrator {
     active.process = reviewProcess;
     active.monitor = reviewMonitor;
     active.monitorDone = reviewMonitorDone;
-    active.phase = "review";
+    active.phase = SessionPhase.Review;
 
     // Fire-and-forget: handle review exit
     reviewProcess.wait().then(

@@ -6,7 +6,6 @@ import {
   EpicStatus,
   IssuePriority,
   IssueStatus,
-  type SessionPhase,
   SessionStatus,
 } from "$convex/schema";
 
@@ -38,8 +37,6 @@ export type CommentAuthorValue =
 export type CloseTypeValue = (typeof CloseType)[keyof typeof CloseType];
 export type SessionStatusValue =
   (typeof SessionStatus)[keyof typeof SessionStatus];
-export type SessionPhaseValue =
-  (typeof SessionPhase)[keyof typeof SessionPhase];
 
 export interface ToolDef {
   name: string;
