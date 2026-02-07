@@ -149,7 +149,6 @@ export default defineSchema({
     labelIds: v.optional(v.array(v.id("labels"))),
     deletedAt: v.optional(v.number()),
   })
-    .index("by_project", ["projectId"])
     .index("by_project_deletedAt_status", ["projectId", "deletedAt", "status"])
     .index("by_epic", ["epicId"])
     .searchIndex("search_title", {

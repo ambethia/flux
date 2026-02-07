@@ -97,7 +97,7 @@ An autonomous agent orchestrator with built-in issue tracking, realtime UI, and 
 | closedAt | number? | |
 | deletedAt | number? | Soft delete timestamp. Null = not deleted. All queries filter out deleted issues by default. |
 | updatedAt | number? | Last modified timestamp (for "recently updated" sorting/filtering). |
-| **Indexes** | by_project, by_project_deletedAt_status, by_epic | |
+| **Indexes** | by_project_deletedAt_status, by_epic | |
 | **Search** | searchIndex: title, description | For `issues_search` full-text search. Uses Convex text search: https://docs.convex.dev/search/text-search |
 
 **Soft Delete**: Issues are soft-deleted by setting `deletedAt`. They remain in the database but are excluded from all queries via `deletedAt: null` filter. Hard delete (permanent removal) can be added as a background cleanup job post-MVP. Only users can delete issues via the UI (with confirmation). Agents cannot delete — they should defer with a note recommending deletion.
