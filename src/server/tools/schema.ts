@@ -7,6 +7,25 @@ export interface ToolDef {
   schema: Record<string, z.ZodType>;
 }
 
+/**
+ * Wraps a z.array() schema with preprocessing to handle MCP clients that
+ * serialize complex arguments as JSON strings instead of native arrays.
+ * Without this, Zod rejects the string with "expected array, received string".
+ */
+function jsonArray<T extends z.ZodTypeAny>(itemSchema: T) {
+  return z.preprocess((val) => {
+    if (typeof val === "string") {
+      try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        // Fall through — let Zod produce the validation error
+      }
+    }
+    return val;
+  }, z.array(itemSchema));
+}
+
 // ── Issues (implemented) ──────────────────────────────────────────────
 
 const issues_create: ToolDef = {
@@ -306,15 +325,13 @@ const issues_bulk_create: ToolDef = {
   description:
     "Create multiple issues in one call. Useful for retro findings or batch imports.",
   schema: {
-    issues: z
-      .array(
-        z.object({
-          title: z.string(),
-          description: z.string().optional(),
-          priority: z.enum(["critical", "high", "medium", "low"]).optional(),
-        }),
-      )
-      .describe("Array of issues to create."),
+    issues: jsonArray(
+      z.object({
+        title: z.string(),
+        description: z.string().optional(),
+        priority: z.enum(["critical", "high", "medium", "low"]).optional(),
+      }),
+    ).describe("Array of issues to create."),
   },
 };
 
@@ -323,15 +340,13 @@ const issues_bulk_update: ToolDef = {
   description:
     "Update multiple issues in one call. Useful for batch defer/undefer or priority changes.",
   schema: {
-    updates: z
-      .array(
-        z.object({
-          issueId: z.string(),
-          status: z.enum(["open", "in_progress", "closed"]).optional(),
-          priority: z.enum(["critical", "high", "medium", "low"]).optional(),
-        }),
-      )
-      .describe("Array of issue updates. Each must include issueId."),
+    updates: jsonArray(
+      z.object({
+        issueId: z.string(),
+        status: z.enum(["open", "in_progress", "closed"]).optional(),
+        priority: z.enum(["critical", "high", "medium", "low"]).optional(),
+      }),
+    ).describe("Array of issue updates. Each must include issueId."),
   },
 };
 
