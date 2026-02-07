@@ -1,8 +1,8 @@
 /**
- * This file is the entry point for the React app, it sets up the root
- * element and renders the App component to the DOM.
+ * Entry point for the React app. Fetches config from the Bun API server,
+ * initialises Convex, and renders the App component.
  *
- * It is included in `src/index.html`.
+ * Loaded by index.html via Vite.
  */
 
 import { ConvexProvider, ConvexReactClient } from "convex/react";
@@ -14,16 +14,16 @@ async function start() {
   if (!res.ok) {
     throw new Error(`Failed to fetch /api/config: ${res.status}`);
   }
-  // Only convexUrl is needed here — App fetches its own projectId.
-  // (Bun's dev HMR bundler has a bug that tree-shakes JSX props in the
-  // HTML entry point script, so projectId must be fetched inside App.)
-  const { convexUrl } = (await res.json()) as { convexUrl: string };
+  const { convexUrl, projectId } = (await res.json()) as {
+    convexUrl: string;
+    projectId: string;
+  };
 
   const convex = new ConvexReactClient(convexUrl);
   const root = createRoot(document.getElementById("root")!);
   root.render(
     <ConvexProvider client={convex}>
-      <App />
+      <App projectId={projectId} />
     </ConvexProvider>,
   );
 }
