@@ -73,6 +73,18 @@ export const epicStatusValidator = v.union(
   v.literal(EpicStatus.Closed),
 );
 
+export const CommentAuthor = {
+  User: "user",
+  Agent: "agent",
+  Flux: "flux",
+} as const;
+
+export const commentAuthorValidator = v.union(
+  v.literal(CommentAuthor.User),
+  v.literal(CommentAuthor.Agent),
+  v.literal(CommentAuthor.Flux),
+);
+
 export const CloseType = {
   Completed: "completed",
   Noop: "noop",
@@ -134,7 +146,7 @@ export default defineSchema({
   comments: defineTable({
     issueId: v.id("issues"),
     content: v.string(),
-    author: v.union(v.literal("user"), v.literal("agent"), v.literal("flux")),
+    author: commentAuthorValidator,
     createdAt: v.number(),
   }).index("by_issue", ["issueId"]),
 

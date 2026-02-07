@@ -1,17 +1,12 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-
-const authorValidator = v.union(
-  v.literal("user"),
-  v.literal("agent"),
-  v.literal("flux"),
-);
+import { commentAuthorValidator } from "./schema";
 
 export const create = mutation({
   args: {
     issueId: v.id("issues"),
     content: v.string(),
-    author: v.optional(authorValidator),
+    author: v.optional(commentAuthorValidator),
   },
   handler: async (ctx, args) => {
     const issue = await ctx.db.get(args.issueId);
