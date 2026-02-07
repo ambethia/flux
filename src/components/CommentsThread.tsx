@@ -13,9 +13,21 @@ const AUTHOR_BADGE: Record<
   CommentAuthorValue,
   { label: string; className: string; icon: string }
 > = {
-  user: { label: "User", className: "badge-primary", icon: "fa-user" },
-  agent: { label: "Agent", className: "badge-secondary", icon: "fa-robot" },
-  flux: { label: "Flux", className: "badge-accent", icon: "fa-bolt" },
+  [CommentAuthor.User]: {
+    label: "User",
+    className: "badge-primary",
+    icon: "fa-user",
+  },
+  [CommentAuthor.Agent]: {
+    label: "Agent",
+    className: "badge-secondary",
+    icon: "fa-robot",
+  },
+  [CommentAuthor.Flux]: {
+    label: "Flux",
+    className: "badge-accent",
+    icon: "fa-bolt",
+  },
 };
 
 export function CommentsThread({ issueId }: { issueId: Id<"issues"> }) {
