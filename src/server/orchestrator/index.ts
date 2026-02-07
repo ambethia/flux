@@ -4,6 +4,7 @@ import {
   CloseType,
   CommentAuthor,
   IssueStatus,
+  SessionEventDirection,
   SessionPhase,
   SessionStatus,
   SessionType,
@@ -1418,7 +1419,7 @@ class Orchestrator {
                 ts: number;
                 content: string;
               };
-              if (entry.dir === "output" && entry.content) {
+              if (entry.dir === SessionEventDirection.Output && entry.content) {
                 monitor.buffer.push(entry.content);
               }
             } catch {
