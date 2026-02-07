@@ -14,7 +14,7 @@ import {
   phaseLabel,
   typeLabel,
 } from "../lib/format";
-import { parseStreamLine } from "../lib/parseStreamLine";
+import { parsedLineKey, parseStreamLine } from "../lib/parseStreamLine";
 import { FontAwesomeIcon, faArrowLeft, Icon } from "./Icon";
 import { Markdown } from "./Markdown";
 import { SessionStatusBadge } from "./SessionStatusBadge";
@@ -66,15 +66,21 @@ function TranscriptEventContent({
   }
 
   // Output events are NDJSON lines from Claude's stream-json — parse and render
-  const parsed = parseStreamLine(content);
-  if (parsed.kind === "skip") return null;
-  return <StreamContent parsed={parsed} />;
+  const items = parseStreamLine(content).filter((p) => p.kind !== "skip");
+  if (items.length === 0) return null;
+  return (
+    <>
+      {items.map((parsed) => (
+        <StreamContent key={parsedLineKey(parsed)} parsed={parsed} />
+      ))}
+    </>
+  );
 }
 
 /** Check if an output event should be displayed (non-skip after parsing). */
 function isDisplayableEvent(direction: string, content: string): boolean {
   if (direction === SessionEventDirection.Input) return true;
-  return parseStreamLine(content).kind !== "skip";
+  return parseStreamLine(content).some((p) => p.kind !== "skip");
 }
 
 export function SessionDetail({ sessionId }: { sessionId: Id<"sessions"> }) {

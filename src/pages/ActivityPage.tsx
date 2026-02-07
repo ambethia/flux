@@ -4,7 +4,7 @@ import {
   type KeyedStreamEvent,
   useActivityStream,
 } from "../hooks/useActivityStream";
-import { parseStreamLine } from "../lib/parseStreamLine";
+import { parsedLineKey, parseStreamLine } from "../lib/parseStreamLine";
 
 function EventLine({ event }: { event: KeyedStreamEvent }) {
   switch (event.type) {
@@ -16,9 +16,17 @@ function EventLine({ event }: { event: KeyedStreamEvent }) {
         </div>
       );
     case "activity": {
-      const parsed = parseStreamLine(event.content);
-      if (parsed.kind === "skip") return null;
-      return <StreamContent parsed={parsed} />;
+      const items = parseStreamLine(event.content).filter(
+        (p) => p.kind !== "skip",
+      );
+      if (items.length === 0) return null;
+      return (
+        <>
+          {items.map((parsed) => (
+            <StreamContent key={parsedLineKey(parsed)} parsed={parsed} />
+          ))}
+        </>
+      );
     }
     case "status":
       return (

@@ -97,7 +97,11 @@ function genericInputSummary(input: Record<string, unknown>): string | null {
 
 /**
  * Parse a single NDJSON line from Claude's stream-json output.
- * Returns a structured representation for UI rendering.
+ * Returns an array of structured representations for UI rendering.
+ *
+ * Most envelope types yield a single ParsedLine, but `assistant` messages
+ * can contain multiple content blocks (text + parallel tool_use calls),
+ * so we always return an array for correctness.
  *
  * Known envelope types:
  * - content_block_delta: streaming text or tool input chunks
@@ -107,45 +111,47 @@ function genericInputSummary(input: Record<string, unknown>): string | null {
  * - result: final result with text blocks or usage stats
  * - message_start / message_delta / message_stop: message lifecycle events
  *
- * Lines that are not JSON or have no displayable content → "skip".
+ * Lines that are not JSON or have no displayable content → empty array or [skip].
  */
-export function parseStreamLine(line: string): ParsedLine {
+export function parseStreamLine(line: string): ParsedLine[] {
   let obj: Record<string, unknown>;
   try {
     obj = JSON.parse(line) as Record<string, unknown>;
   } catch {
     // Not JSON — treat as plain text (e.g. raw stderr or non-stream output)
-    return line.trim() ? { kind: "text", text: line } : { kind: "skip" };
+    return line.trim() ? [{ kind: "text", text: line }] : [{ kind: "skip" }];
   }
 
   // ── content_block_delta ──────────────────────────────────────────
   if (obj.type === "content_block_delta") {
     const delta = obj.delta as Record<string, unknown> | undefined;
     if (delta?.type === "text_delta" && typeof delta.text === "string") {
-      return { kind: "text", text: delta.text };
+      return [{ kind: "text", text: delta.text }];
     }
     // input_json_delta = streaming tool input — not useful to display
-    return { kind: "skip" };
+    return [{ kind: "skip" }];
   }
 
   // ── content_block_start ──────────────────────────────────────────
   if (obj.type === "content_block_start") {
     const block = obj.content_block as Record<string, unknown> | undefined;
     if (block?.type === "tool_use") {
-      return {
-        kind: "tool_use",
-        toolName: (block.name as string) ?? "unknown",
-        toolId: (block.id as string) ?? "",
-        toolInput: extractToolInput(block.input),
-      };
+      return [
+        {
+          kind: "tool_use",
+          toolName: (block.name as string) ?? "unknown",
+          toolId: (block.id as string) ?? "",
+          toolInput: extractToolInput(block.input),
+        },
+      ];
     }
     // text block start — no content yet, skip
-    return { kind: "skip" };
+    return [{ kind: "skip" }];
   }
 
   // ── content_block_stop ───────────────────────────────────────────
   if (obj.type === "content_block_stop") {
-    return { kind: "skip" };
+    return [{ kind: "skip" }];
   }
 
   // ── assistant: full message with content array ───────────────────
@@ -153,24 +159,31 @@ export function parseStreamLine(line: string): ParsedLine {
     const message = obj.message as Record<string, unknown> | undefined;
     if (message && Array.isArray(message.content)) {
       const blocks = message.content as Array<Record<string, unknown>>;
+      const results: ParsedLine[] = [];
+
+      // Collect all text blocks into a single text entry
       const texts = blocks
         .filter((b) => b.type === "text" && typeof b.text === "string")
         .map((b) => b.text as string);
       if (texts.length > 0) {
-        return { kind: "text", text: texts.join("") };
+        results.push({ kind: "text", text: texts.join("") });
       }
-      // Only tool_use blocks, no text
-      const tool = blocks.find((b) => b.type === "tool_use");
-      if (tool) {
-        return {
-          kind: "tool_use",
-          toolName: (tool.name as string) ?? "unknown",
-          toolId: (tool.id as string) ?? "",
-          toolInput: extractToolInput(tool.input),
-        };
+
+      // Collect ALL tool_use blocks — not just the first
+      for (const block of blocks) {
+        if (block.type === "tool_use") {
+          results.push({
+            kind: "tool_use",
+            toolName: (block.name as string) ?? "unknown",
+            toolId: (block.id as string) ?? "",
+            toolInput: extractToolInput(block.input),
+          });
+        }
       }
+
+      if (results.length > 0) return results;
     }
-    return { kind: "skip" };
+    return [{ kind: "skip" }];
   }
 
   // ── result: final output ─────────────────────────────────────────
@@ -180,14 +193,14 @@ export function parseStreamLine(line: string): ParsedLine {
         .filter((b) => b.type === "text" && typeof b.text === "string")
         .map((b) => b.text as string);
       if (texts.length > 0) {
-        return { kind: "text", text: texts.join("") };
+        return [{ kind: "text", text: texts.join("") }];
       }
     }
     if (typeof obj.result === "string") {
-      return { kind: "text", text: obj.result };
+      return [{ kind: "text", text: obj.result }];
     }
     // Result with only usage/stats — skip
-    return { kind: "skip" };
+    return [{ kind: "skip" }];
   }
 
   // ── user: tool results ───────────────────────────────────────────
@@ -219,14 +232,16 @@ export function parseStreamLine(line: string): ParsedLine {
           joined.length > maxLen
             ? `${joined.slice(0, maxLen)}… (${joined.length} chars)`
             : joined;
-        return {
-          kind: "tool_result",
-          toolName: null, // tool name is in the preceding tool_use
-          content: truncated,
-        };
+        return [
+          {
+            kind: "tool_result",
+            toolName: null, // tool name is in the preceding tool_use
+            content: truncated,
+          },
+        ];
       }
     }
-    return { kind: "skip" };
+    return [{ kind: "skip" }];
   }
 
   // ── message lifecycle events — no displayable content ────────────
@@ -235,16 +250,16 @@ export function parseStreamLine(line: string): ParsedLine {
     obj.type === "message_delta" ||
     obj.type === "message_stop"
   ) {
-    return { kind: "skip" };
+    return [{ kind: "skip" }];
   }
 
   // Unknown envelope type — surface it for debugging so we don't silently drop data
   if (typeof obj.type === "string") {
-    return { kind: "text", text: `[${obj.type}]` };
+    return [{ kind: "text", text: `[${obj.type}]` }];
   }
 
   // Not a recognized envelope — render as plain text
-  return { kind: "text", text: line };
+  return [{ kind: "text", text: line }];
 }
 
 /** Safely extract tool input, returning null if not a valid object. */
@@ -254,4 +269,18 @@ function extractToolInput(input: unknown): Record<string, unknown> | null {
     return Object.keys(obj).length > 0 ? obj : null;
   }
   return null;
+}
+
+/** Derive a stable React key from a ParsedLine. */
+export function parsedLineKey(p: ParsedLine): string {
+  switch (p.kind) {
+    case "tool_use":
+      return `tool_use:${p.toolId}`;
+    case "tool_result":
+      return `tool_result:${p.toolName ?? "unknown"}`;
+    case "text":
+      return `text:${p.text.slice(0, 32)}`;
+    case "skip":
+      return "skip";
+  }
 }
