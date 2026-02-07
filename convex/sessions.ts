@@ -5,6 +5,7 @@ import { mutation, query } from "./_generated/server";
 import {
   dispositionValidator,
   SessionStatus,
+  sessionPhaseValidator,
   sessionStatusValidator,
   sessionTypeValidator,
 } from "./schema";
@@ -38,6 +39,7 @@ export const create = mutation({
     agentSessionId: v.optional(v.string()),
     startHead: v.optional(v.string()),
     model: v.optional(v.string()),
+    phase: v.optional(sessionPhaseValidator),
   },
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.projectId);
@@ -52,6 +54,7 @@ export const create = mutation({
       type: args.type,
       agent: args.agent,
       status: SessionStatus.Running,
+      phase: args.phase,
       startedAt: Date.now(),
       pid: args.pid,
       agentSessionId: args.agentSessionId,
@@ -75,6 +78,7 @@ export const update = mutation({
     agentSessionId: v.optional(v.string()),
     startHead: v.optional(v.string()),
     endHead: v.optional(v.string()),
+    phase: v.optional(sessionPhaseValidator),
   },
   handler: async (ctx, args) => {
     const session = await ctx.db.get(args.sessionId);
@@ -92,6 +96,7 @@ export const update = mutation({
       updates.agentSessionId = args.agentSessionId;
     if (args.startHead !== undefined) updates.startHead = args.startHead;
     if (args.endHead !== undefined) updates.endHead = args.endHead;
+    if (args.phase !== undefined) updates.phase = args.phase;
 
     await ctx.db.patch(args.sessionId, updates);
     return await ctx.db.get(args.sessionId);

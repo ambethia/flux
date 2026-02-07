@@ -2,12 +2,13 @@ import { Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import { useState } from "react";
 import { api } from "$convex/_generated/api";
-import { SessionStatus, SessionType } from "$convex/schema";
+import { SessionPhase, SessionStatus, SessionType } from "$convex/schema";
 import { formatRelativeTime } from "../lib/format";
 import { SessionStatusBadge } from "./SessionStatusBadge";
 
 type StatusFilter = (typeof SessionStatus)[keyof typeof SessionStatus] | null;
 type SessionTypeValue = (typeof SessionType)[keyof typeof SessionType];
+type SessionPhaseValue = (typeof SessionPhase)[keyof typeof SessionPhase];
 
 const TABS: { label: string; value: StatusFilter }[] = [
   { label: "All", value: null },
@@ -26,6 +27,19 @@ function typeLabel(type: SessionTypeValue): string {
       const _exhaustive: never = type;
       throw new Error(`Unhandled session type: ${_exhaustive}`);
     }
+  }
+}
+
+function phaseLabel(phase: SessionPhaseValue): string {
+  switch (phase) {
+    case SessionPhase.Work:
+      return "Work";
+    case SessionPhase.Retro:
+      return "Retro";
+    case SessionPhase.Review:
+      return "Review";
+    default:
+      return phase;
   }
 }
 
@@ -93,6 +107,7 @@ export function SessionList() {
               <tr>
                 <th>Session</th>
                 <th>Type</th>
+                <th>Phase</th>
                 <th>Status</th>
                 <th>Issue</th>
                 <th>Agent</th>
@@ -114,6 +129,11 @@ export function SessionList() {
                 >
                   <td className="font-mono text-sm">{session._id.slice(-8)}</td>
                   <td>{typeLabel(session.type)}</td>
+                  <td className="text-sm">
+                    {session.phase
+                      ? phaseLabel(session.phase as SessionPhaseValue)
+                      : "—"}
+                  </td>
                   <td>
                     <SessionStatusBadge status={session.status} />
                   </td>

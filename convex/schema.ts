@@ -38,6 +38,18 @@ export const sessionTypeValidator = v.union(
   v.literal(SessionType.Review),
 );
 
+export const SessionPhase = {
+  Work: "work",
+  Retro: "retro",
+  Review: "review",
+} as const;
+
+export const sessionPhaseValidator = v.union(
+  v.literal(SessionPhase.Work),
+  v.literal(SessionPhase.Retro),
+  v.literal(SessionPhase.Review),
+);
+
 export const SessionEventDirection = {
   Input: "input",
   Output: "output",
@@ -180,6 +192,7 @@ export default defineSchema({
     type: sessionTypeValidator,
     agent: v.string(),
     status: sessionStatusValidator,
+    phase: v.optional(sessionPhaseValidator),
     startedAt: v.number(),
     endedAt: v.optional(v.number()),
     exitCode: v.optional(v.number()),

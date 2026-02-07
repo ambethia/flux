@@ -6,6 +6,7 @@ import type { Id } from "$convex/_generated/dataModel";
 import {
   Disposition,
   SessionEventDirection,
+  SessionPhase,
   SessionStatus,
   SessionType,
 } from "$convex/schema";
@@ -15,6 +16,7 @@ import { SessionStatusBadge } from "./SessionStatusBadge";
 
 type DispositionValue = (typeof Disposition)[keyof typeof Disposition];
 type SessionTypeValue = (typeof SessionType)[keyof typeof SessionType];
+type SessionPhaseValue = (typeof SessionPhase)[keyof typeof SessionPhase];
 
 function typeLabel(type: SessionTypeValue): string {
   switch (type) {
@@ -26,6 +28,19 @@ function typeLabel(type: SessionTypeValue): string {
       const _exhaustive: never = type;
       throw new Error(`Unhandled session type: ${_exhaustive}`);
     }
+  }
+}
+
+function phaseLabel(phase: SessionPhaseValue): string {
+  switch (phase) {
+    case SessionPhase.Work:
+      return "Work";
+    case SessionPhase.Retro:
+      return "Retro";
+    case SessionPhase.Review:
+      return "Review";
+    default:
+      return phase;
   }
 }
 
@@ -207,6 +222,13 @@ export function SessionDetail({ sessionId }: { sessionId: Id<"sessions"> }) {
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
           <dt className="text-base-content/60">Type</dt>
           <dd>{typeLabel(session.type)}</dd>
+
+          {session.phase && (
+            <>
+              <dt className="text-base-content/60">Phase</dt>
+              <dd>{phaseLabel(session.phase as SessionPhaseValue)}</dd>
+            </>
+          )}
 
           <dt className="text-base-content/60">Status</dt>
           <dd>

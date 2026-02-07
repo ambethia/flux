@@ -1,6 +1,11 @@
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
-import { IssueStatus, SessionStatus, SessionType } from "$convex/schema";
+import {
+  IssueStatus,
+  SessionPhase,
+  SessionStatus,
+  SessionType,
+} from "$convex/schema";
 import { getConvexClient } from "../convex";
 import {
   autoCommitDirtyTree,
@@ -34,8 +39,8 @@ const OrchestratorState = {
 type OrchestratorState =
   (typeof OrchestratorState)[keyof typeof OrchestratorState];
 
-/** The phase of the current issue lifecycle within a busy orchestrator. */
-type SessionPhase = "work" | "retro" | "review";
+/** Derived union type for SessionPhase values. */
+type SessionPhaseValue = (typeof SessionPhase)[keyof typeof SessionPhase];
 
 /** Runtime info about the currently active session. */
 interface ActiveSession {
@@ -52,7 +57,7 @@ interface ActiveSession {
   /** Issue context for prompt building */
   issue: WorkPromptContext;
   /** Current phase of the issue lifecycle */
-  phase: SessionPhase;
+  phase: SessionPhaseValue;
 }
 
 /** Orchestrator manages claiming issues, spawning agents, and session lifecycle. */
@@ -80,7 +85,7 @@ class Orchestrator {
       sessionId: string;
       issueId: string;
       pid: number;
-      phase: SessionPhase;
+      phase: SessionPhaseValue;
     } | null;
   } {
     return {
@@ -246,6 +251,7 @@ class Orchestrator {
       agent: this.provider.name,
       pid: agentProcess.pid,
       startHead,
+      phase: SessionPhase.Work,
     });
     if (!session) {
       agentProcess.kill();
@@ -816,6 +822,12 @@ class Orchestrator {
     active.monitorDone = retroMonitorDone;
     active.phase = "retro";
 
+    // Persist phase transition so re-adoption can route correctly
+    await getConvexClient().mutation(api.sessions.update, {
+      sessionId: active.sessionId,
+      phase: SessionPhase.Retro,
+    });
+
     // Fire-and-forget: handle retro exit
     retroProcess.wait().then(
       ({ exitCode }) => this.handleExit(exitCode),
@@ -907,6 +919,7 @@ class Orchestrator {
       agent: this.provider.name,
       pid: reviewProcess.pid,
       startHead,
+      phase: SessionPhase.Review,
     });
     if (!reviewSession) {
       reviewProcess.kill();
@@ -1036,6 +1049,7 @@ class Orchestrator {
       _id: Id<"sessions">;
       issueId: Id<"issues">;
       type: string;
+      phase?: string;
       agentSessionId?: string;
       startHead?: string;
     },
@@ -1054,13 +1068,19 @@ class Orchestrator {
       return false;
     }
 
-    // Map session type to phase. Work sessions could be in work or retro phase,
-    // but we can't distinguish them from the record alone. Since retro reuses the
-    // work session record (same type), we treat re-adopted work sessions as "work"
-    // and route through handleWorkExit which will check for commits and proceed
-    // to retro/review as normal.
-    const phase: SessionPhase =
-      session.type === SessionType.Review ? "review" : "work";
+    // Determine phase from the persisted record. Falls back to type-based
+    // inference for sessions created before the phase field existed.
+    let phase: SessionPhaseValue;
+    if (
+      session.phase === "work" ||
+      session.phase === "retro" ||
+      session.phase === "review"
+    ) {
+      phase = session.phase;
+    } else {
+      // Legacy fallback: infer from session type
+      phase = session.type === SessionType.Review ? "review" : "work";
+    }
 
     console.log(
       `[Orchestrator] Re-adopting orphaned session ${session._id} (PID ${pid}, phase: ${phase}) for ${issue.shortId}`,

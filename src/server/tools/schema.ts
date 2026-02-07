@@ -6,6 +6,7 @@ import {
   EpicStatus,
   IssuePriority,
   IssueStatus,
+  type SessionPhase,
   SessionStatus,
 } from "$convex/schema";
 
@@ -26,7 +27,6 @@ const closeTypeEnum = z.enum(Object.values(CloseType) as [string, ...string[]]);
 const sessionStatusEnum = z.enum(
   Object.values(SessionStatus) as [string, ...string[]],
 );
-
 // ── Derived TypeScript types for handler type assertions ─────────────
 export type IssueStatusValue = (typeof IssueStatus)[keyof typeof IssueStatus];
 export type IssuePriorityValue =
@@ -37,6 +37,8 @@ export type CommentAuthorValue =
 export type CloseTypeValue = (typeof CloseType)[keyof typeof CloseType];
 export type SessionStatusValue =
   (typeof SessionStatus)[keyof typeof SessionStatus];
+export type SessionPhaseValue =
+  (typeof SessionPhase)[keyof typeof SessionPhase];
 
 export interface ToolDef {
   name: string;
