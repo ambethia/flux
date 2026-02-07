@@ -135,6 +135,50 @@ function registerTools(
       };
     },
   );
+
+  mcp.tool(
+    "issues_update",
+    "Update an existing issue. Pass only the fields you want to change.",
+    {
+      issueId: z
+        .string()
+        .describe("The issue's document ID."),
+      title: z
+        .string()
+        .optional()
+        .describe("New title."),
+      description: z
+        .string()
+        .optional()
+        .describe("New description. Supports markdown."),
+      status: z
+        .enum(["open", "in_progress", "closed"])
+        .optional()
+        .describe("New status."),
+      priority: z
+        .enum(["critical", "high", "medium", "low"])
+        .optional()
+        .describe("New priority."),
+      assignee: z
+        .string()
+        .optional()
+        .describe("Assign to an agent or person."),
+    },
+    async ({ issueId, ...updates }) => {
+      const updated = await convex.mutation(api.issues.update, {
+        issueId: issueId as Id<"issues">,
+        ...updates,
+      });
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify({ issue: updated, _meta: buildMeta() }),
+          },
+        ],
+      };
+    },
+  );
 }
 
 export function createMcpHandler(

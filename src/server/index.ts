@@ -14,6 +14,7 @@ export async function startServer(
 
   const server = serve({
     port,
+    idleTimeout: 0,
     routes: {
       "/health": () =>
         Response.json({

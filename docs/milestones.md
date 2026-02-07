@@ -38,8 +38,9 @@
 - [x] `_meta` in responses (orchestrator status, timestamp)
 - [x] Register in `.mcp.json`
 - [x] Startup script: `bun run src/server/index.ts`
+- [x] `issues_update` — added to dogfood issue tracking during F3 development
 
-**Checkpoint**: Agent can create and view issues via MCP. Pattern established for adding tools as needed.
+**Checkpoint**: Agent can create, view, and update issues via MCP. Pattern established for adding tools as needed.
 
 **Note**: Other tools (`epics_*`, `labels_*`, `comments_*`, `deps_*`, etc.) added when their consuming feature is built or at the end.
 
