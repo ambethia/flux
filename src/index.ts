@@ -1,42 +1,12 @@
-import { serve } from "bun";
-import index from "./index.html";
+import { startServer } from "./server";
+import { ensureProject } from "./server/setup";
 
-const server = serve({
-	port: 8042,
-	routes: {
-		// Serve index.html for all unmatched routes.
-		"/*": index,
+async function main() {
+  const projectId = await ensureProject();
+  globalThis.projectId = projectId;
 
-		"/api/hello": {
-			async GET(req) {
-				return Response.json({
-					message: "Hello, world!",
-					method: "GET",
-				});
-			},
-			async PUT(req) {
-				return Response.json({
-					message: "Hello, world!",
-					method: "PUT",
-				});
-			},
-		},
+  const server = startServer();
+  console.log(`Flux running at http://localhost:${server.port}`);
+}
 
-		"/api/hello/:name": async (req) => {
-			const name = req.params.name;
-			return Response.json({
-				message: `Hello, ${name}!`,
-			});
-		},
-	},
-
-	development: process.env.NODE_ENV !== "production" && {
-		// Enable browser hot reloading in development
-		hmr: true,
-
-		// Echo console logs from the browser to the server
-		console: true,
-	},
-});
-
-console.log(`🚀 Server running at ${server.url}`);
+void main();

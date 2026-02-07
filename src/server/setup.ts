@@ -1,0 +1,31 @@
+import { api } from "$convex/_generated/api";
+import { getConvexClient } from "./convex";
+import { inferProjectSlug } from "./git";
+
+function titleize(slug: string): string {
+  return slug.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export async function ensureProject(): Promise<string> {
+  const client = getConvexClient();
+  const inferredSlug = await inferProjectSlug();
+
+  // Check if project already exists
+  const existing = await client.query(api.projects.get, {
+    slug: inferredSlug,
+  });
+
+  if (existing) {
+    console.log(`Project "${existing.name}" found.`);
+    return existing._id;
+  }
+
+  // Project doesn't exist — prompt for details
+  const slug = prompt(`Project slug [${inferredSlug}]:`) || inferredSlug;
+  const defaultName = titleize(slug);
+  const name = prompt(`Project name [${defaultName}]:`) || defaultName;
+
+  const projectId = await client.mutation(api.projects.create, { slug, name });
+  console.log(`Project "${name}" created. Seeds scheduled.`);
+  return projectId;
+}

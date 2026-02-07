@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "convex": {
+      "type": "stdio",
+      "command": "bunx",
+      "args": ["convex", "mcp", "start"]
+    },
+    "daisyui-blueprint": {
+      "type": "stdio",
+      "command": "bunx",
+      "args": ["daisyui-blueprint@latest"],
+      "env": {
+        "LICENSE": "${DAISYUI_BLUEPRINT_LICENSE}",
+        "EMAIL": "${DAISYUI_BLUEPRINT_EMAIL}"
+      }
+    }
+  }
+}

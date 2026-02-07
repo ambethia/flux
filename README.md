@@ -1,4 +1,82 @@
-# bun-react-tailwind-template
+# FLUX
+
+An autonomous agent orchestrator with built-in issue tracking, realtime UI, and its own MCP server.
+
+## Quick Start
+
+```bash
+# Install dependencies
+bun install
+
+# Start Convex dev server (in another terminal)
+bun convex
+
+# Run Flux
+bun dev
+```
+
+## Bootstrap Flow
+
+When you run Flux for the first time in a git repository:
+
+1. **Project Detection**: Flux detects the project slug from your git remote
+2. **Creation**: If the project doesn't exist in Convex, you'll be prompted to create it
+3. **Seeding**: An animated progress bar shows real-time seeding of:
+   - LLM Costs (global) - Claude 4.5 pricing
+   - Labels (project-specific) - bug, feature, chore, friction
+   - Orchestrator Config - defaults to **disabled**
+4. **Splash Screen**: Shows project status with keyboard shortcuts:
+   - `q` - Quit Flux
+   - `o` - Open browser to dashboard
+   - `e` - Enable orchestrator
+
+## Development
+
+### Testing Bootstrap Flow
+
+To test the full bootstrap experience repeatedly:
+
+```bash
+# Nuke all data and restart
+bunx convex run nuke:all && bun run src/index.ts
+```
+
+This will:
+1. Wipe all Convex data
+2. Run the interactive bootstrap TUI
+3. Create project with animated progress bar
+4. Start the Flux server
+
+### Project Configuration
+
+The orchestrator starts **disabled** by default. You must explicitly enable it via:
+- Press `e` in the splash screen
+- Or via the web UI
+
+## Architecture
+
+- **Stack**: React + Bun + Tailwind + DaisyUI
+- **Backend**: Convex (realtime persistence)
+- **CLI**: OpenTUI for slick terminal interface
+- **MCP**: Port 8042 (exposed at `/mcp`)
+
+## Keyboard Shortcuts
+
+### Splash Screen
+- `q` - Quit Flux
+- `o` - Open browser to dashboard  
+- `e` - Enable orchestrator
+
+### Create Form
+- `↑/↓` or `Tab` - Navigate fields
+- `Enter` - Submit
+
+---
+
+## Bun Template Info
+
+<details>
+<summary>Click to expand original Bun template documentation</summary>
 
 To install dependencies:
 
@@ -28,7 +106,7 @@ This project was created using `bun init` in bun v1.3.5. [Bun](https://bun.com) 
 - Use `bunx <package> <command>` instead of `npx <package> <command>`
 - Bun automatically loads .env, so don't use dotenv.
 
-## APIs
+### APIs
 
 - `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
 - `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
@@ -38,7 +116,7 @@ This project was created using `bun init` in bun v1.3.5. [Bun](https://bun.com) 
 - Prefer `Bun.file` over `node:fs`'s readFile/writeFile
 - Bun.$`ls` instead of execa.
 
-## Testing
+### Testing
 
 Use `bun test` to run tests.
 
@@ -50,7 +128,7 @@ test("hello world", () => {
 });
 ```
 
-## Frontend
+### Frontend
 
 Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
 
@@ -123,3 +201,5 @@ bun --hot ./index.ts
 ```
 
 For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
+
+</details>

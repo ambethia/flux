@@ -1,21 +1,20 @@
 ## Milestones
 
-- [ ] ### F1: Foundation — Scaffold + Convex + Issue CRUD
+- [x] ### F1: Foundation — Scaffold + Convex + Issue CRUD
 
 **Goal**: Standing project with Convex schema and working issue management via Convex functions.
 
 **Work**:
 - [x] Initialize project: `bun init` in `tools/flux/`, set up package.json with React, Convex, Tailwind, DaisyUI
 - [x] `bunx convex init` (may need interactive setup)
-- [ ] Implement full Convex schema (all tables above, including labels)
-- [ ] Implement Convex functions as needed:
-  - [ ] Start with `projects` (create, get) and `issues` (create, list, get, update)
-  - [ ] Add `issues_claim` (atomic mutation - needed for orchestrator)
-  - [ ] Defer the rest until their consuming feature is built
+- [x] Implement initial Convex schema
+- [x] Implement Convex functions as needed:
+  - [x] Start with `projects` (create, get) and `issues` (create, list, get, update)
+  - [x] Defer the rest until their consuming feature is built
 - [x] Font Awesome Pro kit in index.html
-- [ ] Bun.serve() entry point (`src/server/index.ts`) with HTML import for web, health endpoint, MCP route stub
-- [ ] Convex Node client setup (`src/server/convex.ts`)
-- [ ] Seed project record and default labels:
+- [x] Bun.serve() entry point (`src/server/index.ts`) with HTML import for web, health endpoint, MCP route stub
+- [x] Convex Node client setup (`src/server/convex.ts`)
+- [x] Seed project record and default labels:
   ```typescript
   const DEFAULT_LABELS = [
     { name: "bug", color: "#dc2626" },      // red
@@ -53,6 +52,7 @@
 **Work**:
 - [ ] Define `AgentProvider` interface and implement `ClaudeCodeProvider` — spawn `claude` CLI with stream-json
 - [ ] Convex: `sessions` table and `sessions_create`, `sessions_update` mutations
+- [ ] Add `issues_claim` (atomic mutation - needed for orchestrator)
 - [ ] MCP tools: `orchestrator_run` (claim issue, spawn agent), `orchestrator_kill`, `sessions_list`
 - [ ] Basic session recording (start time, status, PID)
 - [ ] Simple close: mark done/failed based on exit code (no structured response yet)

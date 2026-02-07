@@ -52,9 +52,7 @@ An autonomous agent orchestrator with built-in issue tracking, realtime UI, and 
 | slug | string | "arcloop" |
 | name | string | "ArcLoop Engine" |
 | description | string? | |
-| repoPath | string | Absolute path for agent cwd |
 | issueCounter | number | Default 0. Incremented on issue create for JIRA-style shortIds. |
-| epicCounter | number | Default 0. Incremented on epic create. |
 | **Indexes** | by_slug | |
 
 ### labels
@@ -938,50 +936,46 @@ Features deferred until core system is validated:
 
 ## Testing Strategy
 
-Flux uses Bun's built-in test runner for all testing.
+### MVP Phase: Manual Testing Only
 
-### Unit Tests (`bun test`)
+**No automated tests until post-MVP.** During initial development:
 
-**Location**: Co-located with source files or in `__tests__/` directories
+- APIs are fluid and will change frequently
+- Manual testing via `bunx convex run` is sufficient
+- Integration via CLI validates end-to-end behavior
+- Big refactors expected - tests would create drag
 
-**Coverage**:
-- Convex mutations (claimIssue, dependency cycle detection)
-- Utility functions (shortId generation, priority sorting)
-- MCP tool handlers (input validation, response formatting)
-- Orchestrator logic (state transitions, backoff calculation)
-- Agent output parsing (stream-json parsing, metrics extraction)
+**Manual testing workflow:**
+```bash
+# Test Convex functions
+bunx convex run projects:create '{"slug":"test","name":"Test"...}'
+bunx convex run issues:claim '{"issueId":"...","assignee":"agent-1"}'
+bunx convex run issues:list '{"projectId":"..."}'
 
-**Example**:
-```typescript
-// convex/issues.test.ts
-import { test, expect } from "bun:test";
-import { claimIssue } from "./issues";
-
-test("claimIssue succeeds when issue is open", async () => {
-  // Test implementation
-});
-
-test("claimIssue fails when issue is in_progress", async () => {
-  // Test implementation
-});
+# Test MCP tools (once F2 is built)
+curl -X POST http://localhost:8042/mcp -d '{"tool":"issues_list"...}'
 ```
 
-### Integration Tests
+### Post-MVP: Automated Testing
 
-**Convex Functions**: Test via `bunx convex run` against dev deployment
-- Seed test data, run mutations, verify state
+**When to add tests:**
+- After F5 (React Frontend) is stable
+- When orchestrator logic becomes complex
+- When we need regression protection for critical paths
 
-**MCP Server**: Test tools via HTTP calls
-- Start server, make tool calls, verify responses
-- Mock Convex responses for isolated testing
+**Recommended approach:**
+Use `convex-test` library with Vitest for proper Convex mocking:
+```typescript
+import { convexTest } from "convex-test";
+const t = convexTest(schema);
+await t.mutation(api.issues.claim, { issueId, assignee: "agent-1" });
+```
 
-**Orchestrator**: Test with mock agent provider
-- Stub AgentProvider that returns predetermined responses
-- Verify scheduler behavior without spawning real agents
+**Never write:** Hand-rolled mock contexts that don't match Convex semantics.
 
-### E2E Tests
+### E2E Testing
 
-**Manual validation checklist** (for major releases):
+**Manual validation checklist** (Post-MVP):
 1. Create issue via UI
 2. Enable orchestrator
 3. Verify session appears in Convex
@@ -996,26 +990,10 @@ test("claimIssue fails when issue is in_progress", async () => {
 - Mock agent responses to avoid needing real API keys
 - Run in CI against staging Convex deployment
 
-### Test Commands
-
-```bash
-# Run all tests
-bun test
-
-# Run with coverage
-bun test --coverage
-
-# Run specific test file
-bun test convex/issues.test.ts
-
-# Watch mode for development
-bun test --watch
-```
-
 ### Testing Philosophy
 
 - **Test behavior, not implementation**: Verify outcomes, not internal state
-- **Mock external dependencies**: Convex client, git operations, agent processes
+- **No tests during API churn**: Wait for interfaces to stabilize
 - **Fast feedback**: Unit tests should run in <5 seconds
 - **Integration for confidence**: E2E validates the whole system works
 
@@ -1048,11 +1026,11 @@ bun test --watch
 How Flux knows which project to use:
 
 1. **Explicit**: `FLUX_PROJECT=arcl` environment variable (project slug) — **takes priority**
-2. **Inferred**: Match cwd against `projects.repoPath` in Convex
+2. **Inferred**: Derive from git remote at CLI level
    - On startup, Flux resolves cwd to repo root (finds `.git`)
-   - Queries projects where `repoPath` matches
-   - If exactly one match, uses it
-   - If no match or multiple matches, errors with guidance
+   - Parses git remote URL to extract project name (e.g., `github.com/user/flux` → `flux`)
+   - Uses that as the project slug
+   - If no `.git` found, errors immediately: "Error: Not in a git repository"
 
 **Git Required**: Flux requires a git repository. On startup, if `.git` cannot be found, Flux exits immediately with an error: "Error: Not in a git repository. Flux requires git for project resolution and change tracking."
 
@@ -1092,7 +1070,7 @@ flux
 
 # Flux will:
 # 1. Resolve to repo root (/Users/jason/Projects/arcl)
-# 2. Match against projects.repoPath in Convex
+# 2. Resolve to repo root and derive project slug from git remote
 # 3. Start server for the "arcl" project
 ```
 
@@ -1122,7 +1100,7 @@ claude  # MCP automatically connects to flux server
 
 ### Agent Context Injection
 When spawning an agent, the orchestrator:
-1. Reads project's `repoPath` — this is the agent's cwd
+1. Resolves repo root from `git rev-parse --show-toplevel` — this is the agent's cwd
 2. The project's CLAUDE.md/AGENTS.md contains tenets, conventions, and context
 3. Flux passes the issue details (title, description, shortId) as the initial prompt
 4. Flux does NOT inject a system prompt — the project's own config handles that

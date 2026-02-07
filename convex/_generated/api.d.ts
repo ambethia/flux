@@ -8,13 +8,29 @@
  * @module
  */
 
+import type * as issues from "../issues.js";
+import type * as labels from "../labels.js";
+import type * as llmCosts from "../llmCosts.js";
+import type * as nuke from "../nuke.js";
+import type * as orchestratorConfig from "../orchestratorConfig.js";
+import type * as projects from "../projects.js";
+import type * as seeds from "../seeds.js";
+
 import type {
   ApiFromModules,
   FilterApi,
   FunctionReference,
 } from "convex/server";
 
-declare const fullApi: ApiFromModules<{}>;
+declare const fullApi: ApiFromModules<{
+  issues: typeof issues;
+  labels: typeof labels;
+  llmCosts: typeof llmCosts;
+  nuke: typeof nuke;
+  orchestratorConfig: typeof orchestratorConfig;
+  projects: typeof projects;
+  seeds: typeof seeds;
+}>;
 
 /**
  * A utility for referencing Convex functions in your app's public API.

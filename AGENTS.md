@@ -37,7 +37,41 @@ Every file you touch should be slightly better than when you found it.
 - **Refactor Proactively:** If you're modifying code near something that could be cleaner, fix it. Don't leave broken windows.
 - **Use Modern APIs:** When a framework or library has a better way to do something, adopt it. Don't cling to deprecated patterns.
 - **No Lazy TODOs:** If you can't fix it now, leave a `// TODO:` explaining _why_ and _what_ is missing.
-- **Don't Be Lazy:** Taking short
+- **Don't Be Lazy:** Taking shortcuts creates technical debt that compounds.
+
+## Vertical Slices & YAGNI
+
+**Build only what you need RIGHT NOW.** No exceptions.
+
+- **Vertical Slices:** Implement complete features end-to-end before starting new ones. Don't build "foundations" you think you'll need later.
+- **No Future-Proofing:** Don't add tables, fields, or indexes "just in case." If the query doesn't exist yet, the index doesn't exist yet.
+- **Defer Abstractions:** Don't build complex systems (orchestrators, configs, sessions) before their consumers exist. Build the consumer first, extract patterns second.
+- **Schema Minimalism:** Start with the smallest schema possible. Every table and field must justify its existence with active code that uses it.
+
+**Example:** An initial agent attempt created 9 tables with 10 indexes. We pared it down to 2 tables with 2 indexes because the rest were speculative features not needed for the current milestone.
+
+## Convex Schema Design
+
+**Schema is not a contract with the future. It's a reflection of current needs.**
+
+- **Single Source of Truth:** Export const enums and validators from `schema.ts`. Reuse them in queries/mutations. Never copy-paste `v.union(v.literal(...))` patterns.
+- **Fail Fast on Schema Changes:** Schema changes should break existing code immediately. Don't add backwards compatibility fallbacks. Fix the code.
+- **No Storing Computed Data:** Don't store values that can be derived at runtime (e.g., `repoPath`). Compute at the edge (CLI), store only canonical data.
+- **Indexes When Needed, Not Before:** Add indexes only when you have real queries that will filter or sort on that field. We use indexes—just not arbitrarily. If a query needs to filter by `projectId`, add the index when writing that query.
+- **Add Fields When Building Features:** Don't add fields like `deletedAt` until you're actually implementing soft delete functionality. Schema grows with features, not ahead of them.
+
+**Pattern:**
+```typescript
+// schema.ts - export for reuse
+export const IssueStatus = { Open: "open", ... } as const;
+export const issueStatusValidator = v.union(
+  v.literal(IssueStatus.Open),
+  ...
+);
+
+// queries.ts - import and reuse
+import { IssueStatus, issueStatusValidator } from "./schema";
+```
 
 ## Development Guidelines
 
@@ -95,3 +129,27 @@ Backend-as-a-service for real-time data. Functions live in `convex/` directory.
 2. Use `tables` to see database schema
 3. Use `functionSpec` to see available functions
 4. Use `run` to execute functions for testing/debugging
+
+## Testing Strategy (MVP Phase)
+
+**No automated tests until post-MVP.** During initial development:
+
+- APIs are fluid and will change frequently
+- Manual testing via `bunx convex run` is sufficient
+- Integration via CLI validates end-to-end behavior
+- Big refactors expected - tests would create drag
+
+**When to add tests:**
+- After F5 (React Frontend) is stable
+- When orchestrator logic becomes complex
+- When we need regression protection for critical paths
+
+**Recommended approach when we do test:**
+Use `convex-test` library with Vitest for proper Convex mocking:
+```typescript
+import { convexTest } from "convex-test";
+const t = convexTest(schema);
+await t.mutation(api.issues.claim, { issueId, assignee: "agent-1" });
+```
+
+**Never write:** Hand-rolled mock contexts that don't match Convex semantics.
