@@ -29,6 +29,7 @@ export class SessionMonitor {
   private sequence = 0;
   private convexFailures = 0;
   private _shuttingDown = false;
+  private abortController: AbortController | null = null;
   private static readonly MAX_CONVEX_FAILURES = 5;
   private static readonly FLUSH_INTERVAL_MS = 5_000;
   private static readonly HEARTBEAT_INTERVAL_MS = 30_000;
@@ -57,6 +58,9 @@ export class SessionMonitor {
     // Open tmp file writer
     this.tmpWriter = Bun.file(this.tmpPath).writer();
 
+    // Create abort controller so shutdown() can cancel the reader
+    this.abortController = new AbortController();
+
     // Start periodic flush and heartbeat timers
     this.flushTimer = setInterval(async () => {
       try {
@@ -80,6 +84,9 @@ export class SessionMonitor {
 
     try {
       while (true) {
+        // Check abort before each read so shutdown mid-consume exits promptly
+        if (this.abortController.signal.aborted) break;
+
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -97,15 +104,20 @@ export class SessionMonitor {
       reader.releaseLock();
     }
 
-    // Handle final partial line
-    const remaining = partial + decoder.decode();
-    if (remaining.trim()) {
-      this.processLine(remaining.trim());
+    // Handle final partial line (only if not aborted — data would be lost anyway)
+    if (!this.abortController.signal.aborted) {
+      const remaining = partial + decoder.decode();
+      if (remaining.trim()) {
+        this.processLine(remaining.trim());
+      }
     }
   }
 
   /** Process a single line of stdout output. */
   private processLine(line: string): void {
+    // After shutdown, refuse to process — fail visibly instead of silently dropping data
+    if (this._shuttingDown) return;
+
     // 1. Push to in-memory buffer
     this.buffer.push(line);
 
@@ -148,6 +160,7 @@ export class SessionMonitor {
    * Goes through the same batching pipeline as output events.
    */
   recordInput(content: string): void {
+    if (this._shuttingDown) return;
     this.pendingEvents.push({
       direction: SessionEventDirection.Input,
       content,
@@ -205,6 +218,10 @@ export class SessionMonitor {
   async shutdown(): Promise<void> {
     if (this._shuttingDown) return;
     this._shuttingDown = true;
+
+    // Abort the consume() reader loop if it's still active.
+    // Don't null the controller — consume() reads the signal after breaking out of its loop.
+    this.abortController?.abort();
 
     // Clear timers
     if (this.flushTimer) {
