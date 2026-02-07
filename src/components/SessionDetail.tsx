@@ -123,8 +123,8 @@ export function SessionDetail({ sessionId }: { sessionId: Id<"sessions"> }) {
         >
           <div className="flex items-center gap-2">
             <span className="font-medium text-sm">Disposition:</span>
-            <span className={`badge badge-sm ${dispo!.className}`}>
-              {dispo!.label}
+            <span className={`badge badge-sm ${dispo?.className}`}>
+              {dispo?.label}
             </span>
           </div>
           {session.note && (
