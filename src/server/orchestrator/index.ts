@@ -278,6 +278,20 @@ class Orchestrator {
         const obj = JSON.parse(line) as Record<string, unknown>;
         if (obj.type === "system" && typeof obj.session_id === "string") {
           activeRef.agentSessionId = obj.session_id;
+          // Persist immediately so it survives hot reloads. Without this,
+          // a module re-evaluation loses the in-memory value and re-adopted
+          // sessions can't resume for retro.
+          getConvexClient()
+            .mutation(api.sessions.update, {
+              sessionId: activeRef.sessionId,
+              agentSessionId: obj.session_id,
+            })
+            .catch((err: unknown) =>
+              console.error(
+                "[Orchestrator] Failed to persist agentSessionId:",
+                err,
+              ),
+            );
         }
       } catch {
         // Not JSON — ignore

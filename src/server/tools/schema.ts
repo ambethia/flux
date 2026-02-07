@@ -75,7 +75,7 @@ const issues_update: ToolDef = {
   },
 };
 
-// ── Issues (stubs) ────────────────────────────────────────────────────
+// ── Issues ────────────────────────────────────────────────────────────
 
 const issues_close: ToolDef = {
   name: "issues_close",
@@ -299,7 +299,7 @@ const deps_listForIssue: ToolDef = {
   },
 };
 
-// ── Batch (stubs) ─────────────────────────────────────────────────────
+// ── Batch ─────────────────────────────────────────────────────────────
 
 const issues_bulk_create: ToolDef = {
   name: "issues_bulk_create",
