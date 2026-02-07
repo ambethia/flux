@@ -1,20 +1,10 @@
 import type { TableNames } from "./_generated/dataModel";
 import { internalMutation } from "./_generated/server";
+import schema from "./schema";
 
 export const all = internalMutation({
   handler: async (ctx) => {
-    const tables: TableNames[] = [
-      "sessionEvents",
-      "sessions",
-      "comments",
-      "dependencies",
-      "issues",
-      "epics",
-      "labels",
-      "llmCosts",
-      "orchestratorConfig",
-      "projects",
-    ];
+    const tables = Object.keys(schema.tables) as TableNames[];
 
     let totalDeleted = 0;
 
