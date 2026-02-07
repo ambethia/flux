@@ -117,14 +117,12 @@ function CreateLabelForm({
 
 function LabelRow({
   label,
-  onDeleted,
 }: {
   label: {
     _id: Id<"labels">;
     name: string;
     color: string;
   };
-  onDeleted: () => void;
 }) {
   const updateLabel = useMutation(api.labels.update);
   const removeLabel = useMutation(api.labels.remove);
@@ -187,7 +185,6 @@ function LabelRow({
   async function handleDelete() {
     try {
       await removeLabel({ labelId: label._id });
-      onDeleted();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete label");
       setConfirmDelete(false);
@@ -340,7 +337,7 @@ export function LabelsList() {
           </thead>
           <tbody>
             {labels.map((label) => (
-              <LabelRow key={label._id} label={label} onDeleted={() => {}} />
+              <LabelRow key={label._id} label={label} />
             ))}
           </tbody>
         </table>
