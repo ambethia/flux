@@ -126,13 +126,19 @@ export class SessionMonitor {
     this.buffer.push(line);
 
     // 2. Write to tmp file (NDJSON format)
+    const writer = this.tmpWriter;
+    if (!writer) {
+      throw new Error(
+        "[SessionMonitor] tmpWriter is null in processLine — consume() must be called first",
+      );
+    }
     const logEntry = JSON.stringify({
       seq: this.sequence,
       dir: SessionEventDirection.Output,
       ts: Date.now(),
       content: line,
     });
-    this.tmpWriter?.write(`${logEntry}\n`);
+    writer.write(`${logEntry}\n`);
 
     // 3. Queue for Convex batch insert
     this.pendingEvents.push({
