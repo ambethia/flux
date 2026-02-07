@@ -146,8 +146,11 @@ export class SessionMonitor {
     for (const listener of this.lineListeners) {
       try {
         listener(line);
-      } catch {
-        // Remove broken listeners silently
+      } catch (err) {
+        console.warn(
+          `[SessionMonitor] Listener threw during processLine, removing:`,
+          err,
+        );
         this.lineListeners.delete(listener);
       }
     }
