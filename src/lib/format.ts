@@ -1,7 +1,7 @@
+import type { SessionPhaseValue } from "$convex/schema";
 import { SessionPhase, SessionType } from "$convex/schema";
 
 type SessionTypeValue = (typeof SessionType)[keyof typeof SessionType];
-type SessionPhaseValue = (typeof SessionPhase)[keyof typeof SessionPhase];
 
 export function typeLabel(type: SessionTypeValue): string {
   switch (type) {

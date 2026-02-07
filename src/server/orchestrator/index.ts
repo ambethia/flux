@@ -1,5 +1,6 @@
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
+import type { SessionPhaseValue } from "$convex/schema";
 import {
   CloseType,
   CommentAuthor,
@@ -41,9 +42,6 @@ const OrchestratorState = {
 } as const;
 type OrchestratorState =
   (typeof OrchestratorState)[keyof typeof OrchestratorState];
-
-/** Derived union type for SessionPhase values. */
-type SessionPhaseValue = (typeof SessionPhase)[keyof typeof SessionPhase];
 
 /** Runtime info about the currently active session. */
 interface ActiveSession {

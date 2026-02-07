@@ -1,4 +1,5 @@
 import { $ } from "bun";
+import type { SessionPhaseValue } from "$convex/schema";
 import { isProcessAlive } from "./process";
 
 export async function resolveRepoRoot(): Promise<string> {
@@ -103,7 +104,7 @@ export async function autoCommitDirtyTree(
   cwd: string,
   shortId: string,
   sessionId: string,
-  phase?: string,
+  phase?: SessionPhaseValue,
   agentPid?: number,
 ): Promise<boolean> {
   // Guard: suppress auto-commit if the agent process is still alive.

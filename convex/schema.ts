@@ -44,6 +44,9 @@ export const SessionPhase = {
   Review: "review",
 } as const;
 
+export type SessionPhaseValue =
+  (typeof SessionPhase)[keyof typeof SessionPhase];
+
 export const sessionPhaseValidator = v.union(
   v.literal(SessionPhase.Work),
   v.literal(SessionPhase.Retro),

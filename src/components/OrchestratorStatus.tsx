@@ -3,13 +3,12 @@ import { useQuery } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
+import type { SessionPhaseValue } from "$convex/schema";
 import { SessionPhase } from "$convex/schema";
 import { callTool } from "../lib/api";
 import { FontAwesomeIcon, faPlay, faSkull, faStop } from "./Icon";
 
 // ── Types ────────────────────────────────────────────────────────────
-
-type SessionPhaseValue = (typeof SessionPhase)[keyof typeof SessionPhase];
 
 type OrchestratorStatusData = {
   status: {
