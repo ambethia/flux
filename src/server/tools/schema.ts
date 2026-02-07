@@ -278,7 +278,7 @@ const epics_close: ToolDef = {
   },
 };
 
-// ── Labels (stubs) ────────────────────────────────────────────────────
+// ── Labels ────────────────────────────────────────────────────────────
 
 const labels_list: ToolDef = {
   name: "labels_list",
