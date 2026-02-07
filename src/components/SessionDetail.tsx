@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
+import { useMemo } from "react";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import {
@@ -120,6 +121,14 @@ function isDisplayableEvent(direction: string, content: string): boolean {
 export function SessionDetail({ sessionId }: { sessionId: Id<"sessions"> }) {
   const session = useQuery(api.sessions.getWithIssue, { sessionId });
   const events = useQuery(api.sessionEvents.list, { sessionId });
+
+  const displayableEvents = useMemo(
+    () =>
+      events?.filter((event) =>
+        isDisplayableEvent(event.direction, event.content),
+      ) ?? [],
+    [events],
+  );
 
   if (session === undefined) {
     return (
@@ -312,7 +321,8 @@ export function SessionDetail({ sessionId }: { sessionId: Id<"sessions"> }) {
           Transcript
           {events && (
             <span className="ml-2 text-base-content/40">
-              ({events.length} {events.length === 1 ? "event" : "events"})
+              ({displayableEvents.length}{" "}
+              {displayableEvents.length === 1 ? "event" : "events"})
             </span>
           )}
         </h3>
@@ -321,39 +331,35 @@ export function SessionDetail({ sessionId }: { sessionId: Id<"sessions"> }) {
           <div className="flex justify-center p-8">
             <span className="loading loading-spinner loading-md" />
           </div>
-        ) : events.length === 0 ? (
+        ) : displayableEvents.length === 0 ? (
           <p className="py-8 text-center text-base-content/60">
             No transcript events recorded.
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            {events
-              .filter((event) =>
-                isDisplayableEvent(event.direction, event.content),
-              )
-              .map((event) => (
-                <div
-                  key={event._id}
-                  className={
-                    event.direction === SessionEventDirection.Output
-                      ? "overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-neutral p-3 font-mono text-neutral-content text-sm"
-                      : "whitespace-pre-wrap break-words rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm"
-                  }
-                >
-                  <div className="mb-1 flex items-center gap-2 text-xs opacity-60">
-                    <span className="font-medium">
-                      {event.direction === SessionEventDirection.Input
-                        ? "Input"
-                        : "Output"}
-                    </span>
-                    <span>#{event.sequence}</span>
-                  </div>
-                  <TranscriptEventContent
-                    direction={event.direction}
-                    content={event.content}
-                  />
+            {displayableEvents.map((event) => (
+              <div
+                key={event._id}
+                className={
+                  event.direction === SessionEventDirection.Output
+                    ? "overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-neutral p-3 font-mono text-neutral-content text-sm"
+                    : "whitespace-pre-wrap break-words rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm"
+                }
+              >
+                <div className="mb-1 flex items-center gap-2 text-xs opacity-60">
+                  <span className="font-medium">
+                    {event.direction === SessionEventDirection.Input
+                      ? "Input"
+                      : "Output"}
+                  </span>
+                  <span>#{event.sequence}</span>
                 </div>
-              ))}
+                <TranscriptEventContent
+                  direction={event.direction}
+                  content={event.content}
+                />
+              </div>
+            ))}
           </div>
         )}
       </div>
