@@ -31,6 +31,12 @@ const PHASE_LABELS: Record<SessionPhase, string> = {
   review: "Review",
 };
 
+const PHASE_ABBREV: Record<SessionPhase, string> = {
+  work: "W",
+  retro: "R",
+  review: "Rev",
+};
+
 // ── Component ────────────────────────────────────────────────────────
 
 export function OrchestratorStatus({
@@ -114,7 +120,7 @@ export function OrchestratorStatus({
 
   const showPing = state === "busy";
 
-  // State label
+  // State label (full for desktop, condensed for mobile)
   const activePhase = status?.activeSession?.phase;
   const stateLabel =
     state === "busy" && activePhase
@@ -124,6 +130,11 @@ export function OrchestratorStatus({
           ? "Idle"
           : "Disabled"
         : "Stopped";
+
+  const shortLabel =
+    state === "busy" && activePhase
+      ? `${PHASE_ABBREV[activePhase]}${issue?.shortId ? ` ${issue.shortId}` : ""}`
+      : stateLabel;
 
   // Button visibility
   const showEnable = state !== "busy" && !enabled;
@@ -148,7 +159,8 @@ export function OrchestratorStatus({
         <div className={`status status-lg ${dotClass}`} aria-hidden />
       </div>
 
-      {/* State label */}
+      {/* State label: condensed on mobile, full on desktop */}
+      <span className="font-medium text-xs sm:hidden">{shortLabel}</span>
       <span className="hidden font-medium text-sm sm:inline">{stateLabel}</span>
 
       {/* Error tooltip */}
