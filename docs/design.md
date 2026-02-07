@@ -245,7 +245,7 @@ Agent Output → Monitor
 | focusEpicId | id("epics")? | If set, only work issues from this epic (critical/high standalone still interrupt). |
 | sessionTimeoutMs | number | Default 1800000 (30 min). Kill session if exceeded. |
 | maxFailures | number | Default 3. Circuit breaker threshold per issue. |
-| maxReviewIterations | number | Default 10. Max review passes before marking issue as stuck. |
+| maxReviewIterations | number | Default 10. Max review passes before closing (trusts last reviewer disposition). |
 | **Indexes** | by_project | |
 
 ---
@@ -261,7 +261,7 @@ Agent Output → Monitor
 | `stuck` | No | Yes | Issue exceeded failure/review limits, human intervention required |
 
 **`stuck`** is an **issue status** (not an orchestrator state). Set when:
-- Review loop exhausted `maxReviewIterations` (default 10) without achieving a clean pass
+- Review loop entered with `reviewIterations >= maxReviewIterations` (pre-loop guard)
 - `failureCount` exceeded `maxFailures` (default 3) — circuit breaker tripped
 - Dependents remain blocked — the work isn't done
 
@@ -383,7 +383,7 @@ If disposition == "done" or "noop":
   
   If new commits exist (review fixed something inline):
     If reviewIterations >= maxReviewIterations:
-      → status="stuck" (human intervention needed)
+      → Trust reviewer disposition and close as completed (inline fixes unverified)
     Else:
       → Start another review (loop back to step 1)
   Else (no new commits - all findings captured as issues):
@@ -1241,7 +1241,7 @@ Realtime view of agent output in the dashboard. Dual storage for reliability:
 - Repeated failures on same issue: circuit breaker after N failures (default: 3)
   - Issue marked with `failureCount`, skipped by scheduler until human reviews
   - Prevents infinite retry loops
-- Review loop exhaustion: after maxReviewIterations (default: 10), issue marked `stuck`
+- Review loop exhaustion: after maxReviewIterations (default: 10), issue closed trusting last reviewer disposition
 
 **Timeout Behavior:**
 When a session exceeds `sessionTimeoutMs`, the orchestrator:
