@@ -28,16 +28,16 @@
 
 ---
 
-- [ ] ### F2: MCP Server — Core Pattern
+- [x] ### F2: MCP Server — Core Pattern
 
 **Goal**: Establish the MCP tool pattern with minimal viable tools.
 
 **Work**:
-- [ ] MCP HTTP server on port 8042 using `@modelcontextprotocol/sdk`
-- [ ] Implement pattern: `issues_create`, `issues_list`, `issues_get`
-- [ ] `_meta` in responses (orchestrator status, timestamp)
-- [ ] Register in `.mcp.json`
-- [ ] Startup script: `bun run src/server/index.ts`
+- [x] MCP HTTP server on port 8042 using `@modelcontextprotocol/sdk`
+- [x] Implement pattern: `issues_create`, `issues_list`, `issues_get`
+- [x] `_meta` in responses (orchestrator status, timestamp)
+- [x] Register in `.mcp.json`
+- [x] Startup script: `bun run src/server/index.ts`
 
 **Checkpoint**: Agent can create and view issues via MCP. Pattern established for adding tools as needed.
 

@@ -1,10 +1,16 @@
 import { serve } from "bun";
+import type { Id } from "$convex/_generated/dataModel";
 import index from "../index.html";
+import { createMcpHandler } from "./mcp";
 
 const DEFAULT_PORT = 8042;
 
-export function startServer() {
+export async function startServer(
+  projectId: Id<"projects">,
+  projectSlug: string,
+) {
   const port = Number(process.env.FLUX_PORT) || DEFAULT_PORT;
+  const handleMcp = createMcpHandler(projectId, projectSlug);
 
   const server = serve({
     port,
@@ -16,14 +22,7 @@ export function startServer() {
           uptime: process.uptime(),
         }),
 
-      // MCP endpoint — stub until F2 implements @modelcontextprotocol/sdk
-      "/mcp": {
-        POST: () =>
-          Response.json(
-            { error: "MCP not implemented" },
-            { status: 501 },
-          ),
-      },
+      "/mcp": (req) => handleMcp(req),
 
       // Serve React app for all unmatched routes (SPA fallback).
       "/*": index,

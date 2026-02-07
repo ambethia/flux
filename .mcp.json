@@ -1,5 +1,9 @@
 {
   "mcpServers": {
+    "flux": {
+      "type": "http",
+      "url": "http://localhost:8042/mcp"
+    },
     "convex": {
       "type": "stdio",
       "command": "bunx",

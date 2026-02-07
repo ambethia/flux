@@ -85,6 +85,12 @@ Do not add any new dependencies without asking first. This requires explicit per
 
 ## MCP Tools
 
+### Morph
+
+**Fast Apply:** Use `edit_file` over `Edit` or full file writes. It works with partial code snippets using `// ... existing code ...` markers — no need to read the full file first.
+
+**Warp Grep:** Use `warpgrep_codebase_search` for broad semantic searches at the start of codebase exploration. Best for: "Find the XYZ flow", "How does XYZ work?", "Where is XYZ handled?" Use regular `Grep` for pinpointing specific keywords or symbols.
+
 ### DaisyUI Blueprint
 
 Use for UI component development with Tailwind CSS + DaisyUI.

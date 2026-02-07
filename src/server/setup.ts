@@ -6,7 +6,10 @@ function titleize(slug: string): string {
   return slug.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export async function ensureProject(): Promise<string> {
+export async function ensureProject(): Promise<{
+  projectId: string;
+  projectSlug: string;
+}> {
   const client = getConvexClient();
   const inferredSlug = await inferProjectSlug();
 
@@ -17,7 +20,7 @@ export async function ensureProject(): Promise<string> {
 
   if (existing) {
     console.log(`Project "${existing.name}" found.`);
-    return existing._id;
+    return { projectId: existing._id, projectSlug: existing.slug };
   }
 
   // Project doesn't exist — prompt for details
@@ -27,5 +30,5 @@ export async function ensureProject(): Promise<string> {
 
   const projectId = await client.mutation(api.projects.create, { slug, name });
   console.log(`Project "${name}" created. Seeds scheduled.`);
-  return projectId;
+  return { projectId, projectSlug: slug };
 }

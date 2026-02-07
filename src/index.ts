@@ -2,10 +2,8 @@ import { startServer } from "./server";
 import { ensureProject } from "./server/setup";
 
 async function main() {
-  const projectId = await ensureProject();
-  globalThis.projectId = projectId;
-
-  const server = startServer();
+  const { projectId, projectSlug } = await ensureProject();
+  const server = await startServer(projectId as any, projectSlug);
   console.log(`Flux running at http://localhost:${server.port}`);
 }
 
