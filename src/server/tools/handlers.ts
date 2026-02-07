@@ -316,16 +316,20 @@ const issues_defer: ToolHandler = async (args, ctx) => {
     return error(`Cannot defer a closed issue (${issue.shortId}).`);
   }
 
-  const updated = await ctx.convex.mutation(api.issues.update, {
-    issueId: issueId as Id<"issues">,
-    status: "deferred",
-  });
-  await ctx.convex.mutation(api.comments.create, {
-    issueId: issueId as Id<"issues">,
-    content: `Deferred: ${note}`,
-    author: "flux",
-  });
-  return ok(ctx, { issue: updated });
+  try {
+    const updated = await ctx.convex.mutation(api.issues.update, {
+      issueId: issueId as Id<"issues">,
+      status: "deferred",
+    });
+    await ctx.convex.mutation(api.comments.create, {
+      issueId: issueId as Id<"issues">,
+      content: `Deferred: ${note}`,
+      author: "flux",
+    });
+    return ok(ctx, { issue: updated });
+  } catch (err) {
+    return error(String(err instanceof Error ? err.message : err));
+  }
 };
 
 const issues_undefer: ToolHandler = async (args, ctx) => {
@@ -345,16 +349,20 @@ const issues_undefer: ToolHandler = async (args, ctx) => {
     );
   }
 
-  const updated = await ctx.convex.mutation(api.issues.update, {
-    issueId: issueId as Id<"issues">,
-    status: "open",
-  });
-  await ctx.convex.mutation(api.comments.create, {
-    issueId: issueId as Id<"issues">,
-    content: `Undeferred: ${note}`,
-    author: "flux",
-  });
-  return ok(ctx, { issue: updated });
+  try {
+    const updated = await ctx.convex.mutation(api.issues.update, {
+      issueId: issueId as Id<"issues">,
+      status: "open",
+    });
+    await ctx.convex.mutation(api.comments.create, {
+      issueId: issueId as Id<"issues">,
+      content: `Undeferred: ${note}`,
+      author: "flux",
+    });
+    return ok(ctx, { issue: updated });
+  } catch (err) {
+    return error(String(err instanceof Error ? err.message : err));
+  }
 };
 
 const issues_search: ToolHandler = async (args, ctx) => {
