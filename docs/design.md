@@ -75,7 +75,7 @@ An autonomous agent orchestrator with built-in issue tracking, realtime UI, and 
 | closedAt | number? | |
 | closeReason | string? | |
 | updatedAt | number? | Last modified timestamp. Updated on field changes, child issue changes, comments. |
-| **Indexes** | by_project, by_project_status, by_shortId | |
+| **Indexes** | by_project, by_project_status | |
 
 ### issues
 | Field | Type | Notes |
@@ -97,14 +97,14 @@ An autonomous agent orchestrator with built-in issue tracking, realtime UI, and 
 | closedAt | number? | |
 | deletedAt | number? | Soft delete timestamp. Null = not deleted. All queries filter out deleted issues by default. |
 | updatedAt | number? | Last modified timestamp (for "recently updated" sorting/filtering). |
-| **Indexes** | by_project, by_project_status, by_shortId, by_status, by_epic, by_source | |
+| **Indexes** | by_project, by_project_deletedAt_status, by_epic | |
 | **Search** | searchIndex: title, description | For `issues_search` full-text search. Uses Convex text search: https://docs.convex.dev/search/text-search |
 
 **Soft Delete**: Issues are soft-deleted by setting `deletedAt`. They remain in the database but are excluded from all queries via `deletedAt: null` filter. Hard delete (permanent removal) can be added as a background cleanup job post-MVP. Only users can delete issues via the UI (with confirmation). Agents cannot delete — they should defer with a note recommending deletion.
 
 **Hard Delete (Post-MVP)**: Background cron job permanently removes soft-deleted issues after N days (configurable retention period, default 30 days). Adds `deletedBy` field for audit trail.
 
-**Query Pattern**: All issue queries must include `.filter(q => q.eq(q.field("deletedAt"), null))` to exclude soft-deleted issues.
+**Query Pattern**: All issue queries should use the `by_project_deletedAt_status` compound index with `.eq("deletedAt", undefined)` to exclude soft-deleted issues at the index level.
 
 **Archiving (Post-MVP)**: Old closed issues could be archived (hidden from default views but not deleted). Could add `archivedAt: number?` field later. For MVP, users can filter by status and sort by closedAt to manage old issues.
 
@@ -158,7 +158,7 @@ Comments provide a flexible audit trail for issues. They can be used for:
 |-------|------|-------|
 | blockerId | id("issues") | The issue that must complete first |
 | blockedId | id("issues") | The issue that is blocked |
-| **Indexes** | by_blocker, by_blocked | |
+| **Indexes** | by_blocker_blocked, by_blocked | |
 
 Note: "discovered-from" provenance is now tracked via `sourceIssueId` on the issue itself, not as a dependency.
 
@@ -188,7 +188,7 @@ Note: "discovered-from" provenance is now tracked via `sourceIssueId` on the iss
 | endHead | string? | Git HEAD when session ended (updated after each session/review) |
 | createdIssueIds | id("issues")[]? | Follow-up issues created by this session |
 | model | string? | LLM model used (e.g., "claude-sonnet-4.5"). Used with llmCost table for pricing. |
-| **Indexes** | by_project, by_issue, by_status, by_agentSessionId, by_type | |
+| **Indexes** | by_project, by_project_status, by_issue | |
 
 **Session Types and Phases:**
 
