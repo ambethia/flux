@@ -75,7 +75,10 @@ export function useActivityStream(): ActivityStreamState & {
   const retryDelay = useRef(1000);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const clear = useCallback(() => setEvents([]), []);
+  const clear = useCallback(() => {
+    setEvents([]);
+    setCurrentSession(null);
+  }, []);
 
   useEffect(() => {
     let es: EventSource | null = null;
