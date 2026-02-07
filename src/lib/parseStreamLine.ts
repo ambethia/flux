@@ -127,7 +127,7 @@ export function parseStreamLine(line: string): ParsedLine {
           }
           parts.push(content);
         }
-        const joined = parts.join("\n---\n");
+        const joined = parts.filter(Boolean).join("\n---\n");
         // Truncate long tool results for the activity stream
         const maxLen = 500;
         const truncated =
