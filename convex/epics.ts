@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { EpicStatus, epicStatusValidator } from "./schema";
 
@@ -30,7 +31,7 @@ export const list = query({
   handler: async (ctx, args) => {
     const cap = Math.min(args.limit ?? 50, 200);
 
-    let epics;
+    let epics: Doc<"epics">[];
     if (args.status) {
       // Collect all then filter — take() before filter would under-count
       const all = await ctx.db

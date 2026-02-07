@@ -322,9 +322,12 @@ export function parseDisposition(lines: string[]): DispositionResult {
 
 function tryParseDisposition(text: string): DispositionResult | null {
   DISPOSITION_PATTERN.lastIndex = 0;
-  let match: RegExpExecArray | null;
 
-  while ((match = DISPOSITION_PATTERN.exec(text)) !== null) {
+  for (
+    let match = DISPOSITION_PATTERN.exec(text);
+    match !== null;
+    match = DISPOSITION_PATTERN.exec(text)
+  ) {
     try {
       const parsed = JSON.parse(match[0]) as Record<string, unknown>;
       if (
