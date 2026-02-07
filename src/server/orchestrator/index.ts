@@ -700,7 +700,7 @@ class Orchestrator {
         cwd,
         issue.shortId,
         String(sessionId),
-        "work",
+        SessionPhase.Work,
         active.process.pid,
       );
     } catch (err) {
@@ -756,7 +756,7 @@ class Orchestrator {
         cwd,
         issue.shortId,
         String(sessionId),
-        "retro",
+        SessionPhase.Retro,
         active.process.pid,
       );
     } catch (err) {
@@ -923,7 +923,7 @@ class Orchestrator {
         cwd,
         issue.shortId,
         String(sessionId),
-        "review",
+        SessionPhase.Review,
         active.process.pid,
       );
     } catch (err) {
