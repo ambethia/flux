@@ -5,6 +5,7 @@ import { getConvexClient } from "../convex";
 import { resolveRepoRoot } from "../git";
 import type { AgentProcess, AgentProvider } from "./agents";
 import { ClaudeCodeProvider } from "./agents";
+import { SessionMonitor } from "./monitor";
 
 /**
  * Orchestrator states — runtime state of the Flux daemon.
@@ -25,6 +26,8 @@ interface ActiveSession {
   sessionId: Id<"sessions">;
   issueId: Id<"issues">;
   process: AgentProcess;
+  monitor: SessionMonitor;
+  monitorDone: Promise<void>;
   killed: boolean;
 }
 
@@ -66,6 +69,11 @@ class Orchestrator {
           }
         : null,
     };
+  }
+
+  /** Get the active session's monitor (for reading live buffer). */
+  getActiveMonitor(): SessionMonitor | null {
+    return this.activeSession?.monitor ?? null;
   }
 
   /**
@@ -186,16 +194,22 @@ class Orchestrator {
       throw new Error("Failed to create session record");
     }
 
-    // 5. Track active session
+    // 5. Start monitoring agent output
+    const monitor = new SessionMonitor(session._id, this.projectId);
+    const monitorDone = monitor.consume(agentProcess.stdout);
+
+    // 6. Track active session
     this.state = OrchestratorState.Busy;
     this.activeSession = {
       sessionId: session._id,
       issueId,
       process: agentProcess,
+      monitor,
+      monitorDone,
       killed: false,
     };
 
-    // 6. Fire-and-forget: handle agent exit in background
+    // 7. Fire-and-forget: handle agent exit in background
     agentProcess.wait().then(
       ({ exitCode }) => this.handleExit(exitCode),
       () => this.handleExit(1),
@@ -228,6 +242,14 @@ class Orchestrator {
    */
   private async handleExit(exitCode: number): Promise<void> {
     if (!this.activeSession) return;
+
+    // Wait for monitor to finish draining stdout before finalizing
+    try {
+      await this.activeSession.monitorDone;
+    } catch (err) {
+      console.error("[Orchestrator] Monitor drain error:", err);
+    }
+    await this.activeSession.monitor.shutdown();
 
     const { sessionId, issueId, killed } = this.activeSession;
     const convex = getConvexClient();

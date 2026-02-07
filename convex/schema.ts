@@ -32,6 +32,16 @@ export const SessionType = {
 
 export const sessionTypeValidator = v.union(v.literal(SessionType.Work));
 
+export const SessionEventDirection = {
+  Input: "input",
+  Output: "output",
+} as const;
+
+export const sessionEventDirectionValidator = v.union(
+  v.literal(SessionEventDirection.Input),
+  v.literal(SessionEventDirection.Output),
+);
+
 export const issueStatusValidator = v.union(
   v.literal(IssueStatus.Open),
   v.literal(IssueStatus.InProgress),
@@ -89,9 +99,18 @@ export default defineSchema({
     endedAt: v.optional(v.number()),
     exitCode: v.optional(v.number()),
     pid: v.optional(v.number()),
+    lastHeartbeat: v.optional(v.number()),
   })
     .index("by_project", ["projectId"])
     .index("by_issue", ["issueId"]),
+
+  sessionEvents: defineTable({
+    sessionId: v.id("sessions"),
+    sequence: v.number(),
+    direction: sessionEventDirectionValidator,
+    content: v.string(),
+    timestamp: v.number(),
+  }).index("by_session", ["sessionId"]),
 
   orchestratorConfig: defineTable({
     projectId: v.id("projects"),

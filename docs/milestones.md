@@ -77,17 +77,17 @@
 
 ---
 
-- [ ] ### F3c: Orchestrator — Monitoring & Visibility
+- [x] ### F3c: Orchestrator — Monitoring & Visibility
 
 **Goal**: See what's happening in real-time.
 
 **Work**:
-- [ ] **Activity streaming**:
-  - [ ] In-memory buffer (last 500 lines)
-  - [ ] SSE endpoint (`/sse/activity`) for live output to browsers
-  - [ ] Tmp file for crash recovery (`/tmp/flux-session-{id}.log`)
-- [ ] Monitor — parse stream-json stdout, update `lastHeartbeat` every 30s
-- [ ] MCP tool: `sessions_show` with basic transcript (last N lines from buffer)
+- [x] **Activity streaming**:
+  - [x] In-memory buffer (last 500 lines)
+  - [x] SSE endpoint (`/sse/activity`) for live output to browsers
+  - [x] Tmp file for crash recovery (`/tmp/flux-session-{id}.log`)
+- [x] Monitor — parse stream-json stdout, update `lastHeartbeat` every 30s
+- [x] MCP tool: `sessions_show` with basic transcript (last N lines from buffer)
 
 **Checkpoint**: Watch live agent output streaming via SSE. Session shows recent transcript via MCP.
 

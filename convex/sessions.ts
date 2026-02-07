@@ -41,6 +41,7 @@ export const update = mutation({
     status: v.optional(sessionStatusValidator),
     endedAt: v.optional(v.number()),
     exitCode: v.optional(v.number()),
+    lastHeartbeat: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const session = await ctx.db.get(args.sessionId);
@@ -50,6 +51,8 @@ export const update = mutation({
     if (args.status !== undefined) updates.status = args.status;
     if (args.endedAt !== undefined) updates.endedAt = args.endedAt;
     if (args.exitCode !== undefined) updates.exitCode = args.exitCode;
+    if (args.lastHeartbeat !== undefined)
+      updates.lastHeartbeat = args.lastHeartbeat;
 
     await ctx.db.patch(args.sessionId, updates);
     return await ctx.db.get(args.sessionId);

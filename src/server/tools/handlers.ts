@@ -193,6 +193,66 @@ const sessions_list: ToolHandler = async (args, ctx) => {
   return ok(ctx, { sessions, count: sessions.length });
 };
 
+const sessions_show: ToolHandler = async (args, ctx) => {
+  const { sessionId } = args as { sessionId: string };
+
+  const session = await ctx.convex.query(api.sessions.get, {
+    sessionId: sessionId as Id<"sessions">,
+  });
+  if (!session) {
+    return error(
+      `Session not found: ${sessionId}. Use sessions_list to find valid IDs.`,
+    );
+  }
+
+  let lines: Array<{
+    sequence: number;
+    direction: string;
+    content: string;
+    timestamp: number;
+  }> = [];
+
+  // For the active running session, read from in-memory buffer
+  const orchestrator = ctx.getOrchestrator();
+  const status = orchestrator.getStatus();
+  if (
+    session.status === "running" &&
+    status.activeSession?.sessionId === sessionId
+  ) {
+    const monitor = orchestrator.getActiveMonitor();
+    if (monitor) {
+      const now = Date.now();
+      lines = monitor.buffer.getRecent(100).map((content, i) => ({
+        sequence: i,
+        direction: "output" as const,
+        content,
+        timestamp: now,
+      }));
+    }
+  } else {
+    // For completed/failed sessions, read from Convex history
+    const events = await ctx.convex.query(api.sessionEvents.recent, {
+      sessionId: sessionId as Id<"sessions">,
+      limit: 100,
+    });
+    lines = events.map((e) => ({
+      sequence: e.sequence,
+      direction: e.direction,
+      content: e.content,
+      timestamp: e.timestamp,
+    }));
+  }
+
+  return ok(ctx, {
+    session,
+    transcript: {
+      lines,
+      totalLines: lines.length,
+      showing: `last ${lines.length} lines`,
+    },
+  });
+};
+
 // ── Export all implemented handlers ───────────────────────────────────
 
 export const handlers: Record<string, ToolHandler> = {
@@ -207,4 +267,5 @@ export const handlers: Record<string, ToolHandler> = {
   orchestrator_enable,
   orchestrator_stop,
   sessions_list,
+  sessions_show,
 };

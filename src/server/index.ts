@@ -5,6 +5,7 @@ import { createApiHandler } from "./api";
 import { getConvexClient } from "./convex";
 import { createMcpHandler } from "./mcp";
 import { getOrchestrator } from "./orchestrator";
+import { createSSEHandler } from "./sse";
 import type { ToolContext } from "./tools";
 
 const DEFAULT_PORT = 8042;
@@ -23,6 +24,7 @@ export async function startServer(
     getOrchestrator: () => getOrchestrator(projectId),
   };
   const handleApi = createApiHandler(toolContext);
+  const handleSSE = createSSEHandler(() => getOrchestrator(projectId));
 
   const server = serve({
     port,
@@ -37,6 +39,7 @@ export async function startServer(
 
       "/mcp": (req) => handleMcp(req),
       "/api/tools": (req) => handleApi(req),
+      "/sse/activity": (req) => handleSSE(req),
 
       // Serve React app for all unmatched routes (SPA fallback).
       "/*": index,

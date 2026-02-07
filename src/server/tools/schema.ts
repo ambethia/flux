@@ -351,7 +351,8 @@ const sessions_list: ToolDef = {
 
 const sessions_show: ToolDef = {
   name: "sessions_show",
-  description: "Get session detail with metrics (duration, tokens, cost).",
+  description:
+    "Get session detail with transcript. Shows last 100 lines of output — live from buffer for running sessions, from history for completed sessions.",
   schema: {
     sessionId: z.string().describe("The session's document ID."),
   },
