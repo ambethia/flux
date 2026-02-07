@@ -1,10 +1,14 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { Link, useRouter } from "@tanstack/react-router";
 
-/** Extract a user-friendly message from Convex validation errors. */
+/** Extract a user-friendly message from route errors. */
 function friendlyMessage(error: Error): string {
   if (error.message.includes("ArgumentValidationError")) {
     return "The requested resource was not found.";
+  }
+  // Don't leak raw Convex error internals (stack traces, function paths) to the user.
+  if (error.message.startsWith("[CONVEX")) {
+    return "An unexpected error occurred.";
   }
   return error.message;
 }
