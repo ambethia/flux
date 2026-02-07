@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 import type { Id } from "$convex/_generated/dataModel";
 import { AppShell } from "../components/AppShell";
+import { ActivityPage } from "../pages/ActivityPage";
 import { IssueDetailPage } from "../pages/IssueDetailPage";
 import { IssuesPage } from "../pages/IssuesPage";
 
@@ -37,9 +38,16 @@ const issueDetailRoute = createRoute({
   component: IssueDetailPage,
 });
 
+const activityRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/activity",
+  component: ActivityPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   issuesRoute.addChildren([issueDetailRoute]),
+  activityRoute,
 ]);
 
 export function createAppRouter(context: RouterContext) {

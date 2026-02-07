@@ -13,6 +13,16 @@ export function Sidebar() {
           Issues
         </Link>
       </li>
+      <li>
+        <Link
+          to="/activity"
+          activeProps={{ className: "menu-active" }}
+          inactiveProps={{ className: "" }}
+        >
+          <i className="fa-solid fa-terminal" aria-hidden="true" />
+          Activity
+        </Link>
+      </li>
     </ul>
   );
 }
