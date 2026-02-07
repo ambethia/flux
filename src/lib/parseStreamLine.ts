@@ -148,9 +148,9 @@ export function parseStreamLine(line: string): ParsedLine {
     return { kind: "skip" };
   }
 
-  // Unknown type — don't silently drop; show as text for debugging
+  // Unknown envelope type — surface it for debugging so we don't silently drop data
   if (typeof obj.type === "string") {
-    return { kind: "skip" };
+    return { kind: "text", text: `[${obj.type}]` };
   }
 
   // Not a recognized envelope — render as plain text
