@@ -6,12 +6,14 @@ import type { CommentAuthor } from "$convex/schema";
 
 type CommentAuthorValue = (typeof CommentAuthor)[keyof typeof CommentAuthor];
 
-const AUTHOR_BADGE: Record<CommentAuthorValue, { label: string; cls: string }> =
-  {
-    user: { label: "User", cls: "badge-primary" },
-    agent: { label: "Agent", cls: "badge-secondary" },
-    flux: { label: "Flux", cls: "badge-accent" },
-  };
+const AUTHOR_BADGE: Record<
+  CommentAuthorValue,
+  { label: string; className: string }
+> = {
+  user: { label: "User", className: "badge-primary" },
+  agent: { label: "Agent", className: "badge-secondary" },
+  flux: { label: "Flux", className: "badge-accent" },
+};
 
 function formatRelativeTime(ts: number): string {
   const seconds = Math.max(0, Math.floor((Date.now() - ts) / 1000));
@@ -64,16 +66,11 @@ export function CommentsThread({ issueId }: { issueId: Id<"issues"> }) {
       ) : (
         <div className="flex flex-col gap-3">
           {comments.map((comment) => {
-            const badge = AUTHOR_BADGE[
-              comment.author as CommentAuthorValue
-            ] ?? {
-              label: comment.author,
-              cls: "badge-ghost",
-            };
+            const badge = AUTHOR_BADGE[comment.author];
             return (
               <div key={comment._id} className="rounded-lg bg-base-200 p-3">
                 <div className="mb-1 flex items-center gap-2">
-                  <span className={`badge badge-sm ${badge.cls}`}>
+                  <span className={`badge badge-sm ${badge.className}`}>
                     {badge.label}
                   </span>
                   <span className="text-base-content/40 text-xs">
