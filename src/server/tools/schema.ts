@@ -313,7 +313,7 @@ const labels_delete: ToolDef = {
   },
 };
 
-// ── Dependencies (stubs) ──────────────────────────────────────────────
+// ── Dependencies ──────────────────────────────────────────────────────
 
 const deps_add: ToolDef = {
   name: "deps_add",
