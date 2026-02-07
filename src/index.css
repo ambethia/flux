@@ -1,2 +1,12 @@
 @import "tailwindcss";
 @plugin "daisyui";
+
+/* Fix: DaisyUI 5 logical border-radius properties not resolving correctly
+   in the Tailwind CSS v4 + Bun pipeline. The source CSS sets all 4 corners
+   via border-start-start-radius etc., but only top-left gets applied.
+   Use the physical shorthand as a workaround. */
+.input,
+.select,
+.textarea {
+  border-radius: var(--radius-field);
+}
