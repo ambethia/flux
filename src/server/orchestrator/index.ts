@@ -1193,14 +1193,24 @@ class Orchestrator {
       this.pendingStop = false;
     } else {
       this.state = OrchestratorState.Idle;
-      this.scheduleNext();
     }
+
+    // Capture state before scheduleNext() — run() synchronously transitions to
+    // Busy before its first await, so this.state would be "busy" by the time
+    // emitLifecycle fires if we called scheduleNext() first.
+    const endState = this.state as "stopped" | "idle";
 
     // Notify SSE clients the session ended (after state transition so they see the new state)
     this.emitLifecycle({
       type: "session_end",
-      state: this.state as "stopped" | "idle",
+      state: endState,
     });
+
+    // Schedule next work after notifying SSE clients — run() sets state to Busy
+    // synchronously, which would corrupt the session_end event state.
+    if (this.state === OrchestratorState.Idle) {
+      this.scheduleNext();
+    }
   }
 
   /**
