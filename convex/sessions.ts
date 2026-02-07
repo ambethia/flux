@@ -9,9 +9,11 @@ import {
   sessionTypeValidator,
 } from "./schema";
 
+type SessionStatusValue = (typeof SessionStatus)[keyof typeof SessionStatus];
+
 async function querySessions(
   ctx: QueryCtx,
-  args: { projectId: Id<"projects">; status?: string },
+  args: { projectId: Id<"projects">; status?: SessionStatusValue },
 ) {
   const sessions = await ctx.db
     .query("sessions")
