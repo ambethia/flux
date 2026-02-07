@@ -57,7 +57,7 @@ export async function startServer(
     },
     development: process.env.NODE_ENV !== "production" && {
       hmr: true,
-      console: false,
+      console: true,
     },
   });
 

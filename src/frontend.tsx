@@ -14,18 +14,16 @@ async function start() {
   if (!res.ok) {
     throw new Error(`Failed to fetch /api/config: ${res.status}`);
   }
-  // NOTE: Avoid destructuring projectId — Bun's HMR bundler tree-shakes
-  // destructured vars it fails to trace through JSX props across modules.
-  const config = (await res.json()) as {
-    convexUrl: string;
-    projectId: string;
-  };
+  // Only convexUrl is needed here — App fetches its own projectId.
+  // (Bun's dev HMR bundler has a bug that tree-shakes JSX props in the
+  // HTML entry point script, so projectId must be fetched inside App.)
+  const { convexUrl } = (await res.json()) as { convexUrl: string };
 
-  const convex = new ConvexReactClient(config.convexUrl);
+  const convex = new ConvexReactClient(convexUrl);
   const root = createRoot(document.getElementById("root")!);
   root.render(
     <ConvexProvider client={convex}>
-      <App projectId={config.projectId} />
+      <App />
     </ConvexProvider>,
   );
 }
