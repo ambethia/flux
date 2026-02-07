@@ -126,7 +126,7 @@ export function OrchestratorStatus({
 
   // Button visibility
   const showEnable = state !== "busy" && !enabled;
-  const showStop = enabled && state !== "busy";
+  const showStop = enabled;
   const showKill = state === "busy";
 
   // ── Render ───────────────────────────────────────────────────────
@@ -168,7 +168,10 @@ export function OrchestratorStatus({
           {inflightAction === "enable" ? (
             <span className="loading loading-spinner loading-xs" />
           ) : (
-            "Enable"
+            <>
+              <i className="fa-solid fa-play" aria-hidden="true" />
+              Enable
+            </>
           )}
         </button>
       )}
@@ -183,7 +186,10 @@ export function OrchestratorStatus({
           {inflightAction === "stop" ? (
             <span className="loading loading-spinner loading-xs" />
           ) : (
-            "Stop"
+            <>
+              <i className="fa-solid fa-stop" aria-hidden="true" />
+              Stop
+            </>
           )}
         </button>
       )}
@@ -198,7 +204,10 @@ export function OrchestratorStatus({
           {inflightAction === "kill" ? (
             <span className="loading loading-spinner loading-xs" />
           ) : (
-            "Kill"
+            <>
+              <i className="fa-solid fa-skull" aria-hidden="true" />
+              Kill
+            </>
           )}
         </button>
       )}
