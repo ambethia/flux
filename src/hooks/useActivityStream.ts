@@ -28,6 +28,11 @@ export interface ActivityStreamState {
 
 const MAX_EVENTS = 2000;
 
+function appendEvent(prev: StreamEvent[], event: StreamEvent): StreamEvent[] {
+  const next = [...prev, event];
+  return next.length > MAX_EVENTS ? next.slice(-MAX_EVENTS) : next;
+}
+
 /**
  * Hook that connects to /sse/activity and streams live agent output.
  * Handles reconnection on disconnect with exponential backoff.
@@ -56,52 +61,69 @@ export function useActivityStream(): ActivityStreamState & {
       });
 
       es.addEventListener("session_start", (e: MessageEvent) => {
-        const data = JSON.parse(e.data) as {
-          sessionId: string;
-          issueId: string;
-          pid: number;
-        };
-        setEvents((prev) => {
-          const next = [
-            ...prev,
-            {
-              type: "session_start" as const,
-              sessionId: data.sessionId,
-              issueId: data.issueId,
-              pid: data.pid,
-            },
-          ];
-          return next.length > MAX_EVENTS ? next.slice(-MAX_EVENTS) : next;
-        });
+        let data: { sessionId: string; issueId: string; pid: number };
+        try {
+          data = JSON.parse(e.data);
+        } catch {
+          setEvents((prev) =>
+            appendEvent(prev, {
+              type: "activity",
+              content: `[ERROR] Malformed session_start payload: ${e.data}`,
+            }),
+          );
+          return;
+        }
+        setEvents((prev) =>
+          appendEvent(prev, {
+            type: "session_start" as const,
+            sessionId: data.sessionId,
+            issueId: data.issueId,
+            pid: data.pid,
+          }),
+        );
       });
 
       es.addEventListener("activity", (e: MessageEvent) => {
-        const data = JSON.parse(e.data) as { type: string; content: string };
-        setEvents((prev) => {
-          const next = [
-            ...prev,
-            { type: "activity" as const, content: data.content },
-          ];
-          return next.length > MAX_EVENTS ? next.slice(-MAX_EVENTS) : next;
-        });
+        let data: { type: string; content: string };
+        try {
+          data = JSON.parse(e.data);
+        } catch {
+          setEvents((prev) =>
+            appendEvent(prev, {
+              type: "activity",
+              content: `[ERROR] Malformed activity payload: ${e.data}`,
+            }),
+          );
+          return;
+        }
+        setEvents((prev) =>
+          appendEvent(prev, {
+            type: "activity" as const,
+            content: data.content,
+          }),
+        );
       });
 
       es.addEventListener("status", (e: MessageEvent) => {
-        const data = JSON.parse(e.data) as {
-          state: "stopped" | "idle" | "busy";
-          message: string;
-        };
-        setEvents((prev) => {
-          const next = [
-            ...prev,
-            {
-              type: "status" as const,
-              state: data.state,
-              message: data.message,
-            },
-          ];
-          return next.length > MAX_EVENTS ? next.slice(-MAX_EVENTS) : next;
-        });
+        let data: { state: "stopped" | "idle" | "busy"; message: string };
+        try {
+          data = JSON.parse(e.data);
+        } catch {
+          setEvents((prev) =>
+            appendEvent(prev, {
+              type: "activity",
+              content: `[ERROR] Malformed status payload: ${e.data}`,
+            }),
+          );
+          return;
+        }
+        setEvents((prev) =>
+          appendEvent(prev, {
+            type: "status" as const,
+            state: data.state,
+            message: data.message,
+          }),
+        );
       });
 
       es.addEventListener("error", () => {
