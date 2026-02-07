@@ -1,8 +1,9 @@
 {
   "mcpServers": {
     "flux": {
-      "type": "http",
-      "url": "http://localhost:8042/mcp"
+      "type": "stdio",
+      "command": "bun",
+      "args": ["run", "/Users/jason/Projects/flux/bin/flux-mcp-stdio.ts"]
     },
     "convex": {
       "type": "stdio",

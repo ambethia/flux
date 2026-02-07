@@ -924,15 +924,35 @@ Features deferred until core system is validated:
 
 ---
 
-## .mcp.json
+## MCP Transport
+
+Flux uses a **stdio MCP transport** that proxies tool calls to the Bun server via REST:
+
+```
+Claude Code → stdio → bin/flux-mcp-stdio.ts → POST /api/tools → Bun Server → handlers
+```
+
+**Why stdio over HTTP?** The HTTP MCP transport loses sessions on Bun hot-reload, requiring constant `/mcp` reconnects. With stdio, the MCP process is stable while the Bun server hot-reloads behind it — handler changes take effect immediately with zero reconnection.
+
+All tool schemas are registered upfront in `src/server/tools/schema.ts`. Unimplemented tools return "Not implemented" errors. As handlers land, agents see them immediately.
+
+### .mcp.json
 
 ```json
 {
   "mcpServers": {
-    "flux": { "type": "http", "url": "http://localhost:8042/mcp" }
+    "flux": {
+      "type": "stdio",
+      "command": "bun",
+      "args": ["run", "/Users/jason/Projects/flux/bin/flux-mcp-stdio.ts"]
+    }
   }
 }
 ```
+
+### REST Tool Endpoint
+
+`POST /api/tools` accepts `{ "tool": "<name>", "args": {...} }` and dispatches to the handler. This is the bridge between the stdio MCP process and the hot-reloading Bun server.
 
 ## Testing Strategy
 

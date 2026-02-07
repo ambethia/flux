@@ -1,7 +1,11 @@
 import { serve } from "bun";
 import type { Id } from "$convex/_generated/dataModel";
 import index from "../index.html";
+import { createApiHandler } from "./api";
+import { getConvexClient } from "./convex";
 import { createMcpHandler } from "./mcp";
+import { getOrchestrator } from "./orchestrator";
+import type { ToolContext } from "./tools";
 
 const DEFAULT_PORT = 8042;
 
@@ -11,6 +15,14 @@ export async function startServer(
 ) {
   const port = Number(process.env.FLUX_PORT) || DEFAULT_PORT;
   const handleMcp = createMcpHandler(projectId, projectSlug);
+
+  const toolContext: ToolContext = {
+    convex: getConvexClient(),
+    projectId,
+    projectSlug,
+    getOrchestrator: () => getOrchestrator(projectId),
+  };
+  const handleApi = createApiHandler(toolContext);
 
   const server = serve({
     port,
@@ -24,6 +36,7 @@ export async function startServer(
         }),
 
       "/mcp": (req) => handleMcp(req),
+      "/api/tools": (req) => handleApi(req),
 
       // Serve React app for all unmatched routes (SPA fallback).
       "/*": index,
