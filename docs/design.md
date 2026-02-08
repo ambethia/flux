@@ -90,7 +90,7 @@ An autonomous agent orchestrator with built-in issue tracking, realtime UI, and 
 | priority | "critical" \| "high" \| "medium" \| "low" | Named priorities. Critical = drop everything, Low = when time permits. |
 | labelIds | id("labels")[] | References to labels table |
 | assignee | string? | |
-| failureCount | number | Default 0. Incremented per failed work attempt (fault, malformed response, timeout, orphan). **Reset to 0 only when:** user calls `issues_retry` or `issues_unstick`. **Never reset on success** — history preserved for investigation. Circuit breaker trips at `maxFailures` (default 3). |
+| failureCount | number | Default 0. Incremented per failed work attempt (fault, malformed response, timeout, orphan). **Reset to 0 only when:** user calls `issues_retry`. **Never reset on success** — history preserved for investigation. Circuit breaker trips at `maxFailures` (default 3). |
 | reviewIterations | number | Default 0. Incremented on each review session completion (each pass through the review loop). |
 | closeType | "completed" \| "noop" \| "duplicate" \| "wontfix" \| null | How the issue was closed. See Close Types below. |
 | closeReason | string? | Free text explanation (especially for noop/duplicate/wontfix). |
@@ -263,7 +263,7 @@ Agent Output → Monitor
 - `failureCount` exceeded `maxFailures` (default 3) — circuit breaker tripped
 - Dependents remain blocked — the work isn't done
 
-Human intervention required: use `issues_unstick` to reset to `open`, or close manually. Once unstuck, `failureCount` and `reviewIterations` reset to 0 for a fresh attempt.
+Human intervention required: use `issues_retry` to reset to `open`, or close manually. Once retried, `failureCount` and `reviewIterations` reset to 0 for a fresh attempt.
 
 ---
 
@@ -467,8 +467,7 @@ Flux exposes multiple MCP tools, each with a clear purpose. Standard MCP pattern
 | `issues_ready` | Unblocked open issues (excludes failureCount >= maxFailures). Paginated. |
 | `issues_defer` | Defer an issue (requires note — creates comment automatically) |
 | `issues_undefer` | Undefer an issue (requires note — creates comment automatically) |
-| `issues_retry` | Reset failureCount to 0, making issue eligible for pickup again |
-| `issues_unstick` | Reset stuck issue to open (after human review) |
+| `issues_retry` | Reset stuck/failed issue to open, clearing failureCount for a fresh attempt |
 | `issues_search` | Full-text search across titles and descriptions using Convex searchIndex |
 
 Note: `issues_delete` is intentionally not exposed to agents. Agents should defer with a note like "recommend deletion" and let humans decide. Soft delete is handled via UI only.
@@ -1259,7 +1258,7 @@ The scheduler implements intelligent retry with exponential backoff:
 **Failure Counting:**
 - `failureCount` increments on: `fault` disposition, malformed response, timeout, orphaned session
 - **Reset conditions** (all reset to 0):
-  - User calls `issues_retry` or `issues_unstick`
+  - User calls `issues_retry`
   - **Never reset on success** — failure history is preserved for investigation even after successful completion
   - Note: Review session failures don't increment failureCount (separate concern)
 
