@@ -6,6 +6,7 @@ import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import type { SessionPhaseValue } from "$convex/schema";
 import { SessionPhase } from "$convex/schema";
+import { useDismissableError } from "../hooks/useDismissableError";
 import { useOrchestratorStatus } from "../hooks/useOrchestratorStatus";
 import { callTool } from "../lib/api";
 import { FontAwesomeIcon, faPlay, faSkull, faStop } from "./Icon";
@@ -68,7 +69,11 @@ export function OrchestratorStatus({
   projectId: Id<"projects">;
 }) {
   const { status, error: statusError, refetch } = useOrchestratorStatus();
-  const [actionError, setActionError] = useState<string | null>(null);
+  const {
+    error: actionError,
+    showError: showActionError,
+    clearError: clearActionError,
+  } = useDismissableError();
   const [inflightAction, setInflightAction] = useState<string | null>(null);
   const [transition, setTransition] = useState<Transition | null>(null);
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -112,18 +117,18 @@ export function OrchestratorStatus({
       setInflightAction(action);
       try {
         await callTool(tool);
-        setActionError(null);
+        clearActionError();
         // Enter transition state — persists until SSE-driven refetch confirms new state
         setTransition({ action, fromState: currentState });
       } catch (err) {
-        setActionError(err instanceof Error ? err.message : String(err));
+        showActionError(err);
         // Refetch so we don't show stale state after a failed action
         refetch();
       } finally {
         setInflightAction(null);
       }
     },
-    [refetch, status?.state],
+    [refetch, status?.state, clearActionError, showActionError],
   );
 
   const handleEnable = () => handleAction("orchestrator_enable", "enable");
@@ -213,7 +218,9 @@ export function OrchestratorStatus({
         statusLabel
       )}
 
-      {/* Error tooltip */}
+      {/* Error tooltip — intentionally compact for navbar context.
+          Uses useDismissableError (auto-dismiss) for action errors but renders
+          as a tooltip rather than ErrorBanner, which would break navbar layout. */}
       {error && (
         <div className="tooltip tooltip-bottom tooltip-error" data-tip={error}>
           <span className="text-error text-xs">!</span>
