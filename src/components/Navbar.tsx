@@ -1,9 +1,15 @@
 import { useRouteContext } from "@tanstack/react-router";
 import { useNotifications } from "../hooks/useNotifications";
-import { FontAwesomeIcon, faBars, faBell, faBellSlash } from "./Icon";
+import {
+  FontAwesomeIcon,
+  faBars,
+  faBell,
+  faBellSlash,
+  faMagnifyingGlass,
+} from "./Icon";
 import { OrchestratorStatus } from "./OrchestratorStatus";
 
-export function Navbar() {
+export function Navbar({ onSearchClick }: { onSearchClick?: () => void }) {
   const { projectId } = useRouteContext({ from: "__root__" });
   const { enabled, supported, toggle } = useNotifications();
 
@@ -24,6 +30,17 @@ export function Navbar() {
       </div>
       <div className="flex-1 px-4 font-bold text-lg">Flux</div>
       <div className="navbar-end flex items-center gap-2 pr-4">
+        {onSearchClick && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm gap-2"
+            onClick={onSearchClick}
+            title="Search issues (⌘K)"
+          >
+            <FontAwesomeIcon icon={faMagnifyingGlass} aria-hidden="true" />
+            <kbd className="kbd kbd-xs">⌘K</kbd>
+          </button>
+        )}
         {supported && (
           <button
             type="button"

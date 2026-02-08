@@ -1,11 +1,18 @@
 import { Outlet, useRouteContext, useRouter } from "@tanstack/react-router";
+import { useMemo, useRef } from "react";
+import { useGlobalShortcuts } from "../hooks/useGlobalShortcuts";
 import { useIssueNotifications } from "../hooks/useIssueNotifications";
 import {
   NotificationProvider,
   useNotifications,
 } from "../hooks/useNotifications";
 import { SSEProvider } from "../hooks/useSSE";
+import {
+  CreateIssueModal,
+  type CreateIssueModalHandle,
+} from "./CreateIssueModal";
 import { Navbar } from "./Navbar";
+import { SearchModal, type SearchModalHandle } from "./SearchModal";
 import { Sidebar } from "./Sidebar";
 
 /** Watches issue status transitions and fires browser notifications. */
@@ -18,6 +25,18 @@ function IssueNotificationWatcher() {
 }
 
 export function AppShell() {
+  const searchRef = useRef<SearchModalHandle>(null);
+  const createRef = useRef<CreateIssueModalHandle>(null);
+
+  const shortcuts = useMemo(
+    () => ({
+      onSearch: () => searchRef.current?.open(),
+      onCreateIssue: () => createRef.current?.open(),
+    }),
+    [],
+  );
+  useGlobalShortcuts(shortcuts);
+
   return (
     <NotificationProvider>
       <SSEProvider>
@@ -25,7 +44,7 @@ export function AppShell() {
         <div className="drawer lg:drawer-open">
           <input id="app-drawer" type="checkbox" className="drawer-toggle" />
           <div className="drawer-content flex flex-col">
-            <Navbar />
+            <Navbar onSearchClick={shortcuts.onSearch} />
             <main className="grow p-6">
               <Outlet />
             </main>
@@ -39,6 +58,9 @@ export function AppShell() {
             <Sidebar />
           </div>
         </div>
+
+        <SearchModal ref={searchRef} />
+        <CreateIssueModal ref={createRef} showButton={false} />
       </SSEProvider>
     </NotificationProvider>
   );

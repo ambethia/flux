@@ -1,6 +1,6 @@
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "$convex/_generated/api";
 import type { IssuePriorityValue } from "$convex/schema";
 import { IssuePriority } from "$convex/schema";
@@ -9,7 +9,17 @@ import { PRIORITY_OPTIONS } from "../lib/format";
 import { ErrorBanner } from "./ErrorBanner";
 import { FontAwesomeIcon, faPlus } from "./Icon";
 
-export function CreateIssueModal() {
+export interface CreateIssueModalHandle {
+  open: () => void;
+}
+
+export function CreateIssueModal({
+  ref,
+  showButton = true,
+}: {
+  ref?: React.RefObject<CreateIssueModalHandle | null>;
+  showButton?: boolean;
+}) {
   const { projectId } = useRouteContext({ from: "__root__" });
   const navigate = useNavigate();
   const createIssue = useMutation(api.issues.create);
@@ -27,10 +37,22 @@ export function CreateIssueModal() {
 
   const [isOpen, setIsOpen] = useState(false);
 
-  function open() {
+  const open = useCallback(() => {
     dialogRef.current?.showModal();
     setIsOpen(true);
-  }
+  }, []);
+
+  // Expose open() to parent via ref for keyboard shortcut triggering
+  useEffect(() => {
+    if (!ref) return;
+    (ref as React.MutableRefObject<CreateIssueModalHandle | null>).current = {
+      open,
+    };
+    return () => {
+      (ref as React.MutableRefObject<CreateIssueModalHandle | null>).current =
+        null;
+    };
+  }, [ref, open]);
 
   useEffect(() => {
     if (isOpen) titleInputRef.current?.focus();
@@ -82,10 +104,12 @@ export function CreateIssueModal() {
 
   return (
     <>
-      <button type="button" className="btn btn-primary btn-sm" onClick={open}>
-        <FontAwesomeIcon icon={faPlus} aria-hidden="true" />
-        New Issue
-      </button>
+      {showButton && (
+        <button type="button" className="btn btn-primary btn-sm" onClick={open}>
+          <FontAwesomeIcon icon={faPlus} aria-hidden="true" />
+          New Issue
+        </button>
+      )}
 
       <dialog ref={dialogRef} className="modal" onClose={resetForm}>
         <div className="modal-box">
