@@ -48,27 +48,10 @@ export function SessionList() {
       ? undefined
       : Object.values(sessionCounts).reduce((a, b) => a + b, 0);
 
-  const totalForStatus =
-    sessionCounts === undefined
-      ? undefined
-      : statusFilter === null
-        ? totalAll
-        : (sessionCounts[statusFilter] ?? 0);
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="font-bold text-xl">Sessions</h2>
-          {paginationStatus !== "LoadingFirstPage" &&
-            totalForStatus !== undefined && (
-              <span className="text-base-content/60 text-sm">
-                {paginationStatus !== "Exhausted"
-                  ? `showing ${sessions.length} of ${totalForStatus}`
-                  : `${totalForStatus} ${totalForStatus === 1 ? "session" : "sessions"}`}
-              </span>
-            )}
-        </div>
+        <h2 className="font-bold text-xl">Sessions</h2>
       </div>
 
       <div role="tablist" className="tabs tabs-box">

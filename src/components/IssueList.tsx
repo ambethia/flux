@@ -122,27 +122,10 @@ export function IssueList() {
       ? undefined
       : Object.values(issueCounts).reduce((a, b) => a + b, 0);
 
-  const totalForStatus =
-    issueCounts === undefined
-      ? undefined
-      : statusFilter === null
-        ? totalAllIssues
-        : (issueCounts[statusFilter] ?? 0);
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="font-bold text-xl">Issues</h2>
-          {paginationStatus !== "LoadingFirstPage" &&
-            totalForStatus !== undefined && (
-              <span className="text-base-content/60 text-sm">
-                {paginationStatus !== "Exhausted"
-                  ? `showing ${issues.length} of ${totalForStatus}`
-                  : `${totalForStatus} ${totalForStatus === 1 ? "issue" : "issues"}`}
-              </span>
-            )}
-        </div>
+        <h2 className="font-bold text-xl">Issues</h2>
         <CreateIssueModal />
       </div>
 
