@@ -428,37 +428,15 @@ export const search = query({
   handler: async (ctx, args) => {
     const cap = Math.min(args.limit ?? 20, 100);
 
-    // Primary: full-text search on title via search index (relevance-ranked)
-    const titleMatches = await ctx.db
+    // Full-text search on title via search index (relevance-ranked, excludes deleted)
+    const results = await ctx.db
       .query("issues")
       .withSearchIndex("search_title", (q) =>
         q.search("title", args.query).eq("projectId", args.projectId),
       )
       .take(cap);
 
-    // Secondary: scan non-deleted issues for description matches (case-insensitive substring)
-    const queryLower = args.query.toLowerCase();
-    const nonDeletedIssues = await ctx.db
-      .query("issues")
-      .withIndex("by_project_deletedAt_status", (q) =>
-        q.eq("projectId", args.projectId).eq("deletedAt", undefined),
-      )
-      .collect();
-
-    const titleMatchIds = new Set(titleMatches.map((i) => i._id));
-    const descriptionMatches = nonDeletedIssues.filter(
-      (i) =>
-        !titleMatchIds.has(i._id) &&
-        i.description?.toLowerCase().includes(queryLower),
-    );
-
-    // Title matches first (relevance-ranked), then description matches, capped
-    const combined = [
-      ...titleMatches.filter((i) => i.deletedAt === undefined),
-      ...descriptionMatches,
-    ].slice(0, cap);
-
-    return combined;
+    return results.filter((i) => i.deletedAt === undefined);
   },
 });
 
