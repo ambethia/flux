@@ -104,27 +104,30 @@ export function IssueList() {
   const allLabels = useQuery(api.labels.list, { projectId });
   const labelMap = new Map((allLabels ?? []).map((l) => [l._id, l]));
 
+  const totalAllIssues =
+    issueCounts === undefined
+      ? undefined
+      : Object.values(issueCounts).reduce((a, b) => a + b, 0);
+
+  const totalForStatus =
+    issueCounts === undefined
+      ? undefined
+      : statusFilter === null
+        ? totalAllIssues
+        : (issueCounts[statusFilter] ?? 0);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="font-bold text-xl">Issues</h2>
-          {issues &&
-            issueCounts !== undefined &&
-            (() => {
-              const totalCount =
-                statusFilter === null
-                  ? Object.values(issueCounts).reduce((a, b) => a + b, 0)
-                  : (issueCounts[statusFilter] ?? 0);
-              const isTruncated = issues.length < totalCount;
-              return (
-                <span className="text-base-content/60 text-sm">
-                  {isTruncated
-                    ? `showing ${issues.length} of ${totalCount}`
-                    : `${totalCount} ${totalCount === 1 ? "issue" : "issues"}`}
-                </span>
-              );
-            })()}
+          {issues && totalForStatus !== undefined && (
+            <span className="text-base-content/60 text-sm">
+              {issues.length < totalForStatus
+                ? `showing ${issues.length} of ${totalForStatus}`
+                : `${totalForStatus} ${totalForStatus === 1 ? "issue" : "issues"}`}
+            </span>
+          )}
         </div>
         <CreateIssueModal />
       </div>
@@ -135,7 +138,7 @@ export function IssueList() {
             issueCounts === undefined
               ? undefined
               : tab.value === null
-                ? Object.values(issueCounts).reduce((a, b) => a + b, 0)
+                ? totalAllIssues
                 : (issueCounts[tab.value] ?? 0);
           return (
             <button
