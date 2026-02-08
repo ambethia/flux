@@ -244,6 +244,7 @@ function IssuePicker({
         items={filtered.slice(0, 20)}
         deferredSearch={deferredSearch}
         isLoading={results === undefined || isStale}
+        compact
         emptyPrompt="Type to search for issues..."
         className="flex max-h-48 flex-col gap-1 overflow-y-auto"
         renderItem={(issue) => (

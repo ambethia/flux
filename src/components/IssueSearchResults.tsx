@@ -49,6 +49,7 @@ export function IssueSearchResults({
   deferredSearch,
   isLoading,
   emptyPrompt = "Type to search by title or ID (e.g. FLUX-42)",
+  compact = false,
   className,
   renderItem,
 }: {
@@ -56,19 +57,25 @@ export function IssueSearchResults({
   deferredSearch: string;
   isLoading: boolean;
   emptyPrompt?: string;
+  /** When true, uses compact left-aligned styling suitable for small dropdowns. */
+  compact?: boolean;
   className?: string;
   renderItem: (issue: Doc<"issues">, index: number) => React.ReactNode;
 }) {
+  const stateClassName = compact ? "p-2 text-sm" : "py-6 text-center text-sm";
+
   if (!deferredSearch) {
     return (
-      <p className="py-6 text-center text-base-content/40 text-sm">
-        {emptyPrompt}
-      </p>
+      <p className={`${stateClassName} text-base-content/40`}>{emptyPrompt}</p>
     );
   }
 
   if (isLoading) {
-    return (
+    return compact ? (
+      <div className="p-2">
+        <span className="loading loading-spinner loading-xs" />
+      </div>
+    ) : (
       <div className="flex justify-center py-6">
         <span className="loading loading-spinner loading-sm" />
       </div>
@@ -77,7 +84,7 @@ export function IssueSearchResults({
 
   if (items.length === 0) {
     return (
-      <p className="py-6 text-center text-base-content/60 text-sm">
+      <p className={`${stateClassName} text-base-content/60`}>
         No matching issues.
       </p>
     );
