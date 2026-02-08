@@ -6,7 +6,6 @@ import type { Id } from "$convex/_generated/dataModel";
 import type { IssueStatusValue } from "$convex/schema";
 import { IssueStatus } from "$convex/schema";
 import { useDismissableError } from "../hooks/useDismissableError";
-import { CreateIssueModal } from "./CreateIssueModal";
 import { DeferModal, type DeferModalHandle } from "./DeferModal";
 import { ErrorBanner } from "./ErrorBanner";
 import { FontAwesomeIcon, faCirclePause, faCirclePlay } from "./Icon";
@@ -78,10 +77,7 @@ export function IssueList() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h2 className="font-bold text-xl">Issues</h2>
-        <CreateIssueModal />
-      </div>
+      <h2 className="font-bold text-xl">Issues</h2>
 
       <div role="tablist" className="tabs tabs-box">
         {TABS.map((tab) => {
