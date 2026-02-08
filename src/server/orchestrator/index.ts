@@ -117,6 +117,24 @@ class Orchestrator {
     this.provider = provider ?? new ClaudeCodeProvider();
   }
 
+  /** Return the current filesystem path used as CWD for spawning agents. */
+  getProjectPath(): string {
+    return this.projectPath;
+  }
+
+  /** Update the project's filesystem path (e.g. after PATCH /api/projects/:id).
+   *  Only safe when the orchestrator is stopped — changing the CWD mid-session
+   *  would break the running agent. */
+  updateProjectPath(newPath: string): void {
+    if (this.state !== OrchestratorState.Stopped) {
+      throw new Error(
+        `[Orchestrator] Cannot update projectPath while state is "${this.state}". ` +
+          "Stop the orchestrator first.",
+      );
+    }
+    this.projectPath = newPath;
+  }
+
   /**
    * Assert that activeSession is set, returning the narrowed type.
    * Throws immediately if null — fail fast per 'No Silent Fallbacks'.
@@ -1755,7 +1773,16 @@ export function getOrchestrator(
 ): Orchestrator {
   const map = getOrchestratorMap();
   const existing = map.get(projectId);
-  if (existing) return existing;
+  if (existing) {
+    // Detect stale projectPath: if the caller passes an updated path that
+    // differs from the cached instance, push the change through.  This
+    // covers the PATCH /api/projects/:id flow where the database path is
+    // updated but the in-memory orchestrator still holds the old value.
+    if (projectPath && projectPath !== existing.getProjectPath()) {
+      existing.updateProjectPath(projectPath);
+    }
+    return existing;
+  }
 
   if (!projectPath) {
     throw new Error(
