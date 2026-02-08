@@ -11,14 +11,9 @@ import { callTool } from "../lib/api";
 import { CommentsThread } from "./CommentsThread";
 import { DependencySection } from "./DependencySection";
 import { ErrorBanner } from "./ErrorBanner";
-import {
-  FontAwesomeIcon,
-  faArrowLeft,
-  faArrowRotateLeft,
-  faCirclePause,
-  faCirclePlay,
-} from "./Icon";
-import { CLOSE_TYPE_LABELS, IssueCloseForm } from "./IssueCloseForm";
+import { FontAwesomeIcon, faArrowLeft } from "./Icon";
+import { IssueActionsToolbar } from "./IssueActionsToolbar";
+import { CLOSE_TYPE_LABELS } from "./IssueCloseForm";
 import { IssueDescriptionEditor } from "./IssueDescriptionEditor";
 import { IssueMetadata } from "./IssueMetadata";
 import { IssueTitleEditor } from "./IssueTitleEditor";
@@ -44,8 +39,6 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
 
   const [saving, setSaving] = useState(false);
 
-  const [showDeferForm, setShowDeferForm] = useState(false);
-  const [deferNote, setDeferNote] = useState("");
   const [deferring, setDeferring] = useState(false);
   const [undeferring, setUndeferring] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -148,15 +141,13 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
     }
   }
 
-  async function handleDefer() {
+  async function handleDefer(note: string) {
     setDeferring(true);
     try {
       await callTool("issues_defer", {
         issueId,
-        note: deferNote.trim() || "Deferred from UI",
+        note,
       });
-      setShowDeferForm(false);
-      setDeferNote("");
     } catch (err) {
       showError(err);
     } finally {
@@ -283,101 +274,23 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
         onSave={handleSaveDescription}
       />
 
-      {/* Reset to Open — for in_progress (stranded) or stuck issues */}
-      {(isInProgress || isStuck) && (
-        <div>
-          <button
-            type="button"
-            className="btn btn-outline btn-info btn-sm"
-            onClick={handleResetToOpen}
-            disabled={busy}
-          >
-            {resetting ? (
-              <span className="loading loading-spinner loading-xs" />
-            ) : (
-              <FontAwesomeIcon icon={faArrowRotateLeft} aria-hidden="true" />
-            )}
-            Reset to Open
-          </button>
-        </div>
-      )}
-
-      {/* Defer action */}
-      {!isClosed && !isDeferred && (
-        <div>
-          {showDeferForm ? (
-            <div className="flex flex-col gap-3 rounded-lg border border-warning/30 bg-base-200 p-4">
-              <h3 className="font-medium">Defer Issue</h3>
-              <textarea
-                className="textarea"
-                placeholder="Reason for deferring (optional)"
-                value={deferNote}
-                onChange={(e) => setDeferNote(e.target.value)}
-                rows={2}
-              />
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="btn btn-warning btn-sm"
-                  onClick={handleDefer}
-                  disabled={busy}
-                >
-                  {deferring ? (
-                    <span className="loading loading-spinner loading-xs" />
-                  ) : (
-                    <FontAwesomeIcon icon={faCirclePause} aria-hidden="true" />
-                  )}
-                  Confirm Defer
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => {
-                    setShowDeferForm(false);
-                    setDeferNote("");
-                  }}
-                  disabled={busy}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-outline btn-warning btn-sm"
-              onClick={() => setShowDeferForm(true)}
-              disabled={busy}
-            >
-              <FontAwesomeIcon icon={faCirclePause} aria-hidden="true" />
-              Defer Issue
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Undefer action */}
-      {isDeferred && (
-        <div>
-          <button
-            type="button"
-            className="btn btn-outline btn-info btn-sm"
-            onClick={handleUndefer}
-            disabled={busy}
-          >
-            {undeferring ? (
-              <span className="loading loading-spinner loading-xs" />
-            ) : (
-              <FontAwesomeIcon icon={faCirclePlay} aria-hidden="true" />
-            )}
-            Undefer Issue
-          </button>
-        </div>
-      )}
-
-      {/* Close action */}
+      {/* Actions toolbar — groups Reset, Defer/Undefer, and Close */}
       {!isClosed && (
-        <IssueCloseForm busy={busy} saving={saving} onClose={handleClose} />
+        <IssueActionsToolbar
+          showReset={isInProgress || isStuck}
+          showDefer={!isDeferred}
+          showUndefer={isDeferred}
+          showClose={!isDeferred}
+          busy={busy}
+          resetting={resetting}
+          deferring={deferring}
+          undeferring={undeferring}
+          saving={saving}
+          onReset={handleResetToOpen}
+          onDefer={handleDefer}
+          onUndefer={handleUndefer}
+          onClose={handleClose}
+        />
       )}
 
       {/* Close reason (for already-closed issues) */}
