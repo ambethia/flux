@@ -25,7 +25,7 @@ interface IssueActionsToolbarProps {
   saving: boolean;
   /** Action handlers */
   onReset: () => void;
-  onDefer: (note: string) => void;
+  onDefer: (note: string) => Promise<void>;
   onUndefer: () => void;
   onClose: (
     closeType: CloseTypeValue,
@@ -58,10 +58,14 @@ export function IssueActionsToolbar({
     setExpandedForm((prev) => (prev === form ? null : form));
   }
 
-  function handleDeferSubmit() {
-    onDefer(deferNote.trim() || "Deferred from UI");
-    setExpandedForm(null);
-    setDeferNote("");
+  async function handleDeferSubmit() {
+    try {
+      await onDefer(deferNote.trim() || "Deferred from UI");
+      setExpandedForm(null);
+      setDeferNote("");
+    } catch {
+      // Parent handles error display — keep form open so user doesn't lose input
+    }
   }
 
   function handleCloseCancel() {

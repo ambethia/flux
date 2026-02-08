@@ -12,7 +12,6 @@ export const CLOSE_TYPE_LABELS: Record<CloseTypeValue, string> = {
 
 interface IssueCloseFormProps {
   busy: boolean;
-  saving: boolean;
   expanded: boolean;
   onToggle: () => void;
   onClose: (

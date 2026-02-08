@@ -150,6 +150,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
       });
     } catch (err) {
       showError(err);
+      throw err;
     } finally {
       setDeferring(false);
     }
