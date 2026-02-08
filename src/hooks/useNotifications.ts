@@ -72,8 +72,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       typeof Notification !== "undefined" &&
       Notification.permission === "default"
     ) {
-      const result = await Notification.requestPermission();
-      setPermission(result);
+      try {
+        const result = await Notification.requestPermission();
+        setPermission(result);
+      } catch {
+        // Permission request failed (e.g. insecure context) — treat as denied
+        setPermission("denied");
+      }
     }
   }, [enabled]);
 
