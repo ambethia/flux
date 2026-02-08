@@ -2,11 +2,17 @@
 import { z } from "zod";
 import {
   CloseType,
+  type CloseTypeValue,
   CommentAuthor,
+  type CommentAuthorValue,
   EpicStatus,
+  type EpicStatusValue,
   IssuePriority,
+  type IssuePriorityValue,
   IssueStatus,
+  type IssueStatusValue,
   SessionStatus,
+  type SessionStatusValue,
 } from "$convex/schema";
 
 export type {
@@ -22,34 +28,29 @@ export type {
 // These use `z.enum()` with explicit literal tuples derived from the Convex
 // `as const` objects. The `as [V, ...V[]]` cast satisfies z.enum's requirement
 // for a non-empty tuple while preserving the narrow literal union type V.
-type IssueStatusVal = (typeof IssueStatus)[keyof typeof IssueStatus];
+// Value types are imported from convex/schema.ts (re-exported above).
 const issueStatusEnum = z.enum(
-  Object.values(IssueStatus) as [IssueStatusVal, ...IssueStatusVal[]],
+  Object.values(IssueStatus) as [IssueStatusValue, ...IssueStatusValue[]],
 );
 
-type IssuePriorityVal = (typeof IssuePriority)[keyof typeof IssuePriority];
 const issuePriorityEnum = z.enum(
-  Object.values(IssuePriority) as [IssuePriorityVal, ...IssuePriorityVal[]],
+  Object.values(IssuePriority) as [IssuePriorityValue, ...IssuePriorityValue[]],
 );
 
-type EpicStatusVal = (typeof EpicStatus)[keyof typeof EpicStatus];
 const epicStatusEnum = z.enum(
-  Object.values(EpicStatus) as [EpicStatusVal, ...EpicStatusVal[]],
+  Object.values(EpicStatus) as [EpicStatusValue, ...EpicStatusValue[]],
 );
 
-type CommentAuthorVal = (typeof CommentAuthor)[keyof typeof CommentAuthor];
 const commentAuthorEnum = z.enum(
-  Object.values(CommentAuthor) as [CommentAuthorVal, ...CommentAuthorVal[]],
+  Object.values(CommentAuthor) as [CommentAuthorValue, ...CommentAuthorValue[]],
 );
 
-type CloseTypeVal = (typeof CloseType)[keyof typeof CloseType];
 const closeTypeEnum = z.enum(
-  Object.values(CloseType) as [CloseTypeVal, ...CloseTypeVal[]],
+  Object.values(CloseType) as [CloseTypeValue, ...CloseTypeValue[]],
 );
 
-type SessionStatusVal = (typeof SessionStatus)[keyof typeof SessionStatus];
 const sessionStatusEnum = z.enum(
-  Object.values(SessionStatus) as [SessionStatusVal, ...SessionStatusVal[]],
+  Object.values(SessionStatus) as [SessionStatusValue, ...SessionStatusValue[]],
 );
 
 export interface ToolDef {

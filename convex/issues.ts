@@ -6,6 +6,7 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import {
   closeTypeValidator,
   IssuePriority,
+  type IssuePriorityValue,
   IssueStatus,
   issuePriorityValidator,
   issueStatusValidator,
@@ -19,9 +20,7 @@ const PRIORITY_ORDER: Record<string, number> = {
 };
 
 /** Convert a priority string to its numeric sort order. */
-function toPriorityOrder(
-  priority: (typeof IssuePriority)[keyof typeof IssuePriority],
-): number {
+function toPriorityOrder(priority: IssuePriorityValue): number {
   const order = PRIORITY_ORDER[priority];
   if (order === undefined)
     throw new Error(`Unknown priority: ${String(priority)}`);
