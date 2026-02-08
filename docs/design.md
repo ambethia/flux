@@ -951,14 +951,13 @@ All tool schemas are registered upfront in `src/server/tools/schema.ts`. Unimple
     "flux": {
       "type": "stdio",
       "command": "bun",
-      "args": ["run", "/Users/jason/Projects/flux/bin/flux-mcp-stdio.ts"],
-      "env": {
-        "FLUX_PROJECT_ID": "${FLUX_PROJECT_ID}"
-      }
+      "args": ["run", "/Users/jason/Projects/flux/bin/flux-mcp-stdio.ts"]
     }
   }
 }
 ```
+
+The bridge auto-discovers the project ID at startup by calling `GET /api/projects`. If exactly one project exists, it uses that project automatically (zero-config). For multi-project setups, set `FLUX_PROJECT_ID` in the env block.
 
 ### REST Tool Endpoint
 
