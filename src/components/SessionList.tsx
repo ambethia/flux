@@ -50,9 +50,7 @@ export function SessionList() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h2 className="font-bold text-xl">Sessions</h2>
-      </div>
+      <h2 className="font-bold text-xl">Sessions</h2>
 
       <div role="tablist" className="tabs tabs-box">
         {TABS.map((tab) => {
