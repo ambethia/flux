@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import { $ } from "bun";
 import type { SessionPhaseValue } from "$convex/schema";
 import { isProcessAlive } from "./process";
@@ -16,6 +17,41 @@ export async function resolveRepoRoot(): Promise<string> {
   }
 }
 
+/** Result of validating a project path before registration. */
+export type PathValidationResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Validate that a path is suitable for project registration:
+ * 1. Directory exists on the filesystem
+ * 2. Directory is a git repository
+ */
+export async function validateProjectPath(
+  path: string,
+): Promise<PathValidationResult> {
+  // Check the directory exists and is actually a directory
+  let stat: Awaited<ReturnType<typeof fs.stat>>;
+  try {
+    stat = await fs.stat(path);
+  } catch {
+    return { ok: false, error: `Directory does not exist: ${path}` };
+  }
+  if (!stat.isDirectory()) {
+    return { ok: false, error: `Path is not a directory: ${path}` };
+  }
+
+  // Check it's a git repository
+  try {
+    await $`git -C ${path} rev-parse --git-dir`.quiet();
+  } catch {
+    return {
+      ok: false,
+      error: `Directory is not a git repository: ${path}`,
+    };
+  }
+
+  return { ok: true };
+}
+
 /**
  * Infer a project slug from a git repository.
  * Tries the git remote origin URL first, falls back to directory name.
@@ -30,10 +66,10 @@ export async function inferProjectSlug(cwd?: string): Promise<string> {
       ? (await $`git -C ${cwd} remote get-url origin`.text()).trim()
       : (await $`git remote get-url origin`.text()).trim();
     // Parse various git remote formats:
-    // - https://github.com/user/repo.git
-    // - git@github.com:user/repo.git
-    // - git@gitlab.com:user/repo
-    const match = remote.match(/\/([^/]+?)(?:\.git)?$/);
+    // - https://github.com/user/repo.git   → match after last /
+    // - git@github.com:user/repo.git       → match after last /
+    // - git@github.com:repo.git            → match after :
+    const match = remote.match(/[/:]([\w.~-]+?)(?:\.git)?$/);
     if (match?.[1]) {
       return match[1];
     }

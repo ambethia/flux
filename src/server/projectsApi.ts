@@ -2,7 +2,7 @@ import type { ConvexClient } from "convex/browser";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import { ProjectState, type ProjectStateValue } from "$convex/schema";
-import { inferProjectSlug } from "./git";
+import { inferProjectSlug, validateProjectPath } from "./git";
 
 /**
  * Extract the Convex document ID from the URL path.
@@ -127,6 +127,12 @@ async function handleCreate(
       { error: "Missing required field: path" },
       { status: 400 },
     );
+  }
+
+  // Validate the path is an existing git repository
+  const validation = await validateProjectPath(path);
+  if (!validation.ok) {
+    return Response.json({ error: validation.error }, { status: 400 });
   }
 
   const slug = await inferProjectSlug(path);
