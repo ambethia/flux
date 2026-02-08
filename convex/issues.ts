@@ -291,23 +291,11 @@ export const close = mutation({
   },
 });
 
+/** @deprecated Use `retry` instead. Alias kept for UI callsites. */
 export const unstick = mutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {
-    const issue = await getActiveIssue(ctx, issueId);
-    if (issue.status !== IssueStatus.Stuck)
-      throw new Error(
-        `Issue ${issueId} is not stuck (status: ${issue.status})`,
-      );
-
-    await ctx.db.patch(issueId, {
-      status: IssueStatus.Open,
-      failureCount: 0,
-      reviewIterations: 0,
-      assignee: undefined,
-      updatedAt: Date.now(),
-    });
-    return await ctx.db.get(issueId);
+    return await retryHandler(ctx, issueId);
   },
 });
 
@@ -396,21 +384,27 @@ export const search = query({
   },
 });
 
+/** Shared handler: reset a stuck issue for a fresh attempt. */
+async function retryHandler(ctx: MutationCtx, issueId: Id<"issues">) {
+  const issue = await getActiveIssue(ctx, issueId);
+  if (issue.status !== IssueStatus.Stuck)
+    throw new Error(
+      `Cannot retry issue ${issueId}: not stuck (status: ${issue.status})`,
+    );
+
+  await ctx.db.patch(issueId, {
+    status: IssueStatus.Open,
+    failureCount: 0,
+    reviewIterations: 0,
+    assignee: undefined,
+    updatedAt: Date.now(),
+  });
+  return await ctx.db.get(issueId);
+}
+
 export const retry = mutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {
-    const issue = await getActiveIssue(ctx, issueId);
-    if (issue.status !== IssueStatus.Stuck)
-      throw new Error(
-        `Cannot retry issue ${issueId}: not stuck (status: ${issue.status})`,
-      );
-
-    await ctx.db.patch(issueId, {
-      failureCount: 0,
-      status: IssueStatus.Open,
-      assignee: undefined,
-      updatedAt: Date.now(),
-    });
-    return await ctx.db.get(issueId);
+    return await retryHandler(ctx, issueId);
   },
 });

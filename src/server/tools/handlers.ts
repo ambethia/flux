@@ -290,7 +290,7 @@ const issues_unstick: ToolHandler = async (args, ctx) => {
   const { issueId } = args as { issueId: string };
 
   try {
-    const updated = await ctx.convex.mutation(api.issues.unstick, {
+    const updated = await ctx.convex.mutation(api.issues.retry, {
       issueId: issueId as Id<"issues">,
     });
     return ok(ctx, { issue: updated });

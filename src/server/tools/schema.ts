@@ -171,7 +171,7 @@ const issues_undefer: ToolDef = {
 const issues_retry: ToolDef = {
   name: "issues_retry",
   description:
-    "Reset an issue's failureCount to 0, making it eligible for pickup again after circuit breaker tripped.",
+    "Reset a stuck issue to open status. Resets failureCount and reviewIterations to 0 for a fresh attempt.",
   schema: {
     issueId: z.string().describe("The issue's document ID."),
   },
@@ -180,7 +180,7 @@ const issues_retry: ToolDef = {
 const issues_unstick: ToolDef = {
   name: "issues_unstick",
   description:
-    "Reset a stuck issue back to open status. Resets failureCount and reviewIterations to 0 for a fresh attempt.",
+    "Alias for issues_retry. Reset a stuck issue back to open status. Resets failureCount and reviewIterations to 0 for a fresh attempt.",
   schema: {
     issueId: z.string().describe("The issue's document ID."),
   },
