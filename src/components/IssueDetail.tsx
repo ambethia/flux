@@ -1,12 +1,12 @@
 import { Link, useRouteContext } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
-import { useState } from "react";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import type { CloseTypeValue, IssuePriorityValue } from "$convex/schema";
 import { IssueStatus } from "$convex/schema";
 import { useDismissableError } from "../hooks/useDismissableError";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
+import { useTrackedAction } from "../hooks/useTrackedAction";
 import { callTool } from "../lib/api";
 import { PRIORITY_OPTIONS } from "../lib/format";
 import { CommentsThread } from "./CommentsThread";
@@ -31,13 +31,71 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
   const retryIssue = useMutation(api.issues.retry);
   const closeIssue = useMutation(api.issues.close);
 
-  const [saving, setSaving] = useState(false);
-
-  const [deferring, setDeferring] = useState(false);
-  const [undeferring, setUndeferring] = useState(false);
-  const [resetting, setResetting] = useState(false);
-
   const { error: mutationError, showError, clearError } = useDismissableError();
+
+  // Each tracked action manages its own pending boolean.
+  // Actions that use `rethrow` propagate failures to child forms so they can
+  // keep their UI open on error.
+
+  const [handleLabelsChange, labelsChanging] = useTrackedAction(
+    async (labelIds: Id<"labels">[]) => {
+      await updateIssue({ issueId, labelIds });
+    },
+    showError,
+  );
+
+  const [handleSaveTitle, titleSaving] = useTrackedAction(
+    async (newTitle: string) => {
+      await updateIssue({ issueId, title: newTitle });
+    },
+    showError,
+  );
+
+  const [handleSaveDescription, descriptionSaving] = useTrackedAction(
+    async (newDescription: string) => {
+      await updateIssue({ issueId, description: newDescription });
+    },
+    showError,
+  );
+
+  const [handlePriorityChange, prioritySaving] = useTrackedAction(
+    async (value: string) => {
+      await updateIssue({ issueId, priority: value as IssuePriorityValue });
+    },
+    showError,
+  );
+
+  const [handleClose, closeSaving] = useTrackedAction(
+    async (closeType: CloseTypeValue, closeReason: string | undefined) => {
+      await closeIssue({ issueId, closeType, closeReason });
+    },
+    showError,
+    { rethrow: true },
+  );
+
+  const [handleDefer, deferring] = useTrackedAction(
+    async (note: string) => {
+      await callTool("issues_defer", { issueId, note });
+    },
+    showError,
+    { rethrow: true },
+  );
+
+  const [handleUndefer, undeferring] = useTrackedAction(async () => {
+    await callTool("issues_undefer", {
+      issueId,
+      note: "Undeferred from UI",
+    });
+  }, showError);
+
+  const [handleResetToOpen, resetting] = useTrackedAction(async () => {
+    // issue is guaranteed non-null when this button is visible
+    if (issue?.status === IssueStatus.Stuck) {
+      await retryIssue({ issueId });
+    } else {
+      await updateIssue({ issueId, status: IssueStatus.Open });
+    }
+  }, showError);
 
   useDocumentTitle(issue?.shortId);
 
@@ -60,7 +118,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
     );
   }
 
-  // Captured after null checks — safe to use in handlers without non-null assertions
+  // Captured after null checks — safe to use in JSX without non-null assertions
   const currentIssue = issue;
   const isClosed = currentIssue.status === IssueStatus.Closed;
   const isDeferred = currentIssue.status === IssueStatus.Deferred;
@@ -71,6 +129,12 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
   const deferReason = isDeferred ? currentIssue.deferNote : undefined;
 
   // Any mutation in flight — disables interactive controls
+  const saving =
+    labelsChanging ||
+    titleSaving ||
+    descriptionSaving ||
+    prioritySaving ||
+    closeSaving;
   const busy = saving || deferring || undeferring || resetting;
 
   // Build a lookup map for label data
@@ -78,109 +142,6 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
   const assignedLabels = (currentIssue.labelIds ?? [])
     .map((id) => labelMap.get(id))
     .filter((l): l is NonNullable<typeof l> => l !== undefined);
-
-  async function handleLabelsChange(labelIds: Id<"labels">[]) {
-    setSaving(true);
-    try {
-      await updateIssue({ issueId, labelIds });
-    } catch (err) {
-      showError(err);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleSaveTitle(newTitle: string) {
-    setSaving(true);
-    try {
-      await updateIssue({ issueId, title: newTitle });
-    } catch (err) {
-      showError(err);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleSaveDescription(newDescription: string) {
-    setSaving(true);
-    try {
-      await updateIssue({ issueId, description: newDescription });
-    } catch (err) {
-      showError(err);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handlePriorityChange(value: string) {
-    setSaving(true);
-    try {
-      await updateIssue({ issueId, priority: value as IssuePriorityValue });
-    } catch (err) {
-      showError(err);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleClose(
-    closeType: CloseTypeValue,
-    closeReason: string | undefined,
-  ) {
-    setSaving(true);
-    try {
-      await closeIssue({ issueId, closeType, closeReason });
-    } catch (err) {
-      showError(err);
-      throw err;
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDefer(note: string) {
-    setDeferring(true);
-    try {
-      await callTool("issues_defer", {
-        issueId,
-        note,
-      });
-    } catch (err) {
-      showError(err);
-      throw err;
-    } finally {
-      setDeferring(false);
-    }
-  }
-
-  async function handleUndefer() {
-    setUndeferring(true);
-    try {
-      await callTool("issues_undefer", {
-        issueId,
-        note: "Undeferred from UI",
-      });
-    } catch (err) {
-      showError(err);
-    } finally {
-      setUndeferring(false);
-    }
-  }
-
-  async function handleResetToOpen() {
-    setResetting(true);
-    try {
-      if (isStuck) {
-        await retryIssue({ issueId });
-      } else {
-        await updateIssue({ issueId, status: IssueStatus.Open });
-      }
-    } catch (err) {
-      showError(err);
-    } finally {
-      setResetting(false);
-    }
-  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -283,7 +244,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
           resetting={resetting}
           deferring={deferring}
           undeferring={undeferring}
-          saving={saving}
+          saving={closeSaving}
           onReset={handleResetToOpen}
           onDefer={handleDefer}
           onUndefer={handleUndefer}
