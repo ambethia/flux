@@ -200,7 +200,13 @@ async function handleUpdate(
 
   if (typeof body.name === "string") updates.name = body.name;
   if (typeof body.slug === "string") updates.slug = body.slug;
-  if (typeof body.path === "string") updates.path = body.path;
+  if (typeof body.path === "string") {
+    const validation = await validateProjectPath(body.path);
+    if (!validation.ok) {
+      return Response.json({ error: validation.error }, { status: 400 });
+    }
+    updates.path = body.path;
+  }
   if (typeof body.state === "string") {
     const validStates = Object.values(ProjectState);
     if (!validStates.includes(body.state as (typeof validStates)[number])) {
