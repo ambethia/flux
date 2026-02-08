@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import {
   closeTypeValidator,
   IssuePriority,
@@ -10,12 +10,22 @@ import {
   issueStatusValidator,
 } from "./schema";
 
-const PRIORITY_ORDER = {
+export const PRIORITY_ORDER: Record<string, number> = {
   [IssuePriority.Critical]: 0,
   [IssuePriority.High]: 1,
   [IssuePriority.Medium]: 2,
   [IssuePriority.Low]: 3,
 } as const;
+
+/** Convert a priority string to its numeric sort order. */
+function toPriorityOrder(
+  priority: (typeof IssuePriority)[keyof typeof IssuePriority],
+): number {
+  const order = PRIORITY_ORDER[priority];
+  if (order === undefined)
+    throw new Error(`Unknown priority: ${String(priority)}`);
+  return order;
+}
 
 function generateShortId(slug: string, counter: number): string {
   return `${slug.toUpperCase()}-${counter}`;
@@ -47,13 +57,15 @@ export const create = mutation({
     const counter = project.issueCounter + 1;
     await ctx.db.patch(args.projectId, { issueCounter: counter });
 
+    const priority = args.priority ?? IssuePriority.Medium;
     const issueId = await ctx.db.insert("issues", {
       projectId: args.projectId,
       shortId: generateShortId(project.slug, counter),
       title: args.title,
       description: args.description,
       status: IssueStatus.Open,
-      priority: args.priority ?? IssuePriority.Medium,
+      priority,
+      priorityOrder: toPriorityOrder(priority),
       assignee: undefined,
       failureCount: 0,
       reviewIterations: 0,
@@ -91,13 +103,15 @@ export const bulkCreate = mutation({
 
     for (const issue of args.issues) {
       counter += 1;
+      const priority = issue.priority ?? IssuePriority.Medium;
       const issueId = await ctx.db.insert("issues", {
         projectId: args.projectId,
         shortId: generateShortId(project.slug, counter),
         title: issue.title,
         description: issue.description,
         status: IssueStatus.Open,
-        priority: issue.priority ?? IssuePriority.Medium,
+        priority,
+        priorityOrder: toPriorityOrder(priority),
         assignee: undefined,
         failureCount: 0,
         reviewIterations: 0,
@@ -127,33 +141,26 @@ export const list = query({
   handler: async (ctx, args) => {
     const cap = args.limit || 100;
 
-    // Compound index eliminates in-memory deletedAt/status filtering
+    // Index-sorted by priorityOrder — no in-memory sort needed
     const { status } = args;
     const issues = status
       ? await ctx.db
           .query("issues")
-          .withIndex("by_project_deletedAt_status", (q) =>
+          .withIndex("by_project_status_priority", (q) =>
             q
               .eq("projectId", args.projectId)
               .eq("deletedAt", undefined)
               .eq("status", status),
           )
-          .collect()
+          .take(cap)
       : await ctx.db
           .query("issues")
-          .withIndex("by_project_deletedAt_status", (q) =>
+          .withIndex("by_project_priority", (q) =>
             q.eq("projectId", args.projectId).eq("deletedAt", undefined),
           )
-          .collect();
+          .take(cap);
 
-    issues.sort((a, b) => {
-      const diff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-      return diff !== 0
-        ? diff
-        : (a._creationTime || 0) - (b._creationTime || 0);
-    });
-
-    return issues.slice(0, cap);
+    return issues;
   },
 });
 
@@ -163,10 +170,10 @@ export const ready = query({
     maxFailures: v.number(),
   },
   handler: async (ctx, { projectId, maxFailures }) => {
-    // Compound index narrows to non-deleted, open issues; failureCount filtered in-memory
+    // Index returns open issues sorted by priorityOrder; filter failureCount in-memory
     const openIssues = await ctx.db
       .query("issues")
-      .withIndex("by_project_deletedAt_status", (q) =>
+      .withIndex("by_project_status_priority", (q) =>
         q
           .eq("projectId", projectId)
           .eq("deletedAt", undefined)
@@ -196,10 +203,8 @@ export const ready = query({
       if (!blocked) ready.push(issue);
     }
 
-    return ready.sort((a, b) => {
-      const diff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-      return diff !== 0 ? diff : a._creationTime - b._creationTime;
-    });
+    // Already sorted by priorityOrder via the index — no in-memory sort needed
+    return ready;
   },
 });
 
@@ -255,7 +260,10 @@ export const update = mutation({
     if (args.title !== undefined) updates.title = args.title;
     if (args.description !== undefined) updates.description = args.description;
     if (args.status !== undefined) updates.status = args.status;
-    if (args.priority !== undefined) updates.priority = args.priority;
+    if (args.priority !== undefined) {
+      updates.priority = args.priority;
+      updates.priorityOrder = toPriorityOrder(args.priority);
+    }
     if (args.assignee !== undefined) updates.assignee = args.assignee;
     if (args.sourceIssueId !== undefined)
       updates.sourceIssueId = args.sourceIssueId;
@@ -442,5 +450,21 @@ export const counts = query({
       counts[issue.status] = (counts[issue.status] ?? 0) + 1;
     }
     return counts;
+  },
+});
+
+/** One-shot migration: populate priorityOrder for issues created before FLUX-204. */
+export const backfillPriorityOrder = internalMutation({
+  handler: async (ctx) => {
+    const issues = await ctx.db.query("issues").collect();
+    let patched = 0;
+    for (const issue of issues) {
+      if (issue.priorityOrder !== undefined) continue;
+      await ctx.db.patch(issue._id, {
+        priorityOrder: toPriorityOrder(issue.priority),
+      });
+      patched++;
+    }
+    return { patched, total: issues.length };
   },
 });

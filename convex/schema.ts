@@ -156,6 +156,7 @@ export default defineSchema({
     description: v.optional(v.string()),
     status: issueStatusValidator,
     priority: issuePriorityValidator,
+    priorityOrder: v.optional(v.number()),
     assignee: v.optional(v.string()),
     failureCount: v.number(),
     closedAt: v.optional(v.number()),
@@ -169,6 +170,13 @@ export default defineSchema({
     deletedAt: v.optional(v.number()),
   })
     .index("by_project_deletedAt_status", ["projectId", "deletedAt", "status"])
+    .index("by_project_priority", ["projectId", "deletedAt", "priorityOrder"])
+    .index("by_project_status_priority", [
+      "projectId",
+      "deletedAt",
+      "status",
+      "priorityOrder",
+    ])
     .index("by_epic", ["epicId"])
     .searchIndex("search_title", {
       searchField: "title",
