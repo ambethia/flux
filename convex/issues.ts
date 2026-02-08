@@ -13,7 +13,7 @@ import {
   issueStatusValidator,
 } from "./schema";
 
-const PRIORITY_ORDER: Record<IssuePriorityValue, number> = {
+export const PRIORITY_ORDER: Record<IssuePriorityValue, number> = {
   [IssuePriority.Critical]: 0,
   [IssuePriority.High]: 1,
   [IssuePriority.Medium]: 2,
@@ -21,7 +21,7 @@ const PRIORITY_ORDER: Record<IssuePriorityValue, number> = {
 };
 
 /** Convert a priority string to its numeric sort order. */
-function toPriorityOrder(priority: IssuePriorityValue): number {
+export function toPriorityOrder(priority: IssuePriorityValue): number {
   const order = PRIORITY_ORDER[priority];
   if (order === undefined)
     throw new Error(`Unknown priority: ${String(priority)}`);

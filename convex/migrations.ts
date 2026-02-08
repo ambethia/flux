@@ -10,14 +10,8 @@
  * See CLAUDE.md "Schema Migrations" for the full workflow.
  */
 import { internalMutation } from "./_generated/server";
+import { toPriorityOrder } from "./issues";
 import { IssuePriority, type IssuePriorityValue } from "./schema";
-
-const PRIORITY_ORDER: Record<IssuePriorityValue, number> = {
-  [IssuePriority.Critical]: 0,
-  [IssuePriority.High]: 1,
-  [IssuePriority.Medium]: 2,
-  [IssuePriority.Low]: 3,
-};
 
 /**
  * Backfill `priorityOrder` on issues that are missing it.
@@ -42,14 +36,10 @@ export const backfillPriorityOrder = internalMutation({
       // Derive from priority field. If priority is also missing, default to medium.
       const priority =
         (issue.priority as IssuePriorityValue) ?? IssuePriority.Medium;
-      const order = PRIORITY_ORDER[priority];
-      if (order === undefined) {
-        throw new Error(
-          `Issue ${issue._id} has unknown priority: ${String(priority)}`,
-        );
-      }
 
-      await ctx.db.patch(issue._id, { priorityOrder: order });
+      await ctx.db.patch(issue._id, {
+        priorityOrder: toPriorityOrder(priority),
+      });
       patched++;
     }
 
