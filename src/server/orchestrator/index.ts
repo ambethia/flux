@@ -1496,5 +1496,4 @@ export function getOrchestrator(projectId: Id<"projects">): Orchestrator {
 }
 
 export { Orchestrator };
-export type { OrchestratorActiveSession } from "@/shared/orchestrator";
 export { OrchestratorState } from "@/shared/orchestrator";
