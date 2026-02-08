@@ -19,6 +19,14 @@ export function useOrchestratorStatus(projectId: string) {
   );
   const [error, setError] = useState<string | null>(null);
 
+  // Reset state when switching projects so stale data from the previous
+  // project doesn't briefly render while the new fetch is in-flight.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on projectId change
+  useEffect(() => {
+    setStatus(null);
+    setError(null);
+  }, [projectId]);
+
   const fetchStatus = useCallback(async () => {
     try {
       const data = await fetchOrchestratorStatus(projectId);

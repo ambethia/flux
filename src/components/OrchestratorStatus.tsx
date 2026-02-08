@@ -84,6 +84,15 @@ export function OrchestratorStatus({
   const [transition, setTransition] = useState<Transition | null>(null);
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Reset local UI state when switching projects so stale transitions
+  // from the previous project don't bleed into the new one.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on projectId change
+  useEffect(() => {
+    setInflightAction(null);
+    setTransition(null);
+    clearActionError();
+  }, [projectId]);
+
   // Subscribe to orchestratorConfig for the `enabled` flag (real-time via Convex)
   const config = useQuery(api.orchestratorConfig.get, { projectId });
 
