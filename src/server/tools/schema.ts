@@ -61,7 +61,7 @@ function jsonArray<T extends z.ZodTypeAny>(itemSchema: T) {
   }, z.array(itemSchema));
 }
 
-// ── Issues (implemented) ──────────────────────────────────────────────
+// ── Issues ───────────────────────────────────────────────────────────
 
 const issues_create: ToolDef = {
   name: "issues_create",
@@ -120,8 +120,6 @@ const issues_update: ToolDef = {
     assignee: z.string().optional().describe("Assign to an agent or person."),
   },
 };
-
-// ── Issues ────────────────────────────────────────────────────────────
 
 const issues_close: ToolDef = {
   name: "issues_close",
@@ -373,7 +371,7 @@ const issues_bulk_update: ToolDef = {
   },
 };
 
-// ── Sessions (implemented + stubs) ────────────────────────────────────
+// ── Sessions ─────────────────────────────────────────────────────────
 
 const sessions_list: ToolDef = {
   name: "sessions_list",
@@ -395,7 +393,7 @@ const sessions_show: ToolDef = {
   },
 };
 
-// ── Orchestrator (implemented + stubs) ────────────────────────────────
+// ── Orchestrator ─────────────────────────────────────────────────────
 
 const orchestrator_run: ToolDef = {
   name: "orchestrator_run",
