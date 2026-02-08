@@ -1,5 +1,6 @@
 #!/bin/bash
-# PostToolUse hook: runs biome check after TS/TSX file edits.
+# PostToolUse hook: runs biome check on the edited file after TS/TSX edits.
+# Scoped to the single edited file to avoid O(all files) cost per edit.
 # Uses JSON decision control to feed lint errors back to Claude as
 # actionable feedback (decision: "block" + reason). This does NOT
 # rollback the edit — PostToolUse cannot do that — but it tells Claude
@@ -13,7 +14,7 @@ if [[ ! "$FILE_PATH" =~ \.tsx?$ ]]; then
 fi
 
 cd "$(echo "$INPUT" | jq -r '.cwd')" || exit 0
-OUTPUT=$(bun run check 2>&1)
+OUTPUT=$(bunx biome check --write "$FILE_PATH" 2>&1)
 EXIT_CODE=$?
 
 if [[ $EXIT_CODE -ne 0 ]]; then
