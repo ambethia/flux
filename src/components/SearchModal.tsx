@@ -1,15 +1,13 @@
-import { useNavigate, useRouteContext } from "@tanstack/react-router";
-import { useQuery } from "convex/react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   useCallback,
-  useDeferredValue,
   useEffect,
   useImperativeHandle,
   useRef,
   useState,
 } from "react";
-import { api } from "$convex/_generated/api";
 import { FontAwesomeIcon, faMagnifyingGlass } from "./Icon";
+import { IssueSearchResults, useIssueSearch } from "./IssueSearchResults";
 import { PriorityBadge } from "./PriorityBadge";
 import { StatusBadge } from "./StatusBadge";
 
@@ -22,20 +20,15 @@ export function SearchModal({
 }: {
   ref: React.RefObject<SearchModalHandle | null>;
 }) {
-  const { projectId } = useRouteContext({ from: "__root__" });
   const navigate = useNavigate();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search.trim());
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const results = useQuery(
-    api.issues.search,
-    isOpen && deferredSearch ? { projectId, query: deferredSearch } : "skip",
-  );
+  const { search, setSearch, deferredSearch, results, isStale } =
+    useIssueSearch({ enabled: isOpen });
 
   const open = useCallback(() => {
     const dialog = dialogRef.current;
@@ -66,7 +59,6 @@ export function SearchModal({
     navigate({ to: "/issues/$issueId", params: { issueId } });
   }
 
-  const isStale = deferredSearch !== search.trim();
   const items = results ?? [];
 
   // Clamp selectedIndex when results shrink
@@ -122,43 +114,30 @@ export function SearchModal({
 
         {/* Results */}
         <div className="mt-3 max-h-80 overflow-y-auto">
-          {!deferredSearch ? (
-            <p className="py-6 text-center text-base-content/40 text-sm">
-              Type to search by title or ID (e.g. FLUX-42)
-            </p>
-          ) : results === undefined || isStale ? (
-            <div className="flex justify-center py-6">
-              <span className="loading loading-spinner loading-sm" />
-            </div>
-          ) : items.length === 0 ? (
-            <p className="py-6 text-center text-base-content/60 text-sm">
-              No matching issues.
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-0.5">
-              {items.map((issue, i) => (
-                <li key={issue._id}>
-                  <button
-                    type="button"
-                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm ${
-                      i === selectedIndex
-                        ? "bg-primary/10 text-primary"
-                        : "hover:bg-base-200"
-                    }`}
-                    onClick={() => navigateToIssue(issue._id)}
-                    onMouseEnter={() => setSelectedIndex(i)}
-                  >
-                    <span className="shrink-0 font-mono text-xs opacity-60">
-                      {issue.shortId}
-                    </span>
-                    <span className="min-w-0 grow truncate">{issue.title}</span>
-                    <StatusBadge status={issue.status} />
-                    <PriorityBadge priority={issue.priority} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          <IssueSearchResults
+            items={items}
+            deferredSearch={deferredSearch}
+            isLoading={results === undefined || isStale}
+            renderItem={(issue, i) => (
+              <button
+                type="button"
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm ${
+                  i === selectedIndex
+                    ? "bg-primary/10 text-primary"
+                    : "hover:bg-base-200"
+                }`}
+                onClick={() => navigateToIssue(issue._id)}
+                onMouseEnter={() => setSelectedIndex(i)}
+              >
+                <span className="shrink-0 font-mono text-xs opacity-60">
+                  {issue.shortId}
+                </span>
+                <span className="min-w-0 grow truncate">{issue.title}</span>
+                <StatusBadge status={issue.status} />
+                <PriorityBadge priority={issue.priority} />
+              </button>
+            )}
+          />
         </div>
       </div>
 

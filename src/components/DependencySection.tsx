@@ -1,10 +1,11 @@
-import { Link, useRouteContext } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
-import { useDeferredValue, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import type { IssueStatusValue } from "$convex/schema";
 import { FontAwesomeIcon, faPlus, faXmark } from "./Icon";
+import { IssueSearchResults, useIssueSearch } from "./IssueSearchResults";
 import { StatusBadge } from "./StatusBadge";
 
 type DepDirection = "blockers" | "blocks";
@@ -206,15 +207,11 @@ function IssuePicker({
   onClose: () => void;
   label: string;
 }) {
-  const { projectId } = useRouteContext({ from: "__root__" });
-  const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search.trim());
-  const results = useQuery(
-    api.issues.search,
-    deferredSearch ? { projectId, query: deferredSearch } : "skip",
-  );
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const { search, setSearch, deferredSearch, results, isStale } =
+    useIssueSearch();
 
   // Focus search input on mount
   useEffect(() => {
@@ -243,7 +240,6 @@ function IssuePicker({
   }, [onClose]);
 
   const filtered = results?.filter((issue) => !excludeIds.has(issue._id)) ?? [];
-  const isStale = deferredSearch !== search.trim();
 
   return (
     <div
@@ -261,33 +257,24 @@ function IssuePicker({
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
-      {!deferredSearch ? (
-        <p className="p-2 text-base-content/40 text-sm">
-          Type to search for issues...
-        </p>
-      ) : results === undefined || isStale ? (
-        <div className="p-2">
-          <span className="loading loading-spinner loading-xs" />
-        </div>
-      ) : filtered.length === 0 ? (
-        <p className="p-2 text-base-content/60 text-sm">No matching issues.</p>
-      ) : (
-        <ul className="flex max-h-48 flex-col gap-1 overflow-y-auto">
-          {filtered.slice(0, 20).map((issue) => (
-            <li key={issue._id}>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-base-200"
-                onClick={() => onSelect(issue._id)}
-              >
-                <span className="font-mono text-xs">{issue.shortId}</span>
-                <span className="truncate">{issue.title}</span>
-                <StatusBadge status={issue.status} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <IssueSearchResults
+        items={filtered.slice(0, 20)}
+        deferredSearch={deferredSearch}
+        isLoading={results === undefined || isStale}
+        emptyPrompt="Type to search for issues..."
+        className="flex max-h-48 flex-col gap-1 overflow-y-auto"
+        renderItem={(issue) => (
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-base-200"
+            onClick={() => onSelect(issue._id)}
+          >
+            <span className="font-mono text-xs">{issue.shortId}</span>
+            <span className="truncate">{issue.title}</span>
+            <StatusBadge status={issue.status} />
+          </button>
+        )}
+      />
     </div>
   );
 }
