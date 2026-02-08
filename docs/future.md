@@ -1,4 +1,4 @@
-# Flux Phase 2: Design Document
+# Flux Future Ideation Document
 
 **Status:** Draft  
 **Last Updated:** February 2026  
