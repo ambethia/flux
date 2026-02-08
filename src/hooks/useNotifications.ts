@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -90,14 +91,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const supported = typeof Notification !== "undefined";
   const ready = enabled && permission === "granted";
 
-  const value: NotificationContextValue = {
-    enabled,
-    supported,
-    ready,
-    permission,
-    toggle,
-    notify,
-  };
+  const value = useMemo<NotificationContextValue>(
+    () => ({ enabled, supported, ready, permission, toggle, notify }),
+    [enabled, supported, ready, permission, toggle, notify],
+  );
 
   return createElement(NotificationContext.Provider, { value }, children);
 }
