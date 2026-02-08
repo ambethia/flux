@@ -6,6 +6,15 @@ import { join, resolve } from "node:path";
 const LABEL = "dev.flux.daemon";
 const PLIST_FILENAME = `${LABEL}.plist`;
 
+/** Escape XML special characters for safe interpolation into plist values. */
+function escapeXml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 /** Read CONVEX_URL and FLUX_PORT from env, falling back to .env.local in the project root. */
 function resolveEnvVars(): { CONVEX_URL: string; FLUX_PORT: string } {
   const fluxPort = process.env.FLUX_PORT ?? "8042";
@@ -69,20 +78,30 @@ function generatePlist(opts: {
   logDir: string;
   envVars: { CONVEX_URL: string; FLUX_PORT: string };
 }): string {
+  const e = {
+    label: escapeXml(LABEL),
+    workDir: escapeXml(opts.workingDirectory),
+    bun: escapeXml(opts.bunPath),
+    entry: escapeXml(opts.entryPoint),
+    convexUrl: escapeXml(opts.envVars.CONVEX_URL),
+    fluxPort: escapeXml(opts.envVars.FLUX_PORT),
+    logDir: escapeXml(opts.logDir),
+  };
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>${LABEL}</string>
+	<string>${e.label}</string>
 
 	<key>WorkingDirectory</key>
-	<string>${opts.workingDirectory}</string>
+	<string>${e.workDir}</string>
 
 	<key>ProgramArguments</key>
 	<array>
-		<string>${opts.bunPath}</string>
-		<string>${opts.entryPoint}</string>
+		<string>${e.bun}</string>
+		<string>${e.entry}</string>
 	</array>
 
 	<key>EnvironmentVariables</key>
@@ -90,9 +109,9 @@ function generatePlist(opts: {
 		<key>NODE_ENV</key>
 		<string>production</string>
 		<key>CONVEX_URL</key>
-		<string>${opts.envVars.CONVEX_URL}</string>
+		<string>${e.convexUrl}</string>
 		<key>FLUX_PORT</key>
-		<string>${opts.envVars.FLUX_PORT}</string>
+		<string>${e.fluxPort}</string>
 	</dict>
 
 	<key>KeepAlive</key>
@@ -102,10 +121,10 @@ function generatePlist(opts: {
 	<true/>
 
 	<key>StandardOutPath</key>
-	<string>${opts.logDir}/daemon.stdout.log</string>
+	<string>${e.logDir}/daemon.stdout.log</string>
 
 	<key>StandardErrorPath</key>
-	<string>${opts.logDir}/daemon.stderr.log</string>
+	<string>${e.logDir}/daemon.stderr.log</string>
 
 	<key>ExitTimeOut</key>
 	<integer>90</integer>
