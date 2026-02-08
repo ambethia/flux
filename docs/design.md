@@ -1209,7 +1209,7 @@ Realtime view of agent output in the dashboard. Dual storage for reliability:
 ```
 ┌─────────────┐     stdout      ┌─────────────┐       SSE        ┌─────────────┐
 │ Agent (CLI) │ ───────────────▶│ monitor.ts  │ ────────────────▶│   Browser   │
-└─────────────┘                 │ (buffer +   │  /sse/activity   └─────────────┘
+└─────────────┘                 │ (buffer +   │  /sse/projects/  └─────────────┘
                                 │  tmp file)  │
                                 └─────────────┘
 ```
@@ -1217,7 +1217,7 @@ Realtime view of agent output in the dashboard. Dual storage for reliability:
 **Flow:**
 1. Monitor parses agent stdout, maintains rolling buffer in memory (last 500 lines)
 2. Simultaneously writes to tmp file (`/tmp/flux-session-{id}.log`) for crash recovery
-3. Browser connects to `/sse/activity` endpoint (Server-Sent Events)
+3. Browser connects to `/sse/projects/:projectId/activity` endpoint (Server-Sent Events)
 4. SSE pushes new lines as they arrive
 5. On connect, sends current buffer for history, then streams live
 6. When session ends, tmp file can be archived or deleted (metrics already in Convex)
