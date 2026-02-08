@@ -581,6 +581,36 @@ class Orchestrator {
     // and will apply kill-specific finalization (hand-off semantics).
   }
 
+  /**
+   * Returns a promise that resolves when the orchestrator reaches Stopped state.
+   * Resolves immediately if already stopped.
+   * Used by the project state watcher to wait for kill() → finalize() to complete
+   * before removing the orchestrator instance from the Map.
+   */
+  waitForStopped(): Promise<void> {
+    if (this.state === OrchestratorState.Stopped) {
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve) => {
+      const unsub = this.onLifecycle((event) => {
+        if (
+          event.type === "state_change" &&
+          event.state === OrchestratorState.Stopped
+        ) {
+          unsub();
+          resolve();
+        }
+        if (
+          event.type === "session_end" &&
+          event.state === OrchestratorState.Stopped
+        ) {
+          unsub();
+          resolve();
+        }
+      });
+    });
+  }
+
   // ── Exit handling ────────────────────────────────────────────────────
 
   /**

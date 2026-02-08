@@ -6,6 +6,7 @@ import { getConvexClient } from "./convex";
 import { createMcpHandler } from "./mcp";
 import { getOrchestrator } from "./orchestrator";
 import { createOrchestratorApiHandler } from "./orchestratorApi";
+import { startProjectStateWatcher } from "./projectStateWatcher";
 import { createProjectsApiHandler } from "./projectsApi";
 import type { Project } from "./setup";
 import { createSSEHandler } from "./sse";
@@ -132,6 +133,10 @@ export async function startServer(projects: Project[]) {
     idleTimeout: 0,
     routes,
   });
+
+  // Subscribe to project state changes and drive orchestrator lifecycle.
+  // Runs after server bind so orchestrator APIs are available immediately.
+  startProjectStateWatcher();
 
   return server;
 }
