@@ -565,17 +565,23 @@ export const retry = mutation({
 export const counts = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
-    const issues = await ctx.db
-      .query("issues")
-      .withIndex("by_project_deletedAt_status", (q) =>
-        q.eq("projectId", args.projectId).eq("deletedAt", undefined),
-      )
-      .collect();
-
-    const counts: Record<string, number> = {};
-    for (const issue of issues) {
-      counts[issue.status] = (counts[issue.status] ?? 0) + 1;
-    }
+    const statuses = Object.values(IssueStatus);
+    const buckets = await Promise.all(
+      statuses.map((status) =>
+        ctx.db
+          .query("issues")
+          .withIndex("by_project_deletedAt_status", (q) =>
+            q
+              .eq("projectId", args.projectId)
+              .eq("deletedAt", undefined)
+              .eq("status", status),
+          )
+          .collect(),
+      ),
+    );
+    const counts: Record<string, number> = Object.fromEntries(
+      statuses.map((status, i) => [status, buckets[i]?.length ?? 0]),
+    );
     return counts;
   },
 });
