@@ -272,7 +272,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
       {/* Dependencies */}
       <DependencySection
         issueId={issueId}
-        disabled={isClosed}
+        disabled={isClosed || busy}
         onError={showError}
       />
 
