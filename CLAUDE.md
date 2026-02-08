@@ -206,6 +206,8 @@ Biome's `noLabelWithoutControl` requires labels to reference their input. Use Da
 
 **Fast Apply:** Use `edit_file` over `Edit`, `Update`, `Write`, and full file writes for **all** file edits and creation. It works with partial code snippets using `// ... existing code ...` markers — no need to read the full file first. This replaces the Read → Edit/Write workflow entirely.
 
+**Known risk — silent mutations:** `edit_file` can silently alter code in `// ... existing code ...` regions. It may change conditions, reorder logic, or drop expressions in sections you intended to leave untouched. **After every `edit_file` call on files with non-trivial logic, run `git diff` and verify that only the intended lines changed.** Prefer small, targeted edits over full-file rewrites to minimize the blast radius.
+
 **New directories:** `edit_file` can create new files in new directories — a `PreToolUse` hook (`.claude/hooks/auto-mkdir.sh`) automatically runs `mkdir -p` on the parent directory before each call.
 
 **Warp Grep:** Use `warpgrep_codebase_search` for broad semantic searches at the start of codebase exploration. Best for: "Find the XYZ flow", "How does XYZ work?", "Where is XYZ handled?" Use regular `Grep` for pinpointing specific keywords or symbols.
