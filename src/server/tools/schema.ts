@@ -343,13 +343,6 @@ const issues_retry: ToolDef = {
   schema: IssuesRetrySchema.shape,
 };
 
-const issues_unstick: ToolDef = {
-  name: "issues_unstick",
-  description:
-    "Alias for issues_retry. Reset a stuck issue back to open status. Resets failureCount and reviewIterations to 0 for a fresh attempt.",
-  schema: IssuesRetrySchema.shape,
-};
-
 const issues_search: ToolDef = {
   name: "issues_search",
   description:
@@ -521,7 +514,6 @@ export const allTools: ToolDef[] = [
   issues_defer,
   issues_undefer,
   issues_retry,
-  issues_unstick,
   issues_search,
 
   // Comments

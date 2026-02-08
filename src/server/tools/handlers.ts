@@ -631,7 +631,6 @@ export const handlers: Record<string, ToolHandler> = {
   issues_ready,
   issues_defer,
   issues_undefer,
-  issues_unstick: issues_retry,
   issues_retry,
   issues_search,
   issues_bulk_create,
