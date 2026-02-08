@@ -1,6 +1,7 @@
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import {
+  useCallback,
   useDeferredValue,
   useEffect,
   useImperativeHandle,
@@ -36,12 +37,12 @@ export function SearchModal({
     isOpen && deferredSearch ? { projectId, query: deferredSearch } : "skip",
   );
 
-  function open() {
+  const open = useCallback(() => {
     dialogRef.current?.showModal();
     setIsOpen(true);
-  }
+  }, []);
 
-  useImperativeHandle(ref, () => ({ open }));
+  useImperativeHandle(ref, () => ({ open }), [open]);
 
   // Focus input when dialog opens
   useEffect(() => {
