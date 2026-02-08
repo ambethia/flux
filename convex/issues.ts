@@ -7,26 +7,11 @@ import {
   CommentAuthor,
   closeTypeValidator,
   IssuePriority,
-  type IssuePriorityValue,
   IssueStatus,
   issuePriorityValidator,
   issueStatusValidator,
+  toPriorityOrder,
 } from "./schema";
-
-export const PRIORITY_ORDER: Record<IssuePriorityValue, number> = {
-  [IssuePriority.Critical]: 0,
-  [IssuePriority.High]: 1,
-  [IssuePriority.Medium]: 2,
-  [IssuePriority.Low]: 3,
-};
-
-/** Convert a priority string to its numeric sort order. */
-export function toPriorityOrder(priority: IssuePriorityValue): number {
-  const order = PRIORITY_ORDER[priority];
-  if (order === undefined)
-    throw new Error(`Unknown priority: ${String(priority)}`);
-  return order;
-}
 
 function generateShortId(slug: string, counter: number): string {
   return `${slug.toUpperCase()}-${counter}`;

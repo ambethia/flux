@@ -10,8 +10,11 @@
  * See CLAUDE.md "Schema Migrations" for the full workflow.
  */
 import { internalMutation } from "./_generated/server";
-import { toPriorityOrder } from "./issues";
-import { IssuePriority, type IssuePriorityValue } from "./schema";
+import {
+  IssuePriority,
+  type IssuePriorityValue,
+  toPriorityOrder,
+} from "./schema";
 
 /**
  * Backfill `enabled` on projects that have the old `state` field.
