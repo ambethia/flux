@@ -1,4 +1,4 @@
-import { Link, useNavigate, useRouteContext } from "@tanstack/react-router";
+import { Link, useRouteContext } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import { useState } from "react";
 import { api } from "$convex/_generated/api";
@@ -24,7 +24,6 @@ const TABS: { label: string; value: StatusFilter }[] = [
 export function SessionList() {
   const { projectId } = useRouteContext({ from: "__root__" });
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
-  const navigate = useNavigate();
 
   const sessions = useQuery(api.sessions.listWithIssues, {
     projectId,
@@ -96,20 +95,25 @@ export function SessionList() {
             </thead>
             <tbody>
               {sessions.map((session, i) => (
-                <tr
-                  key={session._id}
-                  className="cursor-pointer hover:bg-base-200"
-                  onClick={() =>
-                    navigate({
-                      to: "/sessions/$sessionId",
-                      params: { sessionId: session._id },
-                    })
-                  }
-                >
-                  <td className="font-mono text-base-content/60 text-sm">
-                    #{sessions.length - i}
+                <tr key={session._id} className="hover:bg-base-200">
+                  <td>
+                    <Link
+                      to="/sessions/$sessionId"
+                      params={{ sessionId: session._id }}
+                      className="link link-hover font-mono text-base-content/60 text-sm"
+                    >
+                      #{sessions.length - i}
+                    </Link>
                   </td>
-                  <td>{typeLabel(session.type)}</td>
+                  <td>
+                    <Link
+                      to="/sessions/$sessionId"
+                      params={{ sessionId: session._id }}
+                      className="link link-hover"
+                    >
+                      {typeLabel(session.type)}
+                    </Link>
+                  </td>
                   <td className="text-sm">
                     {session.phase ? phaseLabel(session.phase) : "—"}
                   </td>
@@ -122,7 +126,6 @@ export function SessionList() {
                         to="/issues/$issueId"
                         params={{ issueId: session.issueId }}
                         className="link link-hover font-mono text-sm"
-                        onClick={(e) => e.stopPropagation()}
                       >
                         {session.issueShortId}
                       </Link>
