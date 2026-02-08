@@ -19,6 +19,7 @@ export function useIssueNotifications(
     options?: NotificationOptions,
   ) => Notification | undefined,
   ready: boolean,
+  navigate: (opts: { to: string; params: Record<string, string> }) => void,
 ) {
   const issues = useQuery(api.issues.list, { projectId });
 
@@ -58,9 +59,19 @@ export function useIssueNotifications(
         if (!ready) continue;
 
         if (curr === IssueStatus.Stuck) {
-          fireNotification(notify, `${issue.shortId} is stuck`, issue);
+          fireNotification(
+            notify,
+            navigate,
+            `${issue.shortId} is stuck`,
+            issue,
+          );
         } else if (curr === IssueStatus.Closed) {
-          fireNotification(notify, `${issue.shortId} completed`, issue);
+          fireNotification(
+            notify,
+            navigate,
+            `${issue.shortId} completed`,
+            issue,
+          );
         }
       }
     }
@@ -72,7 +83,7 @@ export function useIssueNotifications(
         prevMap.delete(id);
       }
     }
-  }, [issues, notify, ready]);
+  }, [issues, notify, ready, navigate]);
 }
 
 /** Fire a browser notification that navigates to the issue on click. */
@@ -81,15 +92,17 @@ function fireNotification(
     title: string,
     options?: NotificationOptions,
   ) => Notification | undefined,
+  navigate: (opts: { to: string; params: Record<string, string> }) => void,
   title: string,
   issue: { _id: Id<"issues">; title: string; status: string },
 ) {
   const tag = `flux-${issue.status}-${issue._id}`;
   const n = notify(title, { body: issue.title, tag });
   if (n) {
+    const issueId = issue._id;
     n.onclick = () => {
       window.focus();
-      window.location.href = `/issues/${issue._id}`;
+      navigate({ to: "/issues/$issueId", params: { issueId } });
     };
   }
 }

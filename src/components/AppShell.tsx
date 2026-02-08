@@ -1,4 +1,4 @@
-import { Outlet, useRouteContext } from "@tanstack/react-router";
+import { Outlet, useRouteContext, useRouter } from "@tanstack/react-router";
 import { useIssueNotifications } from "../hooks/useIssueNotifications";
 import {
   NotificationProvider,
@@ -12,7 +12,8 @@ import { Sidebar } from "./Sidebar";
 function IssueNotificationWatcher() {
   const { projectId } = useRouteContext({ from: "__root__" });
   const { notify, ready } = useNotifications();
-  useIssueNotifications(projectId, notify, ready);
+  const { navigate } = useRouter();
+  useIssueNotifications(projectId, notify, ready, navigate);
   return null;
 }
 
