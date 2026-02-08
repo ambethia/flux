@@ -1370,8 +1370,16 @@ class Orchestrator {
       status: SessionStatus.Running,
     });
 
-    // Track which issues still have live Running sessions after recovery.
+    // Pre-pass: identify which issues have live Running sessions.
+    // Must be computed before the recovery loop because the loop may `break`
+    // early after adopting a session, which would leave the set incomplete.
     const issuesWithLiveSessions = new Set<string>();
+    for (const session of sessions) {
+      const pid = session.pid;
+      if (pid && isProcessAlive(pid)) {
+        issuesWithLiveSessions.add(session.issueId);
+      }
+    }
 
     for (const session of sessions) {
       const pid = session.pid;
@@ -1400,9 +1408,6 @@ class Orchestrator {
         }
         continue;
       }
-
-      // This session has a live PID — its issue is legitimately in_progress.
-      issuesWithLiveSessions.add(session.issueId);
 
       // Live PID with no in-memory handle — re-adopt it.
       // Only re-adopt one; others will be picked up on the next cycle.
