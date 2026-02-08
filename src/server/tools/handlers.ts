@@ -100,6 +100,11 @@ function error(ctx: ToolContext, message: string): ToolResult {
   };
 }
 
+/** Extract a human-readable message from an unknown catch value. */
+function errMsg(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 // ── Handlers ──────────────────────────────────────────────────────────
 
 const issues_create = typedHandler(
@@ -185,7 +190,7 @@ const orchestrator_run = typedHandler(
         session: { sessionId: result.sessionId, pid: result.pid },
       });
     } catch (err) {
-      return error(ctx, String(err instanceof Error ? err.message : err));
+      return error(ctx, errMsg(err));
     }
   },
 );
@@ -196,7 +201,7 @@ const orchestrator_kill: ToolHandler = async (_args, ctx) => {
     await orchestrator.kill();
     return ok(ctx, { message: "Session killed." });
   } catch (err) {
-    return error(ctx, String(err instanceof Error ? err.message : err));
+    return error(ctx, errMsg(err));
   }
 };
 
@@ -213,7 +218,7 @@ const orchestrator_enable: ToolHandler = async (_args, ctx) => {
     const status = orchestrator.getStatus();
     return ok(ctx, { status });
   } catch (err) {
-    return error(ctx, String(err instanceof Error ? err.message : err));
+    return error(ctx, errMsg(err));
   }
 };
 
@@ -224,7 +229,7 @@ const orchestrator_stop: ToolHandler = async (_args, ctx) => {
     const status = orchestrator.getStatus();
     return ok(ctx, { status });
   } catch (err) {
-    return error(ctx, String(err instanceof Error ? err.message : err));
+    return error(ctx, errMsg(err));
   }
 };
 
@@ -313,7 +318,7 @@ const issues_close = typedHandler(
       });
       return ok(ctx, { issue: updated });
     } catch (err) {
-      return error(ctx, String(err instanceof Error ? err.message : err));
+      return error(ctx, errMsg(err));
     }
   },
 );
@@ -327,7 +332,7 @@ const issues_retry = typedHandler(
       });
       return ok(ctx, { issue: updated });
     } catch (err) {
-      return error(ctx, String(err instanceof Error ? err.message : err));
+      return error(ctx, errMsg(err));
     }
   },
 );
@@ -342,7 +347,7 @@ const issues_defer = typedHandler(
       });
       return ok(ctx, { issue: updated });
     } catch (err) {
-      return error(ctx, String(err instanceof Error ? err.message : err));
+      return error(ctx, errMsg(err));
     }
   },
 );
@@ -357,7 +362,7 @@ const issues_undefer = typedHandler(
       });
       return ok(ctx, { issue: updated });
     } catch (err) {
-      return error(ctx, String(err instanceof Error ? err.message : err));
+      return error(ctx, errMsg(err));
     }
   },
 );
@@ -488,7 +493,7 @@ const epics_close = typedHandler(
       });
       return ok(ctx, { epic: updated });
     } catch (err) {
-      return error(ctx, String(err instanceof Error ? err.message : err));
+      return error(ctx, errMsg(err));
     }
   },
 );
@@ -518,7 +523,7 @@ const deps_add = typedHandler(
         },
       });
     } catch (err) {
-      return error(ctx, String(err instanceof Error ? err.message : err));
+      return error(ctx, errMsg(err));
     }
   },
 );
@@ -533,7 +538,7 @@ const deps_remove = typedHandler(
       });
       return ok(ctx, { removed: result.deleted });
     } catch (err) {
-      return error(ctx, String(err instanceof Error ? err.message : err));
+      return error(ctx, errMsg(err));
     }
   },
 );
@@ -573,7 +578,7 @@ const labels_create = typedHandler(
       });
       return ok(ctx, { labelId, name, color });
     } catch (err) {
-      return error(ctx, String(err instanceof Error ? err.message : err));
+      return error(ctx, errMsg(err));
     }
   },
 );
@@ -588,7 +593,7 @@ const labels_update = typedHandler(
       });
       return ok(ctx, { label: updated });
     } catch (err) {
-      return error(ctx, String(err instanceof Error ? err.message : err));
+      return error(ctx, errMsg(err));
     }
   },
 );
@@ -602,7 +607,7 @@ const labels_delete = typedHandler(
       });
       return ok(ctx, { deleted: labelId });
     } catch (err) {
-      return error(ctx, String(err instanceof Error ? err.message : err));
+      return error(ctx, errMsg(err));
     }
   },
 );
