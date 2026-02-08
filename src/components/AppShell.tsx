@@ -63,7 +63,7 @@ export function AppShell() {
         </div>
 
         <SearchModal ref={searchRef} />
-        <CreateIssueModal ref={createRef} showButton={false} />
+        <CreateIssueModal ref={createRef} />
       </SSEProvider>
     </NotificationProvider>
   );

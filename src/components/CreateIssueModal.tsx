@@ -13,7 +13,6 @@ import { IssuePriority } from "$convex/schema";
 import { useDismissableError } from "../hooks/useDismissableError";
 import { PRIORITY_OPTIONS } from "../lib/format";
 import { ErrorBanner } from "./ErrorBanner";
-import { FontAwesomeIcon, faPlus } from "./Icon";
 
 export interface CreateIssueModalHandle {
   open: () => void;
@@ -21,10 +20,8 @@ export interface CreateIssueModalHandle {
 
 export function CreateIssueModal({
   ref,
-  showButton = true,
 }: {
   ref?: React.RefObject<CreateIssueModalHandle | null>;
-  showButton?: boolean;
 }) {
   const { projectId } = useRouteContext({ from: "__root__" });
   const navigate = useNavigate();
@@ -101,100 +98,91 @@ export function CreateIssueModal({
   }
 
   return (
-    <>
-      {showButton && (
-        <button type="button" className="btn btn-primary btn-sm" onClick={open}>
-          <FontAwesomeIcon icon={faPlus} aria-hidden="true" />
-          New Issue
-        </button>
-      )}
+    <dialog ref={dialogRef} className="modal" onClose={resetForm}>
+      <div className="modal-box">
+        <h3 className="mb-4 font-bold text-lg">New Issue</h3>
 
-      <dialog ref={dialogRef} className="modal" onClose={resetForm}>
-        <div className="modal-box">
-          <h3 className="mb-4 font-bold text-lg">New Issue</h3>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {/* Title */}
+          <fieldset className="fieldset">
+            <legend className="fieldset-legend">
+              Title <span className="text-error">*</span>
+            </legend>
+            <input
+              ref={titleInputRef}
+              type="text"
+              className={`input w-full ${titleError ? "input-error" : ""}`}
+              placeholder="Issue title"
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (titleError) setTitleError(false);
+              }}
+            />
+            {titleError && (
+              <p className="mt-1 text-error text-sm">Title is required.</p>
+            )}
+          </fieldset>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {/* Title */}
-            <fieldset className="fieldset">
-              <legend className="fieldset-legend">
-                Title <span className="text-error">*</span>
-              </legend>
-              <input
-                ref={titleInputRef}
-                type="text"
-                className={`input w-full ${titleError ? "input-error" : ""}`}
-                placeholder="Issue title"
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  if (titleError) setTitleError(false);
-                }}
-              />
-              {titleError && (
-                <p className="mt-1 text-error text-sm">Title is required.</p>
+          {/* Description */}
+          <fieldset className="fieldset">
+            <legend className="fieldset-legend">Description</legend>
+            <textarea
+              className="textarea w-full"
+              placeholder="Optional description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </fieldset>
+
+          {/* Priority */}
+          <fieldset className="fieldset">
+            <legend className="fieldset-legend">Priority</legend>
+            <select
+              className="select w-full"
+              value={priority}
+              onChange={(e) =>
+                setPriority(e.target.value as IssuePriorityValue)
+              }
+            >
+              {PRIORITY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </fieldset>
+
+          <ErrorBanner error={submitError} onDismiss={clearError} />
+
+          {/* Actions */}
+          <div className="modal-action">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={close}
+              disabled={submitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={submitting}
+            >
+              {submitting && (
+                <span className="loading loading-spinner loading-sm" />
               )}
-            </fieldset>
-
-            {/* Description */}
-            <fieldset className="fieldset">
-              <legend className="fieldset-legend">Description</legend>
-              <textarea
-                className="textarea w-full"
-                placeholder="Optional description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-              />
-            </fieldset>
-
-            {/* Priority */}
-            <fieldset className="fieldset">
-              <legend className="fieldset-legend">Priority</legend>
-              <select
-                className="select w-full"
-                value={priority}
-                onChange={(e) =>
-                  setPriority(e.target.value as IssuePriorityValue)
-                }
-              >
-                {PRIORITY_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </fieldset>
-
-            <ErrorBanner error={submitError} onDismiss={clearError} />
-
-            {/* Actions */}
-            <div className="modal-action">
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={close}
-                disabled={submitting}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={submitting}
-              >
-                {submitting && (
-                  <span className="loading loading-spinner loading-sm" />
-                )}
-                Create Issue
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <form method="dialog" className="modal-backdrop">
-          <button type="submit">close</button>
+              Create Issue
+            </button>
+          </div>
         </form>
-      </dialog>
-    </>
+      </div>
+
+      <form method="dialog" className="modal-backdrop">
+        <button type="submit">close</button>
+      </form>
+    </dialog>
   );
 }
