@@ -164,6 +164,11 @@ export const listPaginatedWithIssues = query({
   },
 });
 
+// Scaling note: .collect() fetches all documents per status to count them.
+// Convex has no native indexed count, so alternatives are:
+//   1. Counter table — increment/decrement on session create/status change
+//   2. This approach — acceptable while session volume is low (hundreds)
+// If session counts reach thousands per project, migrate to a counter table.
 export const counts = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
