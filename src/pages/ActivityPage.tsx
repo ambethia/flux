@@ -5,6 +5,7 @@ import {
   type KeyedStreamEvent,
   useActivityStream,
 } from "../hooks/useActivityStream";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import {
   isDisplayableParsedLine,
   type ParsedLine,
@@ -295,6 +296,7 @@ const ActivityNodeView = memo(function ActivityNodeView({
 });
 
 export function ActivityPage() {
+  useDocumentTitle("Activity");
   const { events, connected, clear, currentSession } = useActivityStream();
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScroll = useRef(true);

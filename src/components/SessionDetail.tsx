@@ -9,6 +9,7 @@ import {
   SessionEventDirection,
   SessionStatus,
 } from "$convex/schema";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import {
   formatDuration,
   formatTime,
@@ -295,6 +296,14 @@ export function SessionDetail({ sessionId }: { sessionId: Id<"sessions"> }) {
   const transcriptNodes = useMemo(
     () => groupTranscriptEvents(displayableEvents),
     [displayableEvents],
+  );
+
+  useDocumentTitle(
+    session
+      ? session.issueShortId
+        ? `${session.issueShortId} ${typeLabel(session.type)} Session`
+        : `${typeLabel(session.type)} Session`
+      : undefined,
   );
 
   if (session === undefined) {

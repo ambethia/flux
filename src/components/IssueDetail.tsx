@@ -6,6 +6,7 @@ import type { Id } from "$convex/_generated/dataModel";
 import type { CloseTypeValue, IssuePriorityValue } from "$convex/schema";
 import { CloseType, IssuePriority, IssueStatus } from "$convex/schema";
 import { useDismissableError } from "../hooks/useDismissableError";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { callTool } from "../lib/api";
 import { formatTime } from "../lib/format";
 import { CommentsThread } from "./CommentsThread";
@@ -66,6 +67,8 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
   const [resetting, setResetting] = useState(false);
 
   const { error: mutationError, showError, clearError } = useDismissableError();
+
+  useDocumentTitle(issue?.shortId);
 
   const titleInputRef = useRef<HTMLInputElement>(null);
   const descTextareaRef = useRef<HTMLTextAreaElement>(null);
