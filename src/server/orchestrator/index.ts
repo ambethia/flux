@@ -331,7 +331,7 @@ class Orchestrator {
     }
 
     // 7. Start monitoring agent output
-    const monitor = new SessionMonitor(session._id, this.projectId);
+    const monitor = new SessionMonitor(session._id);
     monitor.recordInput(prompt);
     const monitorDone = monitor.consume(agentProcess.stdout);
 
@@ -1123,7 +1123,6 @@ class Orchestrator {
     // Note: We reuse the same session record — retro is part of the work session
     const retroMonitor = new SessionMonitor(
       active.sessionId,
-      this.projectId,
       active.monitor.currentSequence,
     );
     retroMonitor.recordInput(retroPrompt);
@@ -1251,7 +1250,7 @@ class Orchestrator {
     }
 
     // Monitor review output
-    const reviewMonitor = new SessionMonitor(reviewSession._id, this.projectId);
+    const reviewMonitor = new SessionMonitor(reviewSession._id);
     reviewMonitor.recordInput(reviewPrompt);
     const reviewMonitorDone = reviewMonitor.consume(reviewProcess.stdout);
 
@@ -1468,7 +1467,7 @@ class Orchestrator {
 
     // Create a no-op monitor stub for the exit handler. The real monitor
     // was lost in the hot reload, but the tmp log file has the output.
-    const stubMonitor = new SessionMonitor(session._id, this.projectId);
+    const stubMonitor = new SessionMonitor(session._id);
 
     // Build a no-op AgentProcess that only provides pid and a wait()
     // that resolves when we detect the PID has died.

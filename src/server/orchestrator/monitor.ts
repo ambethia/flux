@@ -35,11 +35,7 @@ export class SessionMonitor {
   private static readonly FLUSH_INTERVAL_MS = 5_000;
   private static readonly HEARTBEAT_INTERVAL_MS = 30_000;
 
-  constructor(
-    sessionId: Id<"sessions">,
-    _projectId: Id<"projects">,
-    initialSequence = 0,
-  ) {
+  constructor(sessionId: Id<"sessions">, initialSequence = 0) {
     this.sessionId = sessionId;
     this.buffer = new ActivityBuffer();
     this.tmpPath = `/tmp/flux-session-${sessionId}.log`;
