@@ -153,6 +153,10 @@ class Orchestrator {
       try {
         listener(event);
       } catch (err) {
+        // Explicit fallback: a broken listener is removed so it cannot block
+        // future lifecycle events. Other listeners still receive this event
+        // (the loop continues), and the orchestrator pipeline proceeds
+        // uninterrupted — one misbehaving listener must not stall the lifecycle.
         console.error(
           `[Orchestrator] Lifecycle listener threw on ${event.type} — removing:`,
           err,
