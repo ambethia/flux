@@ -129,6 +129,7 @@ export function SSEProvider({
     return () => {
       disposed = true;
       connectedRef.current = false;
+      setConnected(false);
       activeES?.close();
       if (retryTimer) clearTimeout(retryTimer);
     };
