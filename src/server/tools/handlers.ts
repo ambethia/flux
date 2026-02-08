@@ -418,48 +418,14 @@ const issues_bulk_update: ToolHandler = async (args, ctx) => {
     }>;
   };
 
-  const results = await Promise.allSettled(
-    updates.map((update) => {
-      const { issueId, ...fields } = update;
-      return ctx.convex.mutation(api.issues.update, {
-        issueId: issueId as Id<"issues">,
-        ...fields,
-      });
-    }),
-  );
-
-  const succeeded: unknown[] = [];
-  const failed: { issueId: string; error: string }[] = [];
-  for (const [i, result] of results.entries()) {
-    if (result.status === "fulfilled") {
-      succeeded.push(result.value);
-    } else {
-      const update = updates[i];
-      if (!update) continue;
-      failed.push({
-        issueId: update.issueId,
-        error: String(
-          result.reason instanceof Error
-            ? result.reason.message
-            : result.reason,
-        ),
-      });
-    }
-  }
-
-  if (failed.length > 0 && succeeded.length === 0) {
-    const firstFailure = failed[0];
-    if (!firstFailure) throw new Error("failed array empty after length check");
-    return error(
-      `All ${failed.length} updates failed. First error: ${firstFailure.error}`,
-    );
-  }
-
-  return ok(ctx, {
-    issues: succeeded,
-    count: succeeded.length,
-    ...(failed.length > 0 ? { failed, failedCount: failed.length } : {}),
+  const issues = await ctx.convex.mutation(api.issues.bulkUpdate, {
+    updates: updates.map(({ issueId, ...fields }) => ({
+      issueId: issueId as Id<"issues">,
+      ...fields,
+    })),
   });
+
+  return ok(ctx, { issues, count: issues.length });
 };
 
 const comments_list: ToolHandler = async (args, ctx) => {

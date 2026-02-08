@@ -267,6 +267,41 @@ export const claim = mutation({
   },
 });
 
+export const bulkUpdate = mutation({
+  args: {
+    updates: v.array(
+      v.object({
+        issueId: v.id("issues"),
+        status: v.optional(issueStatusValidator),
+        priority: v.optional(issuePriorityValidator),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const updated = [];
+
+    for (const { issueId, ...fields } of args.updates) {
+      await getActiveIssue(ctx, issueId);
+
+      const patches: Record<string, unknown> = { updatedAt: now };
+      if (fields.status !== undefined) patches.status = fields.status;
+      if (fields.priority !== undefined) {
+        patches.priority = fields.priority;
+        patches.priorityOrder = toPriorityOrder(fields.priority);
+      }
+
+      await ctx.db.patch(issueId, patches);
+      const doc = await ctx.db.get(issueId);
+      if (!doc)
+        throw new Error(`Failed to read back issue ${issueId} after update`);
+      updated.push(doc);
+    }
+
+    return updated;
+  },
+});
+
 export const update = mutation({
   args: {
     issueId: v.id("issues"),
