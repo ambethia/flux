@@ -180,7 +180,7 @@ export const counts = query({
       statuses.map((status) =>
         ctx.db
           .query("sessions")
-          .withIndex("by_project_status", (q) =>
+          .withIndex("by_project_status_startedAt", (q) =>
             q.eq("projectId", args.projectId).eq("status", status),
           )
           .collect(),
