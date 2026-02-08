@@ -22,7 +22,7 @@ const DEFAULT_GRACEFUL_TIMEOUT_MS = 60_000;
  * 7. Exit with code 0
  */
 export async function gracefulShutdown(opts: {
-  server: { stop(): Promise<void> };
+  server: { stop(closeActiveConnections?: boolean): Promise<void> };
   unsubscribeWatcher: () => void;
   gracefulTimeoutMs?: number;
 }): Promise<void> {
@@ -32,8 +32,10 @@ export async function gracefulShutdown(opts: {
 
   console.log("[Shutdown] Graceful shutdown initiated");
 
-  // 1. Stop accepting new connections (close idle connections immediately)
-  await server.stop();
+  // 1. Stop accepting new connections and close active ones (e.g. SSE streams).
+  // Without `true`, stop() waits for all active connections to close naturally,
+  // which would stall shutdown indefinitely on long-lived SSE connections.
+  await server.stop(true);
   console.log("[Shutdown] HTTP server stopped");
 
   // 2. Unsubscribe project state watcher — prevents new orchestrator transitions
