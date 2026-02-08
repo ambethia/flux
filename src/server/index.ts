@@ -245,10 +245,8 @@ export async function startServer(projects: Project[]) {
       return Response.json({
         convexUrl,
         projects: projects.map((p) => ({
-          _id: p._id,
           slug: p.slug,
           name: p.name,
-          path: p.path,
         })),
       });
     },

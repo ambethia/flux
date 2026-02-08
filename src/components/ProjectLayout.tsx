@@ -1,4 +1,4 @@
-import { Outlet, useParams, useRouter } from "@tanstack/react-router";
+import { Link, Outlet, useParams, useRouter } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import { useMemo, useRef } from "react";
 import { api } from "$convex/_generated/api";
@@ -98,6 +98,9 @@ export function ProjectLayout() {
         <p className="text-base-content/60 text-lg">
           Project <code className="font-mono">"{projectSlug}"</code> not found
         </p>
+        <Link to="/" className="btn btn-primary btn-sm">
+          Back to Home
+        </Link>
       </div>
     );
   }
