@@ -150,12 +150,19 @@ run_check \
   "Object.values(Disposition)" \
   'new Set.*\["(done|noop|fault)"'
 
-# SessionEventDirection: direction: "input" or direction: "output"
+# SessionEventDirection assignments: direction: "input" or direction: "output"
 # Constant: SessionEventDirection.Input, SessionEventDirection.Output
 run_check \
-  "Raw SessionEventDirection string" \
+  "Raw SessionEventDirection assignment" \
   "SessionEventDirection.*" \
   'direction:\s*"(input|output)"'
+
+# SessionEventDirection comparisons: .direction === "input", etc.
+# Constant: SessionEventDirection.Input, SessionEventDirection.Output
+run_check \
+  "Raw SessionEventDirection comparison" \
+  "SessionEventDirection.*" \
+  '\.direction\s*(===|!==)\s*"(input|output)"'
 
 # SessionType assignments: type: "work", type: "review"
 # Constant: SessionType.Work, SessionType.Review
