@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { serve } from "bun";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
-import { createApiHandler, handleToolRequest } from "./api";
+import { handleToolRequest } from "./api";
 import { getConvexClient } from "./convex";
 import { handleMcpRequest } from "./mcp";
 import { getOrchestrator } from "./orchestrator";
@@ -73,28 +73,6 @@ export async function startServer(projects: Project[]) {
     projectsById.set(p._id, p);
   }
 
-  // Default project: first in the list (backward compat for single-project flows).
-  // Length check above guarantees this is defined.
-  const defaultProject = projects[0] as Project;
-
-  // Per-project ToolContext — created lazily and cached
-  const toolContextCache = new Map<string, ToolContext>();
-  function getToolContext(projectId: Id<"projects">): ToolContext {
-    const cached = toolContextCache.get(projectId);
-    if (cached) return cached;
-    const project = projectsById.get(projectId);
-    if (!project) {
-      throw new Error(`Unknown project: ${projectId}`);
-    }
-    const ctx = createToolContext(project);
-    toolContextCache.set(projectId, ctx);
-    return ctx;
-  }
-
-  // Default context for handlers that don't yet support multi-project
-  const defaultCtx = getToolContext(defaultProject._id);
-
-  const handleApi = createApiHandler(defaultCtx);
   const handleProjectsApi = createProjectsApiHandler(getConvexClient());
 
   const convex = getConvexClient();
@@ -260,7 +238,15 @@ export async function startServer(projects: Project[]) {
         },
         { status: 410 },
       ),
-    "/api/tools": (req) => handleApi(req),
+    // Legacy tools endpoint — replaced by /api/projects/:id/tools
+    "/api/tools": () =>
+      Response.json(
+        {
+          error:
+            "This endpoint has been removed. Use POST /api/projects/:projectId/tools instead.",
+        },
+        { status: 410 },
+      ),
 
     // Legacy orchestrator endpoint — replaced by /api/projects/:id/orchestrator
     "/api/orchestrator": () =>

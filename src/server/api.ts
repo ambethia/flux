@@ -49,8 +49,3 @@ export async function handleToolRequest(
     });
   }
 }
-
-/** Create a handler bound to a fixed ToolContext (backward compat). */
-export function createApiHandler(ctx: ToolContext) {
-  return (req: Request) => handleToolRequest(req, ctx);
-}
