@@ -5,7 +5,7 @@ import type { SessionMonitor } from "./orchestrator/monitor";
 const HEARTBEAT_INTERVAL_MS = 30_000;
 
 /**
- * Create an SSE handler for the /sse/activity endpoint.
+ * Create an SSE handler for a project-scoped SSE activity endpoint.
  * Keeps connections open persistently — pushes session start/end events
  * and live agent output without requiring client reconnection.
  */

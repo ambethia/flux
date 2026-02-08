@@ -108,10 +108,21 @@ export async function startServer(projects: Project[]) {
     projectId: string,
     subPath: string,
   ): Promise<Response> {
-    // Validate project exists in Convex
-    const project = await convex.query(api.projects.getById, {
-      projectId: projectId as Id<"projects">,
-    });
+    // Validate project exists in Convex.
+    // Convex throws on malformed IDs — catch and surface as 404.
+    let project: Awaited<
+      ReturnType<typeof convex.query<typeof api.projects.getById>>
+    >;
+    try {
+      project = await convex.query(api.projects.getById, {
+        projectId: projectId as Id<"projects">,
+      });
+    } catch {
+      return Response.json(
+        { error: `Project ${projectId} not found.` },
+        { status: 404 },
+      );
+    }
     if (!project) {
       return Response.json(
         { error: `Project ${projectId} not found.` },
