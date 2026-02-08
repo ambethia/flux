@@ -147,6 +147,7 @@ export class SessionMonitor {
     this.sequence++;
 
     // 4. Notify SSE listeners
+    const broken: ((line: string) => void)[] = [];
     for (const listener of this.lineListeners) {
       try {
         listener(line);
@@ -155,9 +156,10 @@ export class SessionMonitor {
           `[SessionMonitor] Listener threw during processLine, removing:`,
           err,
         );
-        this.lineListeners.delete(listener);
+        broken.push(listener);
       }
     }
+    for (const b of broken) this.lineListeners.delete(b);
   }
 
   /** Register an SSE listener. Returns an unsubscribe function. */
