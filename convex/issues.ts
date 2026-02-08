@@ -391,6 +391,57 @@ export const close = mutation({
   },
 });
 
+export const defer = mutation({
+  args: {
+    issueId: v.id("issues"),
+    note: v.string(),
+  },
+  handler: async (ctx, { issueId, note }) => {
+    const issue = await getActiveIssue(ctx, issueId);
+    if (issue.status === IssueStatus.Deferred) return issue;
+    if (issue.status === IssueStatus.Closed) {
+      throw new Error(`Cannot defer issue ${issueId}: already closed`);
+    }
+
+    await ctx.db.patch(issueId, {
+      status: IssueStatus.Deferred,
+      deferNote: note,
+      assignee: undefined,
+      updatedAt: Date.now(),
+    });
+    const updated = await ctx.db.get(issueId);
+    if (!updated)
+      throw new Error(`Failed to read back issue ${issueId} after defer`);
+    return updated;
+  },
+});
+
+export const undefer = mutation({
+  args: {
+    issueId: v.id("issues"),
+  },
+  handler: async (ctx, { issueId }) => {
+    const issue = await getActiveIssue(ctx, issueId);
+    if (issue.status === IssueStatus.Open) return issue;
+    if (issue.status !== IssueStatus.Deferred) {
+      throw new Error(
+        `Cannot undefer issue ${issueId}: not deferred (status: ${issue.status})`,
+      );
+    }
+
+    await ctx.db.patch(issueId, {
+      status: IssueStatus.Open,
+      deferNote: undefined,
+      assignee: undefined,
+      updatedAt: Date.now(),
+    });
+    const updated = await ctx.db.get(issueId);
+    if (!updated)
+      throw new Error(`Failed to read back issue ${issueId} after undefer`);
+    return updated;
+  },
+});
+
 export const incrementFailure = mutation({
   args: {
     issueId: v.id("issues"),

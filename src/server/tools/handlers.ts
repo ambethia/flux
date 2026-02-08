@@ -4,7 +4,6 @@ import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import {
   CommentAuthor,
-  IssueStatus,
   SessionEventDirection,
   SessionStatus,
 } from "$convex/schema";
@@ -325,25 +324,9 @@ const issues_defer = typedHandler(
   IssuesDeferSchema,
   async ({ issueId, note }, ctx) => {
     try {
-      const issue = await ctx.convex.query(api.issues.get, {
+      const updated = await ctx.convex.mutation(api.issues.defer, {
         issueId: issueId as Id<"issues">,
-      });
-      if (!issue) {
-        return error(
-          `Issue not found: ${issueId}. Use issues_list to find valid IDs.`,
-        );
-      }
-      if (issue.status === IssueStatus.Deferred) {
-        return error(`Issue ${issue.shortId} is already deferred.`);
-      }
-      if (issue.status === IssueStatus.Closed) {
-        return error(`Cannot defer a closed issue (${issue.shortId}).`);
-      }
-
-      const updated = await ctx.convex.mutation(api.issues.update, {
-        issueId: issueId as Id<"issues">,
-        status: IssueStatus.Deferred,
-        deferNote: note,
+        note,
       });
       await ctx.convex.mutation(api.comments.create, {
         issueId: issueId as Id<"issues">,
@@ -361,24 +344,8 @@ const issues_undefer = typedHandler(
   IssuesUndeferSchema,
   async ({ issueId, note }, ctx) => {
     try {
-      const issue = await ctx.convex.query(api.issues.get, {
+      const updated = await ctx.convex.mutation(api.issues.undefer, {
         issueId: issueId as Id<"issues">,
-      });
-      if (!issue) {
-        return error(
-          `Issue not found: ${issueId}. Use issues_list to find valid IDs.`,
-        );
-      }
-      if (issue.status !== IssueStatus.Deferred) {
-        return error(
-          `Issue ${issue.shortId} is not deferred (status: ${issue.status}).`,
-        );
-      }
-
-      const updated = await ctx.convex.mutation(api.issues.update, {
-        issueId: issueId as Id<"issues">,
-        status: IssueStatus.Open,
-        deferNote: null,
       });
       await ctx.convex.mutation(api.comments.create, {
         issueId: issueId as Id<"issues">,
