@@ -1685,7 +1685,7 @@ export function removeOrchestrator(projectId: Id<"projects">): boolean {
   return map.delete(projectId);
 }
 
-/** Return a read-only snapshot of active orchestrator instances, keyed by projectId. */
+/** Return a read-only view of orchestrator instances, keyed by projectId. */
 export function getAllOrchestrators(): ReadonlyMap<string, Orchestrator> {
   return getOrchestratorMap();
 }
