@@ -1,4 +1,4 @@
-import { Link, useRouteContext } from "@tanstack/react-router";
+import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "$convex/_generated/api";
@@ -42,6 +42,7 @@ export function IssueList() {
     clearError: clearActionError,
   } = useDismissableError();
   const [undeferringId, setUndeferringId] = useState<Id<"issues"> | null>(null);
+  const navigate = useNavigate();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
 
@@ -184,25 +185,20 @@ export function IssueList() {
             </thead>
             <tbody>
               {issues.map((issue) => (
-                <tr key={issue._id} className="hover:bg-base-200">
+                <tr
+                  key={issue._id}
+                  className="cursor-pointer hover:bg-base-200"
+                  onClick={() =>
+                    navigate({
+                      to: "/issues/$issueId",
+                      params: { issueId: issue._id },
+                    })
+                  }
+                >
                   <td>
-                    <Link
-                      to="/issues/$issueId"
-                      params={{ issueId: issue._id }}
-                      className="link link-hover font-mono text-sm"
-                    >
-                      {issue.shortId}
-                    </Link>
+                    <span className="font-mono text-sm">{issue.shortId}</span>
                   </td>
-                  <td>
-                    <Link
-                      to="/issues/$issueId"
-                      params={{ issueId: issue._id }}
-                      className="link link-hover"
-                    >
-                      {issue.title}
-                    </Link>
-                  </td>
+                  <td>{issue.title}</td>
                   <td>
                     <div className="flex flex-wrap gap-1">
                       {(issue.labelIds ?? []).map((id) => {
@@ -229,7 +225,10 @@ export function IssueList() {
                       <button
                         type="button"
                         className="btn btn-ghost btn-xs"
-                        onClick={() => handleUndefer(issue._id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUndefer(issue._id);
+                        }}
                         disabled={undeferringId === issue._id}
                       >
                         {undeferringId === issue._id ? (
@@ -246,7 +245,10 @@ export function IssueList() {
                       <button
                         type="button"
                         className="btn btn-ghost btn-xs"
-                        onClick={() => openDeferModal(issue._id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDeferModal(issue._id);
+                        }}
                       >
                         <FontAwesomeIcon
                           icon={faCirclePause}
