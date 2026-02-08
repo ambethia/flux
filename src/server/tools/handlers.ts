@@ -9,12 +9,34 @@ import {
 } from "$convex/schema";
 import type { Orchestrator } from "../orchestrator";
 import type {
-  CloseTypeValue,
-  CommentAuthorValue,
-  EpicStatusValue,
-  IssuePriorityValue,
-  IssueStatusValue,
-  SessionStatusValue,
+  CommentsCreateArgs,
+  CommentsListArgs,
+  DepsAddArgs,
+  DepsListForIssueArgs,
+  DepsRemoveArgs,
+  EpicsCloseArgs,
+  EpicsCreateArgs,
+  EpicsListArgs,
+  EpicsShowArgs,
+  EpicsUpdateArgs,
+  IssuesBulkCreateArgs,
+  IssuesBulkUpdateArgs,
+  IssuesCloseArgs,
+  IssuesCreateArgs,
+  IssuesDeferArgs,
+  IssuesGetArgs,
+  IssuesListArgs,
+  IssuesReadyArgs,
+  IssuesRetryArgs,
+  IssuesSearchArgs,
+  IssuesUndeferArgs,
+  IssuesUpdateArgs,
+  LabelsCreateArgs,
+  LabelsDeleteArgs,
+  LabelsUpdateArgs,
+  OrchestratorRunArgs,
+  SessionsListArgs,
+  SessionsShowArgs,
 } from "./schema";
 
 export type ToolContext = {
@@ -59,11 +81,7 @@ function error(message: string): ToolResult {
 // ── Handlers ──────────────────────────────────────────────────────────
 
 const issues_create: ToolHandler = async (args, ctx) => {
-  const { title, description, priority } = args as {
-    title: string;
-    description?: string;
-    priority?: IssuePriorityValue;
-  };
+  const { title, description, priority } = args as IssuesCreateArgs;
 
   const issueId = await ctx.convex.mutation(api.issues.create, {
     projectId: ctx.projectId,
@@ -78,10 +96,7 @@ const issues_create: ToolHandler = async (args, ctx) => {
 };
 
 const issues_list: ToolHandler = async (args, ctx) => {
-  const { status, limit } = args as {
-    status?: IssueStatusValue;
-    limit?: number;
-  };
+  const { status, limit } = args as IssuesListArgs;
 
   const issues = await ctx.convex.query(api.issues.list, {
     projectId: ctx.projectId,
@@ -94,7 +109,7 @@ const issues_list: ToolHandler = async (args, ctx) => {
 };
 
 const issues_get: ToolHandler = async (args, ctx) => {
-  const { issueId } = args as { issueId: string };
+  const { issueId } = args as IssuesGetArgs;
 
   const issue = await ctx.convex.query(api.issues.get, {
     issueId: issueId as Id<"issues">,
@@ -108,14 +123,7 @@ const issues_get: ToolHandler = async (args, ctx) => {
 };
 
 const issues_update: ToolHandler = async (args, ctx) => {
-  const { issueId, ...updates } = args as {
-    issueId: string;
-    title?: string;
-    description?: string;
-    status?: IssueStatusValue;
-    priority?: IssuePriorityValue;
-    assignee?: string;
-  };
+  const { issueId, ...updates } = args as IssuesUpdateArgs;
 
   const updated = await ctx.convex.mutation(api.issues.update, {
     issueId: issueId as Id<"issues">,
@@ -125,7 +133,7 @@ const issues_update: ToolHandler = async (args, ctx) => {
 };
 
 const issues_ready: ToolHandler = async (args, ctx) => {
-  const { limit } = args as { limit?: number };
+  const { limit } = args as IssuesReadyArgs;
 
   // Fetch config for maxFailures
   const config = await ctx.convex.query(api.orchestratorConfig.get, {
@@ -144,7 +152,7 @@ const issues_ready: ToolHandler = async (args, ctx) => {
 };
 
 const orchestrator_run: ToolHandler = async (args, ctx) => {
-  const { issueId } = args as { issueId: string };
+  const { issueId } = args as OrchestratorRunArgs;
 
   try {
     const orchestrator = ctx.getOrchestrator();
@@ -196,9 +204,7 @@ const orchestrator_stop: ToolHandler = async (_args, ctx) => {
 };
 
 const sessions_list: ToolHandler = async (args, ctx) => {
-  const { status } = args as {
-    status?: SessionStatusValue;
-  };
+  const { status } = args as SessionsListArgs;
 
   const sessions = await ctx.convex.query(api.sessions.list, {
     projectId: ctx.projectId,
@@ -208,7 +214,7 @@ const sessions_list: ToolHandler = async (args, ctx) => {
 };
 
 const sessions_show: ToolHandler = async (args, ctx) => {
-  const { sessionId } = args as { sessionId: string };
+  const { sessionId } = args as SessionsShowArgs;
 
   const session = await ctx.convex.query(api.sessions.get, {
     sessionId: sessionId as Id<"sessions">,
@@ -268,11 +274,7 @@ const sessions_show: ToolHandler = async (args, ctx) => {
 };
 
 const issues_close: ToolHandler = async (args, ctx) => {
-  const { issueId, closeType, reason } = args as {
-    issueId: string;
-    closeType: CloseTypeValue;
-    reason?: string;
-  };
+  const { issueId, closeType, reason } = args as IssuesCloseArgs;
 
   try {
     const updated = await ctx.convex.mutation(api.issues.close, {
@@ -287,7 +289,7 @@ const issues_close: ToolHandler = async (args, ctx) => {
 };
 
 const issues_retry: ToolHandler = async (args, ctx) => {
-  const { issueId } = args as { issueId: string };
+  const { issueId } = args as IssuesRetryArgs;
 
   try {
     const updated = await ctx.convex.mutation(api.issues.retry, {
@@ -300,7 +302,7 @@ const issues_retry: ToolHandler = async (args, ctx) => {
 };
 
 const issues_defer: ToolHandler = async (args, ctx) => {
-  const { issueId, note } = args as { issueId: string; note: string };
+  const { issueId, note } = args as IssuesDeferArgs;
 
   try {
     const issue = await ctx.convex.query(api.issues.get, {
@@ -334,7 +336,7 @@ const issues_defer: ToolHandler = async (args, ctx) => {
 };
 
 const issues_undefer: ToolHandler = async (args, ctx) => {
-  const { issueId, note } = args as { issueId: string; note: string };
+  const { issueId, note } = args as IssuesUndeferArgs;
 
   try {
     const issue = await ctx.convex.query(api.issues.get, {
@@ -367,7 +369,7 @@ const issues_undefer: ToolHandler = async (args, ctx) => {
 };
 
 const issues_search: ToolHandler = async (args, ctx) => {
-  const { query, limit } = args as { query: string; limit?: number };
+  const { query, limit } = args as IssuesSearchArgs;
 
   const issues = await ctx.convex.query(api.issues.search, {
     projectId: ctx.projectId,
@@ -379,11 +381,7 @@ const issues_search: ToolHandler = async (args, ctx) => {
 };
 
 const comments_create: ToolHandler = async (args, ctx) => {
-  const { issueId, content, author } = args as {
-    issueId: string;
-    content: string;
-    author?: CommentAuthorValue;
-  };
+  const { issueId, content, author } = args as CommentsCreateArgs;
 
   const commentId = await ctx.convex.mutation(api.comments.create, {
     issueId: issueId as Id<"issues">,
@@ -394,13 +392,7 @@ const comments_create: ToolHandler = async (args, ctx) => {
 };
 
 const issues_bulk_create: ToolHandler = async (args, ctx) => {
-  const { issues } = args as {
-    issues: Array<{
-      title: string;
-      description?: string;
-      priority?: IssuePriorityValue;
-    }>;
-  };
+  const { issues } = args as IssuesBulkCreateArgs;
 
   const created = await ctx.convex.mutation(api.issues.bulkCreate, {
     projectId: ctx.projectId,
@@ -410,13 +402,7 @@ const issues_bulk_create: ToolHandler = async (args, ctx) => {
 };
 
 const issues_bulk_update: ToolHandler = async (args, ctx) => {
-  const { updates } = args as {
-    updates: Array<{
-      issueId: string;
-      status?: IssueStatusValue;
-      priority?: IssuePriorityValue;
-    }>;
-  };
+  const { updates } = args as IssuesBulkUpdateArgs;
 
   const issues = await ctx.convex.mutation(api.issues.bulkUpdate, {
     updates: updates.map(({ issueId, ...fields }) => ({
@@ -429,7 +415,7 @@ const issues_bulk_update: ToolHandler = async (args, ctx) => {
 };
 
 const comments_list: ToolHandler = async (args, ctx) => {
-  const { issueId, limit } = args as { issueId: string; limit?: number };
+  const { issueId, limit } = args as CommentsListArgs;
 
   const comments = await ctx.convex.query(api.comments.list, {
     issueId: issueId as Id<"issues">,
@@ -439,10 +425,7 @@ const comments_list: ToolHandler = async (args, ctx) => {
 };
 
 const epics_list: ToolHandler = async (args, ctx) => {
-  const { status, limit } = args as {
-    status?: EpicStatusValue;
-    limit?: number;
-  };
+  const { status, limit } = args as EpicsListArgs;
 
   const epics = await ctx.convex.query(api.epics.list, {
     projectId: ctx.projectId,
@@ -455,10 +438,7 @@ const epics_list: ToolHandler = async (args, ctx) => {
 };
 
 const epics_create: ToolHandler = async (args, ctx) => {
-  const { title, description } = args as {
-    title: string;
-    description?: string;
-  };
+  const { title, description } = args as EpicsCreateArgs;
 
   const epicId = await ctx.convex.mutation(api.epics.create, {
     projectId: ctx.projectId,
@@ -472,7 +452,7 @@ const epics_create: ToolHandler = async (args, ctx) => {
 };
 
 const epics_show: ToolHandler = async (args, ctx) => {
-  const { epicId } = args as { epicId: string };
+  const { epicId } = args as EpicsShowArgs;
 
   const epic = await ctx.convex.query(api.epics.show, {
     epicId: epicId as Id<"epics">,
@@ -486,11 +466,7 @@ const epics_show: ToolHandler = async (args, ctx) => {
 };
 
 const epics_update: ToolHandler = async (args, ctx) => {
-  const { epicId, ...updates } = args as {
-    epicId: string;
-    title?: string;
-    description?: string;
-  };
+  const { epicId, ...updates } = args as EpicsUpdateArgs;
 
   const updated = await ctx.convex.mutation(api.epics.update, {
     epicId: epicId as Id<"epics">,
@@ -500,10 +476,7 @@ const epics_update: ToolHandler = async (args, ctx) => {
 };
 
 const epics_close: ToolHandler = async (args, ctx) => {
-  const { epicId, reason } = args as {
-    epicId: string;
-    reason?: string;
-  };
+  const { epicId, reason } = args as EpicsCloseArgs;
 
   try {
     const updated = await ctx.convex.mutation(api.epics.close, {
@@ -517,10 +490,7 @@ const epics_close: ToolHandler = async (args, ctx) => {
 };
 
 const deps_add: ToolHandler = async (args, ctx) => {
-  const { blockerId, blockedId } = args as {
-    blockerId: string;
-    blockedId: string;
-  };
+  const { blockerId, blockedId } = args as DepsAddArgs;
 
   try {
     const depId = await ctx.convex.mutation(api.deps.add, {
@@ -549,10 +519,7 @@ const deps_add: ToolHandler = async (args, ctx) => {
 };
 
 const deps_remove: ToolHandler = async (args, ctx) => {
-  const { blockerId, blockedId } = args as {
-    blockerId: string;
-    blockedId: string;
-  };
+  const { blockerId, blockedId } = args as DepsRemoveArgs;
 
   try {
     const result = await ctx.convex.mutation(api.deps.remove, {
@@ -566,7 +533,7 @@ const deps_remove: ToolHandler = async (args, ctx) => {
 };
 
 const deps_listForIssue: ToolHandler = async (args, ctx) => {
-  const { issueId } = args as { issueId: string };
+  const { issueId } = args as DepsListForIssueArgs;
 
   const result = await ctx.convex.query(api.deps.listForIssue, {
     issueId: issueId as Id<"issues">,
@@ -589,7 +556,7 @@ const labels_list: ToolHandler = async (_args, ctx) => {
 };
 
 const labels_create: ToolHandler = async (args, ctx) => {
-  const { name, color } = args as { name: string; color: string };
+  const { name, color } = args as LabelsCreateArgs;
 
   try {
     const labelId = await ctx.convex.mutation(api.labels.create, {
@@ -604,11 +571,7 @@ const labels_create: ToolHandler = async (args, ctx) => {
 };
 
 const labels_update: ToolHandler = async (args, ctx) => {
-  const { labelId, ...updates } = args as {
-    labelId: string;
-    name?: string;
-    color?: string;
-  };
+  const { labelId, ...updates } = args as LabelsUpdateArgs;
 
   try {
     const updated = await ctx.convex.mutation(api.labels.update, {
@@ -622,7 +585,7 @@ const labels_update: ToolHandler = async (args, ctx) => {
 };
 
 const labels_delete: ToolHandler = async (args, ctx) => {
-  const { labelId } = args as { labelId: string };
+  const { labelId } = args as LabelsDeleteArgs;
 
   try {
     await ctx.convex.mutation(api.labels.remove, {

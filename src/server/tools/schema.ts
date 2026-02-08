@@ -19,21 +19,37 @@ export type {
 } from "$convex/schema";
 
 // ── Derived Zod enums (single source of truth from Convex schema) ────
+// These use `z.enum()` with explicit literal tuples derived from the Convex
+// `as const` objects. The `as [V, ...V[]]` cast satisfies z.enum's requirement
+// for a non-empty tuple while preserving the narrow literal union type V.
+type IssueStatusVal = (typeof IssueStatus)[keyof typeof IssueStatus];
 const issueStatusEnum = z.enum(
-  Object.values(IssueStatus) as [string, ...string[]],
+  Object.values(IssueStatus) as [IssueStatusVal, ...IssueStatusVal[]],
 );
+
+type IssuePriorityVal = (typeof IssuePriority)[keyof typeof IssuePriority];
 const issuePriorityEnum = z.enum(
-  Object.values(IssuePriority) as [string, ...string[]],
+  Object.values(IssuePriority) as [IssuePriorityVal, ...IssuePriorityVal[]],
 );
+
+type EpicStatusVal = (typeof EpicStatus)[keyof typeof EpicStatus];
 const epicStatusEnum = z.enum(
-  Object.values(EpicStatus) as [string, ...string[]],
+  Object.values(EpicStatus) as [EpicStatusVal, ...EpicStatusVal[]],
 );
+
+type CommentAuthorVal = (typeof CommentAuthor)[keyof typeof CommentAuthor];
 const commentAuthorEnum = z.enum(
-  Object.values(CommentAuthor) as [string, ...string[]],
+  Object.values(CommentAuthor) as [CommentAuthorVal, ...CommentAuthorVal[]],
 );
-const closeTypeEnum = z.enum(Object.values(CloseType) as [string, ...string[]]);
+
+type CloseTypeVal = (typeof CloseType)[keyof typeof CloseType];
+const closeTypeEnum = z.enum(
+  Object.values(CloseType) as [CloseTypeVal, ...CloseTypeVal[]],
+);
+
+type SessionStatusVal = (typeof SessionStatus)[keyof typeof SessionStatus];
 const sessionStatusEnum = z.enum(
-  Object.values(SessionStatus) as [string, ...string[]],
+  Object.values(SessionStatus) as [SessionStatusVal, ...SessionStatusVal[]],
 );
 
 export interface ToolDef {
@@ -61,375 +77,454 @@ function jsonArray<T extends z.ZodTypeAny>(itemSchema: T) {
   }, z.array(itemSchema));
 }
 
-// ── Issues ───────────────────────────────────────────────────────────
+// ── Zod object schemas (single source of truth for both ToolDef and handler types) ──
+
+export const IssuesCreateSchema = z.object({
+  title: z.string().describe("Issue title. Be specific and actionable."),
+  description: z
+    .string()
+    .optional()
+    .describe("Detailed description. Supports markdown."),
+  priority: issuePriorityEnum
+    .optional()
+    .describe(
+      "Defaults to 'medium'. Use 'critical' only for drop-everything issues.",
+    ),
+});
+
+export const IssuesListSchema = z.object({
+  status: issueStatusEnum
+    .optional()
+    .describe("Filter by status. Omit for all."),
+  limit: z.number().optional().describe("Max results. Default 50, max 200."),
+});
+
+export const IssuesGetSchema = z.object({
+  issueId: z
+    .string()
+    .describe("The issue's document ID (from issues_list or issues_create)."),
+});
+
+export const IssuesUpdateSchema = z.object({
+  issueId: z.string().describe("The issue's document ID."),
+  title: z.string().optional().describe("New title."),
+  description: z
+    .string()
+    .optional()
+    .describe("New description. Supports markdown."),
+  status: issueStatusEnum.optional().describe("New status."),
+  priority: issuePriorityEnum.optional().describe("New priority."),
+  assignee: z.string().optional().describe("Assign to an agent or person."),
+});
+
+export const IssuesCloseSchema = z.object({
+  issueId: z.string().describe("The issue's document ID."),
+  closeType: closeTypeEnum.describe("How the issue was resolved."),
+  reason: z
+    .string()
+    .optional()
+    .describe("Explanation, especially important for noop/duplicate/wontfix."),
+});
+
+export const IssuesReadySchema = z.object({
+  limit: z.number().optional().describe("Max results. Default 50, max 200."),
+});
+
+export const IssuesDeferSchema = z.object({
+  issueId: z.string().describe("The issue's document ID."),
+  note: z.string().describe("Why this issue is being deferred."),
+});
+
+export const IssuesUndeferSchema = z.object({
+  issueId: z.string().describe("The issue's document ID."),
+  note: z.string().describe("Why this issue is being undeferred."),
+});
+
+export const IssuesRetrySchema = z.object({
+  issueId: z.string().describe("The issue's document ID."),
+});
+
+export const IssuesSearchSchema = z.object({
+  query: z.string().describe("Search query text."),
+  limit: z.number().optional().describe("Max results. Default 20, max 100."),
+});
+
+export const CommentsListSchema = z.object({
+  issueId: z.string().describe("The issue's document ID."),
+  limit: z.number().optional().describe("Max results. Default 50, max 200."),
+});
+
+export const CommentsCreateSchema = z.object({
+  issueId: z.string().describe("The issue's document ID."),
+  content: z.string().describe("The comment text. Supports markdown."),
+  author: commentAuthorEnum
+    .optional()
+    .describe("Comment author type. Defaults to 'agent'."),
+});
+
+export const EpicsListSchema = z.object({
+  status: epicStatusEnum.optional().describe("Filter by status. Omit for all."),
+  limit: z.number().optional().describe("Max results. Default 50, max 200."),
+});
+
+export const EpicsCreateSchema = z.object({
+  title: z.string().describe("Epic title."),
+  description: z
+    .string()
+    .optional()
+    .describe("Detailed description. Supports markdown."),
+});
+
+export const EpicsShowSchema = z.object({
+  epicId: z.string().describe("The epic's document ID."),
+});
+
+export const EpicsUpdateSchema = z.object({
+  epicId: z.string().describe("The epic's document ID."),
+  title: z.string().optional().describe("New title."),
+  description: z
+    .string()
+    .optional()
+    .describe("New description. Supports markdown."),
+});
+
+export const EpicsCloseSchema = z.object({
+  epicId: z.string().describe("The epic's document ID."),
+  reason: z.string().optional().describe("Why this epic is being closed."),
+});
+
+export const LabelsListSchema = z.object({});
+
+export const LabelsCreateSchema = z.object({
+  name: z.string().describe("Label name (e.g., 'bug', 'feature')."),
+  color: z.string().describe("Hex color for UI badge (e.g., '#ff0000')."),
+});
+
+export const LabelsUpdateSchema = z.object({
+  labelId: z.string().describe("The label's document ID."),
+  name: z.string().optional().describe("New name."),
+  color: z.string().optional().describe("New hex color."),
+});
+
+export const LabelsDeleteSchema = z.object({
+  labelId: z.string().describe("The label's document ID."),
+});
+
+export const DepsAddSchema = z.object({
+  blockerId: z.string().describe("The issue that must complete first."),
+  blockedId: z.string().describe("The issue that is blocked."),
+});
+
+export const DepsRemoveSchema = z.object({
+  blockerId: z.string().describe("The blocker issue's document ID."),
+  blockedId: z.string().describe("The blocked issue's document ID."),
+});
+
+export const DepsListForIssueSchema = z.object({
+  issueId: z.string().describe("The issue's document ID."),
+});
+
+export const IssuesBulkCreateSchema = z.object({
+  issues: jsonArray(
+    z.object({
+      title: z.string(),
+      description: z.string().optional(),
+      priority: issuePriorityEnum.optional(),
+    }),
+  ).describe("Array of issues to create."),
+});
+
+export const IssuesBulkUpdateSchema = z.object({
+  updates: jsonArray(
+    z.object({
+      issueId: z.string(),
+      status: issueStatusEnum.optional(),
+      priority: issuePriorityEnum.optional(),
+    }),
+  ).describe("Array of issue updates. Each must include issueId."),
+});
+
+export const SessionsListSchema = z.object({
+  status: sessionStatusEnum
+    .optional()
+    .describe("Filter by session status. Omit for all."),
+});
+
+export const SessionsShowSchema = z.object({
+  sessionId: z.string().describe("The session's document ID."),
+});
+
+export const OrchestratorRunSchema = z.object({
+  issueId: z.string().describe("The issue document ID to work on."),
+});
+
+export const OrchestratorKillSchema = z.object({});
+
+export const OrchestratorStatusSchema = z.object({});
+
+export const OrchestratorEnableSchema = z.object({});
+
+export const OrchestratorStopSchema = z.object({});
+
+// ── Inferred arg types for handlers ──────────────────────────────────
+
+export type IssuesCreateArgs = z.infer<typeof IssuesCreateSchema>;
+export type IssuesListArgs = z.infer<typeof IssuesListSchema>;
+export type IssuesGetArgs = z.infer<typeof IssuesGetSchema>;
+export type IssuesUpdateArgs = z.infer<typeof IssuesUpdateSchema>;
+export type IssuesCloseArgs = z.infer<typeof IssuesCloseSchema>;
+export type IssuesReadyArgs = z.infer<typeof IssuesReadySchema>;
+export type IssuesDeferArgs = z.infer<typeof IssuesDeferSchema>;
+export type IssuesUndeferArgs = z.infer<typeof IssuesUndeferSchema>;
+export type IssuesRetryArgs = z.infer<typeof IssuesRetrySchema>;
+export type IssuesSearchArgs = z.infer<typeof IssuesSearchSchema>;
+export type CommentsListArgs = z.infer<typeof CommentsListSchema>;
+export type CommentsCreateArgs = z.infer<typeof CommentsCreateSchema>;
+export type EpicsListArgs = z.infer<typeof EpicsListSchema>;
+export type EpicsCreateArgs = z.infer<typeof EpicsCreateSchema>;
+export type EpicsShowArgs = z.infer<typeof EpicsShowSchema>;
+export type EpicsUpdateArgs = z.infer<typeof EpicsUpdateSchema>;
+export type EpicsCloseArgs = z.infer<typeof EpicsCloseSchema>;
+export type LabelsCreateArgs = z.infer<typeof LabelsCreateSchema>;
+export type LabelsUpdateArgs = z.infer<typeof LabelsUpdateSchema>;
+export type LabelsDeleteArgs = z.infer<typeof LabelsDeleteSchema>;
+export type DepsAddArgs = z.infer<typeof DepsAddSchema>;
+export type DepsRemoveArgs = z.infer<typeof DepsRemoveSchema>;
+export type DepsListForIssueArgs = z.infer<typeof DepsListForIssueSchema>;
+export type IssuesBulkCreateArgs = z.infer<typeof IssuesBulkCreateSchema>;
+export type IssuesBulkUpdateArgs = z.infer<typeof IssuesBulkUpdateSchema>;
+export type SessionsListArgs = z.infer<typeof SessionsListSchema>;
+export type SessionsShowArgs = z.infer<typeof SessionsShowSchema>;
+export type OrchestratorRunArgs = z.infer<typeof OrchestratorRunSchema>;
+
+// ── ToolDef instances (derive .schema from Zod object .shape) ────────
 
 const issues_create: ToolDef = {
   name: "issues_create",
   description:
     "Create a new issue in the project. Returns the created issue with its assigned shortId.",
-  schema: {
-    title: z.string().describe("Issue title. Be specific and actionable."),
-    description: z
-      .string()
-      .optional()
-      .describe("Detailed description. Supports markdown."),
-    priority: issuePriorityEnum
-      .optional()
-      .describe(
-        "Defaults to 'medium'. Use 'critical' only for drop-everything issues.",
-      ),
-  },
+  schema: IssuesCreateSchema.shape,
 };
 
 const issues_list: ToolDef = {
   name: "issues_list",
   description:
     "List issues sorted by priority (critical first) then creation time (oldest first).",
-  schema: {
-    status: issueStatusEnum
-      .optional()
-      .describe("Filter by status. Omit for all."),
-    limit: z.number().optional().describe("Max results. Default 50, max 200."),
-  },
+  schema: IssuesListSchema.shape,
 };
 
 const issues_get: ToolDef = {
   name: "issues_get",
   description:
     "Get full details for a single issue, including its description.",
-  schema: {
-    issueId: z
-      .string()
-      .describe("The issue's document ID (from issues_list or issues_create)."),
-  },
+  schema: IssuesGetSchema.shape,
 };
 
 const issues_update: ToolDef = {
   name: "issues_update",
   description:
     "Update an existing issue. Pass only the fields you want to change.",
-  schema: {
-    issueId: z.string().describe("The issue's document ID."),
-    title: z.string().optional().describe("New title."),
-    description: z
-      .string()
-      .optional()
-      .describe("New description. Supports markdown."),
-    status: issueStatusEnum.optional().describe("New status."),
-    priority: issuePriorityEnum.optional().describe("New priority."),
-    assignee: z.string().optional().describe("Assign to an agent or person."),
-  },
+  schema: IssuesUpdateSchema.shape,
 };
 
 const issues_close: ToolDef = {
   name: "issues_close",
   description:
     "Close an issue with a specific close type. Use this instead of issues_update for closing.",
-  schema: {
-    issueId: z.string().describe("The issue's document ID."),
-    closeType: closeTypeEnum.describe("How the issue was resolved."),
-    reason: z
-      .string()
-      .optional()
-      .describe(
-        "Explanation, especially important for noop/duplicate/wontfix.",
-      ),
-  },
+  schema: IssuesCloseSchema.shape,
 };
 
 const issues_ready: ToolDef = {
   name: "issues_ready",
   description:
     "List unblocked open issues eligible for work. Excludes circuit-broken issues (failureCount >= maxFailures). Sorted by priority then creation time.",
-  schema: {
-    limit: z.number().optional().describe("Max results. Default 50, max 200."),
-  },
+  schema: IssuesReadySchema.shape,
 };
 
 const issues_defer: ToolDef = {
   name: "issues_defer",
   description:
     "Defer an issue — removes it from the ready queue. Requires a note explaining why (creates a comment automatically).",
-  schema: {
-    issueId: z.string().describe("The issue's document ID."),
-    note: z.string().describe("Why this issue is being deferred."),
-  },
+  schema: IssuesDeferSchema.shape,
 };
 
 const issues_undefer: ToolDef = {
   name: "issues_undefer",
   description:
     "Undefer an issue — returns it to the ready queue. Requires a note explaining the decision (creates a comment automatically).",
-  schema: {
-    issueId: z.string().describe("The issue's document ID."),
-    note: z.string().describe("Why this issue is being undeferred."),
-  },
+  schema: IssuesUndeferSchema.shape,
 };
 
 const issues_retry: ToolDef = {
   name: "issues_retry",
   description:
     "Reset a stuck issue to open status. Resets failureCount and reviewIterations to 0 for a fresh attempt.",
-  schema: {
-    issueId: z.string().describe("The issue's document ID."),
-  },
+  schema: IssuesRetrySchema.shape,
 };
 
 const issues_unstick: ToolDef = {
   name: "issues_unstick",
   description:
     "Alias for issues_retry. Reset a stuck issue back to open status. Resets failureCount and reviewIterations to 0 for a fresh attempt.",
-  schema: {
-    issueId: z.string().describe("The issue's document ID."),
-  },
+  schema: IssuesRetrySchema.shape,
 };
 
 const issues_search: ToolDef = {
   name: "issues_search",
   description:
     "Search issues by title (full-text via search index) and description (substring match). Title matches rank first. Scoped to the current project.",
-  schema: {
-    query: z.string().describe("Search query text."),
-    limit: z.number().optional().describe("Max results. Default 20, max 100."),
-  },
+  schema: IssuesSearchSchema.shape,
 };
-
-// ── Comments ─────────────────────────────────────────────────────────
 
 const comments_list: ToolDef = {
   name: "comments_list",
   description: "List comments for an issue, ordered by creation time.",
-  schema: {
-    issueId: z.string().describe("The issue's document ID."),
-    limit: z.number().optional().describe("Max results. Default 50, max 200."),
-  },
+  schema: CommentsListSchema.shape,
 };
 
 const comments_create: ToolDef = {
   name: "comments_create",
   description: "Add a comment to an issue.",
-  schema: {
-    issueId: z.string().describe("The issue's document ID."),
-    content: z.string().describe("The comment text. Supports markdown."),
-    author: commentAuthorEnum
-      .optional()
-      .describe("Comment author type. Defaults to 'agent'."),
-  },
+  schema: CommentsCreateSchema.shape,
 };
-
-// ── Epics ─────────────────────────────────────────────────────────────
 
 const epics_list: ToolDef = {
   name: "epics_list",
   description: "List epics with optional status filter.",
-  schema: {
-    status: epicStatusEnum
-      .optional()
-      .describe("Filter by status. Omit for all."),
-    limit: z.number().optional().describe("Max results. Default 50, max 200."),
-  },
+  schema: EpicsListSchema.shape,
 };
 
 const epics_create: ToolDef = {
   name: "epics_create",
   description: "Create a new epic in the project.",
-  schema: {
-    title: z.string().describe("Epic title."),
-    description: z
-      .string()
-      .optional()
-      .describe("Detailed description. Supports markdown."),
-  },
+  schema: EpicsCreateSchema.shape,
 };
 
 const epics_show: ToolDef = {
   name: "epics_show",
   description: "Get full details for an epic, including its child issues.",
-  schema: {
-    epicId: z.string().describe("The epic's document ID."),
-  },
+  schema: EpicsShowSchema.shape,
 };
 
 const epics_update: ToolDef = {
   name: "epics_update",
   description:
     "Update an existing epic. Pass only the fields you want to change.",
-  schema: {
-    epicId: z.string().describe("The epic's document ID."),
-    title: z.string().optional().describe("New title."),
-    description: z
-      .string()
-      .optional()
-      .describe("New description. Supports markdown."),
-  },
+  schema: EpicsUpdateSchema.shape,
 };
 
 const epics_close: ToolDef = {
   name: "epics_close",
   description:
     "Close an epic. No validation — can close with open child issues.",
-  schema: {
-    epicId: z.string().describe("The epic's document ID."),
-    reason: z.string().optional().describe("Why this epic is being closed."),
-  },
+  schema: EpicsCloseSchema.shape,
 };
-
-// ── Labels ────────────────────────────────────────────────────────────
 
 const labels_list: ToolDef = {
   name: "labels_list",
   description: "List all labels for the project.",
-  schema: {},
+  schema: LabelsListSchema.shape,
 };
 
 const labels_create: ToolDef = {
   name: "labels_create",
   description: "Create a new label.",
-  schema: {
-    name: z.string().describe("Label name (e.g., 'bug', 'feature')."),
-    color: z.string().describe("Hex color for UI badge (e.g., '#ff0000')."),
-  },
+  schema: LabelsCreateSchema.shape,
 };
 
 const labels_update: ToolDef = {
   name: "labels_update",
   description: "Update an existing label.",
-  schema: {
-    labelId: z.string().describe("The label's document ID."),
-    name: z.string().optional().describe("New name."),
-    color: z.string().optional().describe("New hex color."),
-  },
+  schema: LabelsUpdateSchema.shape,
 };
 
 const labels_delete: ToolDef = {
   name: "labels_delete",
   description: "Delete a label.",
-  schema: {
-    labelId: z.string().describe("The label's document ID."),
-  },
+  schema: LabelsDeleteSchema.shape,
 };
-
-// ── Dependencies ──────────────────────────────────────────────────────
 
 const deps_add: ToolDef = {
   name: "deps_add",
   description:
     "Add a dependency between issues. Validates no cycle would be created.",
-  schema: {
-    blockerId: z.string().describe("The issue that must complete first."),
-    blockedId: z.string().describe("The issue that is blocked."),
-  },
+  schema: DepsAddSchema.shape,
 };
 
 const deps_remove: ToolDef = {
   name: "deps_remove",
   description: "Remove a dependency between issues.",
-  schema: {
-    blockerId: z.string().describe("The blocker issue's document ID."),
-    blockedId: z.string().describe("The blocked issue's document ID."),
-  },
+  schema: DepsRemoveSchema.shape,
 };
 
 const deps_listForIssue: ToolDef = {
   name: "deps_listForIssue",
   description:
     "List all dependencies for an issue (both blockers and blocked-by).",
-  schema: {
-    issueId: z.string().describe("The issue's document ID."),
-  },
+  schema: DepsListForIssueSchema.shape,
 };
-
-// ── Batch ─────────────────────────────────────────────────────────────
 
 const issues_bulk_create: ToolDef = {
   name: "issues_bulk_create",
   description:
     "Create multiple issues in one call. Useful for retro findings or batch imports.",
-  schema: {
-    issues: jsonArray(
-      z.object({
-        title: z.string(),
-        description: z.string().optional(),
-        priority: issuePriorityEnum.optional(),
-      }),
-    ).describe("Array of issues to create."),
-  },
+  schema: IssuesBulkCreateSchema.shape,
 };
 
 const issues_bulk_update: ToolDef = {
   name: "issues_bulk_update",
   description:
     "Update multiple issues in one call. Useful for batch priority changes.",
-  schema: {
-    updates: jsonArray(
-      z.object({
-        issueId: z.string(),
-        status: issueStatusEnum.optional(),
-        priority: issuePriorityEnum.optional(),
-      }),
-    ).describe("Array of issue updates. Each must include issueId."),
-  },
+  schema: IssuesBulkUpdateSchema.shape,
 };
-
-// ── Sessions ─────────────────────────────────────────────────────────
 
 const sessions_list: ToolDef = {
   name: "sessions_list",
   description:
     "List orchestrator sessions, optionally filtered by status. Sorted by most recent first.",
-  schema: {
-    status: sessionStatusEnum
-      .optional()
-      .describe("Filter by session status. Omit for all."),
-  },
+  schema: SessionsListSchema.shape,
 };
 
 const sessions_show: ToolDef = {
   name: "sessions_show",
   description:
     "Get session detail with transcript. Shows last 100 lines of output — live from buffer for running sessions, from history for completed sessions.",
-  schema: {
-    sessionId: z.string().describe("The session's document ID."),
-  },
+  schema: SessionsShowSchema.shape,
 };
-
-// ── Orchestrator ─────────────────────────────────────────────────────
 
 const orchestrator_run: ToolDef = {
   name: "orchestrator_run",
   description:
     "Trigger the orchestrator to work on an issue. Claims the issue, spawns an agent, and returns immediately. The agent runs in the background — use orchestrator_status to monitor.",
-  schema: {
-    issueId: z.string().describe("The issue document ID to work on."),
-  },
+  schema: OrchestratorRunSchema.shape,
 };
 
 const orchestrator_kill: ToolDef = {
   name: "orchestrator_kill",
   description:
     "Kill the currently running agent session. The issue stays in_progress for manual hand-off.",
-  schema: {},
+  schema: OrchestratorKillSchema.shape,
 };
 
 const orchestrator_status: ToolDef = {
   name: "orchestrator_status",
   description:
     "Get the current orchestrator state (idle or busy) and active session info if running.",
-  schema: {},
+  schema: OrchestratorStatusSchema.shape,
 };
 
 const orchestrator_enable: ToolDef = {
   name: "orchestrator_enable",
   description:
     "Start the scheduler — begins picking up ready issues automatically.",
-  schema: {},
+  schema: OrchestratorEnableSchema.shape,
 };
 
 const orchestrator_stop: ToolDef = {
   name: "orchestrator_stop",
   description:
     "Stop queuing new work. Current session (if any) continues to completion.",
-  schema: {},
+  schema: OrchestratorStopSchema.shape,
 };
 
 // ── All tools ─────────────────────────────────────────────────────────
