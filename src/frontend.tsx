@@ -14,7 +14,21 @@ async function start() {
   if (!res.ok) {
     throw new Error(`Failed to fetch /api/config: ${res.status}`);
   }
-  const { convexUrl, projects } = (await res.json()) as {
+  const data: unknown = await res.json();
+  if (
+    !data ||
+    typeof data !== "object" ||
+    !("convexUrl" in data) ||
+    typeof (data as Record<string, unknown>).convexUrl !== "string" ||
+    !("projects" in data) ||
+    !Array.isArray((data as Record<string, unknown>).projects)
+  ) {
+    const shape = JSON.stringify(data).slice(0, 200);
+    throw new Error(
+      `Server returned unexpected config format — restart the Bun server.\nExpected { convexUrl, projects[] }, got: ${shape}`,
+    );
+  }
+  const { convexUrl, projects } = data as {
     convexUrl: string;
     projects: Array<{ slug: string }>;
   };
