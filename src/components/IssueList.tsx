@@ -27,7 +27,9 @@ const TABS: { label: string; value: StatusFilter }[] = [
 
 export function IssueList() {
   const { projectId } = useRouteContext({ from: "__root__" });
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
+    IssueStatus.Open,
+  );
 
   // Defer modal state
   const [deferTargetId, setDeferTargetId] = useState<Id<"issues"> | null>(null);
