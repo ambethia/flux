@@ -29,6 +29,8 @@ const PRIORITY_OPTIONS: { value: IssuePriorityValue; label: string }[] = [
   { value: IssuePriority.Low, label: "Low" },
 ];
 
+const DEFER_PREFIX = "Deferred: ";
+
 export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
   const { projectId } = useRouteContext({ from: "__root__" });
   const issue = useQuery(api.issues.get, { issueId });
@@ -75,7 +77,6 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
   const isStuck = currentIssue.status === IssueStatus.Stuck;
 
   // Extract the most recent defer reason from Flux-authored "Deferred: ..." comments
-  const DEFER_PREFIX = "Deferred: ";
   const deferReason = isDeferred
     ? (comments ?? [])
         .filter(
