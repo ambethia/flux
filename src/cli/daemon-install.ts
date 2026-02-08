@@ -27,10 +27,13 @@ function resolveEnvVars(): { CONVEX_URL: string; FLUX_PORT: string } {
       const contents = readFileSync(envPath, "utf-8");
       for (const line of contents.split("\n")) {
         const match = line.match(/^CONVEX_URL\s*=\s*(.+)/);
-        const value = match?.[1];
-        if (value) {
-          // Strip surrounding quotes (single or double) common in .env files
-          convexUrl = value.trim().replace(/^(['"])(.*)\1$/, "$2");
+        const raw = match?.[1]?.trim();
+        if (raw) {
+          // Quoted values preserve literal content; unquoted values strip inline comments
+          const isQuoted = /^(['"]).*\1$/.test(raw);
+          convexUrl = isQuoted
+            ? raw.replace(/^(['"])(.*)\1$/, "$2")
+            : raw.replace(/\s+#.*$/, "");
           break;
         }
       }
