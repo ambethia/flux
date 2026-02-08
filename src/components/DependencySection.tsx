@@ -1,6 +1,6 @@
 import { Link, useRouteContext } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
-import { useEffect, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import type { IssueStatusValue } from "$convex/schema";
@@ -207,8 +207,12 @@ function IssuePicker({
   label: string;
 }) {
   const { projectId } = useRouteContext({ from: "__root__" });
-  const allIssues = useQuery(api.issues.list, { projectId });
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search.trim());
+  const results = useQuery(
+    api.issues.search,
+    deferredSearch ? { projectId, query: deferredSearch } : "skip",
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -238,23 +242,8 @@ function IssuePicker({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  if (allIssues === undefined) {
-    return (
-      <div className="mt-2">
-        <span className="loading loading-spinner loading-xs" />
-      </div>
-    );
-  }
-
-  const filtered = allIssues.filter((issue) => {
-    if (excludeIds.has(issue._id)) return false;
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      issue.shortId.toLowerCase().includes(q) ||
-      issue.title.toLowerCase().includes(q)
-    );
-  });
+  const filtered = results?.filter((issue) => !excludeIds.has(issue._id)) ?? [];
+  const isStale = deferredSearch !== search.trim();
 
   return (
     <div
@@ -268,11 +257,19 @@ function IssuePicker({
         ref={searchInputRef}
         type="text"
         className="input input-sm mb-2 w-full"
-        placeholder="Search issues..."
+        placeholder="Search issues by title..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
-      {filtered.length === 0 ? (
+      {!deferredSearch ? (
+        <p className="p-2 text-base-content/40 text-sm">
+          Type to search for issues...
+        </p>
+      ) : results === undefined || isStale ? (
+        <div className="p-2">
+          <span className="loading loading-spinner loading-xs" />
+        </div>
+      ) : filtered.length === 0 ? (
         <p className="p-2 text-base-content/60 text-sm">No matching issues.</p>
       ) : (
         <ul className="flex max-h-48 flex-col gap-1 overflow-y-auto">
