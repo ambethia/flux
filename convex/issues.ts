@@ -12,7 +12,7 @@ import {
   issueStatusValidator,
 } from "./schema";
 
-const PRIORITY_ORDER: Record<string, number> = {
+const PRIORITY_ORDER: Record<IssuePriorityValue, number> = {
   [IssuePriority.Critical]: 0,
   [IssuePriority.High]: 1,
   [IssuePriority.Medium]: 2,
