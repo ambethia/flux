@@ -1,5 +1,11 @@
 import { useMutation } from "convex/react";
-import { useEffect, useImperativeHandle, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import { useDismissableError } from "../hooks/useDismissableError";
@@ -30,7 +36,7 @@ export type { DeferModalHandle };
 export function DeferModal({
   ref,
   onDeferred,
-}: DeferModalProps & { ref: React.Ref<DeferModalHandle> }) {
+}: DeferModalProps & { ref?: React.RefObject<DeferModalHandle | null> }) {
   const deferIssue = useMutation(api.issues.defer);
   const [targetId, setTargetId] = useState<Id<"issues"> | null>(null);
   const [note, setNote] = useState("");
@@ -43,12 +49,15 @@ export function DeferModal({
     if (targetId) noteRef.current?.focus();
   }, [targetId]);
 
-  function open(issueId: Id<"issues">) {
-    setTargetId(issueId);
-    setNote("");
-    clearError();
-    dialogRef.current?.showModal();
-  }
+  const open = useCallback(
+    (issueId: Id<"issues">) => {
+      setTargetId(issueId);
+      setNote("");
+      clearError();
+      dialogRef.current?.showModal();
+    },
+    [clearError],
+  );
 
   function close() {
     dialogRef.current?.close();
@@ -75,8 +84,7 @@ export function DeferModal({
     }
   }
 
-  // Expose imperative open() to parent via ref
-  useImperativeHandle(ref, () => ({ open }));
+  useImperativeHandle(ref, () => ({ open }), [open]);
 
   return (
     <dialog ref={dialogRef} className="modal" onClose={close}>
