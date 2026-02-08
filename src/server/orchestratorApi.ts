@@ -2,12 +2,16 @@ import type { Orchestrator } from "./orchestrator";
 
 type OrchestratorAction = "enable" | "stop" | "kill" | "status";
 
-const VALID_ACTIONS = new Set<OrchestratorAction>([
+const VALID_ACTIONS: ReadonlySet<string> = new Set<OrchestratorAction>([
   "enable",
   "stop",
   "kill",
   "status",
 ]);
+
+function isValidAction(value: string): value is OrchestratorAction {
+  return VALID_ACTIONS.has(value);
+}
 
 /**
  * Dedicated API handler for orchestrator actions.
@@ -32,7 +36,7 @@ export function createOrchestratorApiHandler(
     const body = (await req.json()) as { action?: string };
     const { action } = body;
 
-    if (!action || !VALID_ACTIONS.has(action as OrchestratorAction)) {
+    if (!action || !isValidAction(action)) {
       return Response.json(
         {
           error: `Invalid action. Expected one of: ${[...VALID_ACTIONS].join(", ")}`,
@@ -44,7 +48,7 @@ export function createOrchestratorApiHandler(
     const orchestrator = getOrchestrator();
 
     try {
-      switch (action as OrchestratorAction) {
+      switch (action) {
         case "enable":
           await orchestrator.enable();
           return Response.json({ status: orchestrator.getStatus() });
@@ -59,6 +63,14 @@ export function createOrchestratorApiHandler(
 
         case "status":
           return Response.json({ status: orchestrator.getStatus() });
+
+        default: {
+          const _exhaustive: never = action;
+          return Response.json(
+            { error: `Unhandled action: ${_exhaustive}` },
+            { status: 400 },
+          );
+        }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
