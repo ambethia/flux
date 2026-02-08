@@ -111,11 +111,16 @@ export const IssuesUpdateSchema = z.object({
   title: z.string().optional().describe("New title."),
   description: z
     .string()
+    .nullable()
     .optional()
-    .describe("New description. Supports markdown."),
+    .describe("New description (supports markdown). Pass null to clear."),
   status: issueStatusEnum.optional().describe("New status."),
   priority: issuePriorityEnum.optional().describe("New priority."),
-  assignee: z.string().optional().describe("Assign to an agent or person."),
+  assignee: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Assign to an agent or person. Pass null to clear."),
 });
 
 export const IssuesCloseSchema = z.object({
@@ -293,7 +298,7 @@ const issues_get: ToolDef = {
 const issues_update: ToolDef = {
   name: "issues_update",
   description:
-    "Update an existing issue. Pass only the fields you want to change.",
+    "Update an existing issue. Pass only the fields you want to change. Pass null to clear an optional field.",
   schema: IssuesUpdateSchema.shape,
 };
 

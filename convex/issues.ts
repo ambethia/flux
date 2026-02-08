@@ -1,5 +1,5 @@
 import { paginationOptsValidator } from "convex/server";
-import { v } from "convex/values";
+import { type Validator, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { internalMutation, mutation, query } from "./_generated/server";
@@ -305,20 +305,41 @@ export const bulkUpdate = mutation({
   },
 });
 
+/** Wrap a validator with v.null() so callers can pass null to clear the field. */
+// biome-ignore lint/suspicious/noExplicitAny: Convex's Validator type requires `any` in generic params
+function nullable(validator: Validator<any, "required", any>) {
+  return v.optional(v.union(validator, v.null()));
+}
+
+/**
+ * Build a patch object from args, handling the null-clearing convention:
+ * - undefined → field not provided → omit from patch (don't touch it)
+ * - null      → caller wants to clear the field → include as undefined
+ * - any value → caller wants to set the field → include as-is
+ */
+function buildPatch(args: Record<string, unknown>): Record<string, unknown> {
+  const patch: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(args)) {
+    if (val === undefined) continue; // not provided — skip
+    patch[key] = val === null ? undefined : val; // null → clear, else set
+  }
+  return patch;
+}
+
 export const update = mutation({
   args: {
     issueId: v.id("issues"),
     title: v.optional(v.string()),
-    description: v.optional(v.string()),
+    description: nullable(v.string()),
     status: v.optional(issueStatusValidator),
     priority: v.optional(issuePriorityValidator),
-    assignee: v.optional(v.string()),
-    sourceIssueId: v.optional(v.id("issues")),
-    closeType: v.optional(closeTypeValidator),
-    closeReason: v.optional(v.string()),
-    deferNote: v.optional(v.string()),
-    epicId: v.optional(v.id("epics")),
-    labelIds: v.optional(v.array(v.id("labels"))),
+    assignee: nullable(v.string()),
+    sourceIssueId: nullable(v.id("issues")),
+    closeType: nullable(closeTypeValidator),
+    closeReason: nullable(v.string()),
+    deferNote: nullable(v.string()),
+    epicId: nullable(v.id("epics")),
+    labelIds: nullable(v.array(v.id("labels"))),
   },
   handler: async (ctx, args) => {
     await getActiveIssue(ctx, args.issueId);
@@ -326,9 +347,7 @@ export const update = mutation({
     const { issueId, priority, ...rest } = args;
     const patch: Partial<Doc<"issues">> = {
       updatedAt: Date.now(),
-      ...Object.fromEntries(
-        Object.entries(rest).filter(([, v]) => v !== undefined),
-      ),
+      ...buildPatch(rest),
       ...(priority !== undefined && {
         priority,
         priorityOrder: toPriorityOrder(priority),
