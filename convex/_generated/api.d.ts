@@ -14,6 +14,7 @@ import type * as epics from "../epics.js";
 import type * as issues from "../issues.js";
 import type * as labels from "../labels.js";
 import type * as llmCosts from "../llmCosts.js";
+import type * as migrations from "../migrations.js";
 import type * as nuke from "../nuke.js";
 import type * as orchestratorConfig from "../orchestratorConfig.js";
 import type * as projects from "../projects.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   issues: typeof issues;
   labels: typeof labels;
   llmCosts: typeof llmCosts;
+  migrations: typeof migrations;
   nuke: typeof nuke;
   orchestratorConfig: typeof orchestratorConfig;
   projects: typeof projects;

@@ -61,6 +61,27 @@ Every file you touch should be slightly better than when you found it.
 - **Indexes When Needed, Not Before:** Add indexes only when you have real queries that will filter or sort on that field. We use indexes—just not arbitrarily. If a query needs to filter by `projectId`, add the index when writing that query.
 - **Add Fields When Building Features:** Don't add fields like `deletedAt` until you're actually implementing soft delete functionality. Schema grows with features, not ahead of them.
 
+### Schema Migrations (optional → required)
+
+When promoting a field from `v.optional(...)` to required, existing documents without the field will block `convex deploy` with schema validation errors. **Never** make the field required and push — the deploy will fail.
+
+**Required workflow:**
+
+1. **Write the migration** in `convex/migrations.ts` — an idempotent `internalMutation` that backfills the field on all documents missing it.
+2. **Keep the field optional** in `schema.ts` (or temporarily make it optional if it's already required).
+3. **Push the schema** so the migration can run: `bunx convex dev --once`
+4. **Run the migration**: `bunx convex run migrations:<name>`
+5. **Promote the field to required** in `schema.ts`.
+6. **Push again**: `bunx convex dev --once` — now all documents satisfy the required constraint.
+
+**Migration rules:**
+- Each migration must be **idempotent** — safe to re-run without side effects.
+- Use `internalMutation` so migrations are only callable from the CLI, not from clients.
+- Fail fast on unexpected data (unknown enum values, missing derived fields).
+- Return a summary: `{ patched, skipped, total }` for verification.
+
+**Example:** See `convex/migrations.ts:backfillPriorityOrder` — backfills `priorityOrder` from `priority` for FLUX-207.
+
 **Pattern:**
 ```typescript
 // schema.ts - export for reuse
