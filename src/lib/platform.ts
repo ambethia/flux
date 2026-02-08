@@ -8,3 +8,6 @@ export const isMac: boolean = /Mac|iPhone|iPad|iPod/.test(
 
 /** Modifier key label: "⌘" on Mac, "Ctrl+" on others. */
 export const modKey: string = isMac ? "⌘" : "Ctrl+";
+
+/** Shift key label: "⇧" on Mac, "Shift+" on others. */
+export const shiftKey: string = isMac ? "⇧" : "Shift+";

@@ -1,16 +1,23 @@
 import { useRouteContext } from "@tanstack/react-router";
 import { useNotifications } from "../hooks/useNotifications";
-import { modKey } from "../lib/platform";
+import { modKey, shiftKey } from "../lib/platform";
 import {
   FontAwesomeIcon,
   faBars,
   faBell,
   faBellSlash,
   faMagnifyingGlass,
+  faPlus,
 } from "./Icon";
 import { OrchestratorStatus } from "./OrchestratorStatus";
 
-export function Navbar({ onSearchClick }: { onSearchClick?: () => void }) {
+export function Navbar({
+  onSearchClick,
+  onCreateClick,
+}: {
+  onSearchClick?: () => void;
+  onCreateClick?: () => void;
+}) {
   const { projectId } = useRouteContext({ from: "__root__" });
   const { enabled, supported, toggle } = useNotifications();
 
@@ -31,6 +38,20 @@ export function Navbar({ onSearchClick }: { onSearchClick?: () => void }) {
       </div>
       <div className="flex-1 px-4 font-bold text-lg">Flux</div>
       <div className="navbar-end flex items-center gap-2 pr-4">
+        {onCreateClick && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm gap-2"
+            onClick={onCreateClick}
+            title={`New issue (${modKey}${shiftKey}N)`}
+          >
+            <FontAwesomeIcon icon={faPlus} aria-hidden="true" />
+            <kbd className="kbd kbd-xs">
+              {modKey}
+              {shiftKey}N
+            </kbd>
+          </button>
+        )}
         {onSearchClick && (
           <button
             type="button"

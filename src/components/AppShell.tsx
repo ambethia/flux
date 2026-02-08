@@ -44,7 +44,10 @@ export function AppShell() {
         <div className="drawer lg:drawer-open">
           <input id="app-drawer" type="checkbox" className="drawer-toggle" />
           <div className="drawer-content flex flex-col">
-            <Navbar onSearchClick={shortcuts.onSearch} />
+            <Navbar
+              onSearchClick={shortcuts.onSearch}
+              onCreateClick={shortcuts.onCreateIssue}
+            />
             <main className="grow p-6">
               <Outlet />
             </main>
