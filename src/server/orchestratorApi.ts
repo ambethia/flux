@@ -20,7 +20,7 @@ function isValidAction(value: string): value is OrchestratorAction {
  * This bypasses the generic MCP tool dispatch layer (`/api/tools`), giving the UI
  * a direct, purpose-built endpoint for orchestrator control.
  *
- * The MCP tool handlers remain available for agent consumption via `/mcp`.
+ * The MCP tool handlers remain available for agent consumption via `/mcp/projects/:projectId`.
  */
 export function createOrchestratorApiHandler(
   getOrchestrator: () => Orchestrator,
