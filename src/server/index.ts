@@ -10,6 +10,7 @@ import { createOrchestratorApiHandler } from "./orchestratorApi";
 import { startProjectStateWatcher } from "./projectStateWatcher";
 import { createProjectsApiHandler } from "./projectsApi";
 import type { Project } from "./setup";
+import { gracefulShutdown } from "./shutdown";
 import { createSSEHandler } from "./sse";
 import type { ToolContext } from "./tools";
 
@@ -341,7 +342,27 @@ export async function startServer(projects: Project[]) {
 
   // Subscribe to project state changes and drive orchestrator lifecycle.
   // Runs after server bind so orchestrator APIs are available immediately.
-  startProjectStateWatcher();
+  const unsubscribeWatcher = startProjectStateWatcher();
+
+  // Install signal handlers for graceful shutdown.
+  // SIGTERM: sent by launchd (or `kill <pid>`) before SIGKILL.
+  // SIGINT: sent by Ctrl+C in dev mode.
+  // Guard against duplicate signals — only the first triggers shutdown.
+  let shutdownInProgress = false;
+  const handleSignal = (signal: string) => {
+    if (shutdownInProgress) return;
+    shutdownInProgress = true;
+    console.log(`[Server] Received ${signal} — initiating graceful shutdown`);
+    gracefulShutdown({ server, unsubscribeWatcher }).then(
+      () => process.exit(0),
+      (err) => {
+        console.error("[Server] Graceful shutdown failed:", err);
+        process.exit(1);
+      },
+    );
+  };
+  process.on("SIGTERM", () => handleSignal("SIGTERM"));
+  process.on("SIGINT", () => handleSignal("SIGINT"));
 
   return server;
 }

@@ -12,3 +12,11 @@ export function getConvexClient(): ConvexClient {
   }
   return _client;
 }
+
+/** Close the singleton ConvexClient, terminating its WebSocket connection. */
+export async function closeConvexClient(): Promise<void> {
+  if (_client) {
+    await _client.close();
+    _client = undefined;
+  }
+}
