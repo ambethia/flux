@@ -103,16 +103,52 @@ function groupTranscriptEvents(
         }
 
         // Pair each pending tool_use with its result
+        const consumedIds = new Set<string>();
         let unmatchedIdx = 0;
         for (const toolUse of pendingToolUses) {
-          const matched =
-            resultById.get(toolUse.toolId) ??
-            unmatchedResults[unmatchedIdx++] ??
-            null;
+          const byId = resultById.get(toolUse.toolId);
+          const matched = byId ?? unmatchedResults[unmatchedIdx++] ?? null;
+          if (byId) consumedIds.add(toolUse.toolId);
           nodes.push({
             type: "tool_call",
             key: `tool_call:${toolUse.toolId}`,
             pair: { toolUse, toolResult: matched },
+          });
+        }
+
+        // Show any leftover results that didn't match a pending tool_use
+        for (const [id, result] of resultById) {
+          if (!consumedIds.has(id)) {
+            nodes.push({
+              type: "tool_call",
+              key: `orphan_result:${id}`,
+              pair: {
+                toolUse: {
+                  kind: "tool_use",
+                  toolName: result.toolName ?? "unknown",
+                  toolId: id,
+                  toolInput: null,
+                },
+                toolResult: result,
+              },
+            });
+          }
+        }
+        for (let i = unmatchedIdx; i < unmatchedResults.length; i++) {
+          const result = unmatchedResults[i];
+          if (!result) continue;
+          nodes.push({
+            type: "tool_call",
+            key: `orphan_result:${event._id}:${nodes.length}`,
+            pair: {
+              toolUse: {
+                kind: "tool_use",
+                toolName: result.toolName ?? "unknown",
+                toolId: result.toolUseId ?? "",
+                toolInput: null,
+              },
+              toolResult: result,
+            },
           });
         }
         pendingToolUses = [];
@@ -148,18 +184,25 @@ function groupTranscriptEvents(
         }
       }
     } else {
-      // Output event
+      // Output event — accumulate tool_use items across consecutive output
+      // events (streaming produces content_block_start + assistant in sequence).
+      // Do NOT flush pending tool_uses here; they'll be matched when the next
+      // input event arrives with tool_results, or flushed at end-of-stream.
       const items = parseStreamLine(event.content).filter(
         (p) => p.kind !== "skip",
       );
 
-      // Flush any pending tool_uses from a previous output before processing this one
-      flushPending(nodes, pendingToolUses);
-      pendingToolUses = [];
+      // De-duplicate tool_use items by toolId — streaming events
+      // (content_block_start) and the full assistant message both emit the
+      // same tool_use, so only keep one.
+      const seenToolIds = new Set(pendingToolUses.map((t) => t.toolId));
 
       for (const item of items) {
         if (item.kind === "tool_use") {
-          pendingToolUses.push(item);
+          if (!seenToolIds.has(item.toolId)) {
+            pendingToolUses.push(item);
+            seenToolIds.add(item.toolId);
+          }
         } else if (item.kind === "text") {
           nodes.push({
             type: "text",
