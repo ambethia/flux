@@ -156,7 +156,7 @@ export default defineSchema({
     description: v.optional(v.string()),
     status: issueStatusValidator,
     priority: issuePriorityValidator,
-    priorityOrder: v.optional(v.number()),
+    priorityOrder: v.number(),
     assignee: v.optional(v.string()),
     failureCount: v.number(),
     closedAt: v.optional(v.number()),
