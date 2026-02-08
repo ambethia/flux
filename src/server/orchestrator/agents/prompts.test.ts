@@ -244,6 +244,22 @@ describe("parseDisposition", () => {
         note: "from result",
       });
     });
+
+    test("extracts from envelope with curly braces in note (production failure scenario)", () => {
+      const envelope = JSON.stringify({
+        type: "content_block_delta",
+        delta: {
+          type: "text_delta",
+          text: '{"disposition": "done", "note": "showButton={false} removed from AppShell.tsx"}',
+        },
+      });
+      const result = parseDisposition([envelope]);
+      expect(result).toEqual({
+        success: true,
+        disposition: "done",
+        note: "showButton={false} removed from AppShell.tsx",
+      });
+    });
   });
 
   describe("disposition in markdown code blocks", () => {
