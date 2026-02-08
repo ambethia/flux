@@ -109,11 +109,22 @@ export function IssueList() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="font-bold text-xl">Issues</h2>
-          {issues && (
-            <span className="text-base-content/60 text-sm">
-              {issues.length} {issues.length === 1 ? "issue" : "issues"}
-            </span>
-          )}
+          {issues &&
+            issueCounts !== undefined &&
+            (() => {
+              const totalCount =
+                statusFilter === null
+                  ? Object.values(issueCounts).reduce((a, b) => a + b, 0)
+                  : (issueCounts[statusFilter] ?? 0);
+              const isTruncated = issues.length < totalCount;
+              return (
+                <span className="text-base-content/60 text-sm">
+                  {isTruncated
+                    ? `showing ${issues.length} of ${totalCount}`
+                    : `${totalCount} ${totalCount === 1 ? "issue" : "issues"}`}
+                </span>
+              );
+            })()}
         </div>
         <CreateIssueModal />
       </div>
