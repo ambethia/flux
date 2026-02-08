@@ -102,7 +102,7 @@ import { IssueStatus, issueStatusValidator } from "./schema";
 2. **Convex** — backend sync
 3. **Vite** (`:5173`) — React SPA with HMR via `@tailwindcss/vite`
 
-Open the app at `http://localhost:5173` during development. Vite proxies API requests to Bun automatically. Agents should not start/kill or restart these servers. Expect code changes to reload.
+Open the app at `http://localhost:5173` during development. Vite proxies API requests to Bun automatically. Code changes to `src/` are picked up by `bun --hot`; changes to `convex/` are deployed by `convex dev`. If hot reload gets stuck, see "Restarting the Daemon" below.
 
 For production: `bun run build:frontend` builds to `dist/`, then `bun run start` serves the static files from Bun at `:8042`.
 
@@ -111,6 +111,33 @@ Default to using Bun instead of Node.js.
 Read the Bun API docs in `node_modules/bun-types/docs/**.mdx`
 
 Do not add any new dependencies without asking first. This requires explicit permission from the user.
+
+### Restarting the Daemon
+
+The daemon runs as a macOS LaunchAgent (`dev.flux.daemon`) with `KeepAlive: true`. To restart:
+
+```bash
+launchctl stop dev.flux.daemon
+```
+
+launchd automatically restarts the process. No need to run `start` — KeepAlive handles it.
+
+**When to restart:**
+- Hot reload is stuck (code changes not reflected after a few seconds)
+- `convex dev` lost connection
+- Server is in a bad state
+
+**No need to wait for active sessions.** Session recovery on startup handles everything:
+- Live agent PIDs are re-adopted transparently
+- Dead PIDs are detected, sessions marked failed, issues reopened
+- In-progress issues with no live session are reopened
+
+**Verify the restart:**
+
+```bash
+curl http://localhost:8042/health
+tail -20 ~/.flux/logs/daemon.stdout.log
+```
 
 ### Git & Auto-Commit
 
@@ -270,6 +297,14 @@ Headless browser automation for UI validation. Available to all agents via `.mcp
 5. `browser_snapshot` again to verify the result
 
 The accessibility tree approach means you identify elements by their role and name (e.g., "button 'Defer'") rather than CSS selectors — robust even as styles change.
+
+**Verification after code changes:**
+Hot reload picks up changes to `src/` automatically. After making a change:
+1. Confirm compilation: `bun run typecheck`
+2. Verify behavior: Use Playwright to navigate, snapshot, and interact
+3. If hot reload didn't fire: `launchctl stop dev.flux.daemon` and retry
+
+For API changes, verify with `curl` or the Convex MCP `run` tool before declaring done.
 
 ### Convex
 

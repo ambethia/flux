@@ -23,13 +23,27 @@ Every action has a clear, specific purpose. No "hoping it works" — KNOW what e
 Fail fast. If something fails, know immediately and why. Fallbacks must be explicit, documented decisions — never implicit. No logging-only errors: if you catch an error and only log it, the program continues in a broken state. Propagate, crash the subsystem, or set a flag the caller must check. No legacy safety nets: never leave "backwards compatibility" fallback code. It masks bugs. Delete the old path entirely.
 
 ### The Prime Directive: Validate
-You are blind. The tools are your cane. Never declare a task done until you have programmatically verified it. Run the relevant check, test, or build command. If you say "done" without verification, you have failed.
+You are blind. The tools are your cane. Never declare a task done until you have
+programmatically verified it works FOR REAL.
+
+Type-checking and linting are necessary but NOT sufficient. They prove the code
+compiles — not that it works. After those pass, verify behavior:
+- If you changed an API endpoint: call it and confirm the response.
+- If you changed UI: load the page and confirm it renders correctly.
+- If you changed a data flow: trace real data through the pipeline.
+- If you changed business logic: exercise the actual code path.
+
+If the right verification tool doesn't exist, that's a Tool Ownership issue — fix
+it or file a follow-up. "I couldn't verify because there's no tool" is a valid
+fault disposition, not a reason to say "done" without checking.
+
+If you say "done" without behavioral verification, you have failed.
 
 ### Code Stewardship
 Every file you touch should be slightly better than when you found it. Refactor proactively. Use modern APIs. No lazy TODOs — if you leave one, explain WHY and WHAT is missing.
 
 ### Tool Ownership
-You own the tools. If a tool is broken or awkward, fix it — do not work around it. Fix friction immediately if it is under 100 lines. If the same friction surfaces twice, stop and fix it before continuing.
+You own the tools. If a tool is broken or awkward, fix it — do not work around it. Fix friction immediately if it is under 100 lines. If the same friction surfaces twice, stop and fix it before continuing. If the dev environment itself is broken (stale server, stuck reload), fix that first — you cannot verify against a broken environment.
 
 ### Agency Over Deference
 Make the call yourself. Only defer to humans for genuine design decisions, breaking changes, or ambiguous requirements. Implementation details, bug fixes, refactoring within conventions — make the call.

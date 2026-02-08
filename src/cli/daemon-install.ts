@@ -76,17 +76,19 @@ function resolveBunPath(): string {
 
 /** Generate the plist XML content. */
 function generatePlist(opts: {
-  bunPath: string;
-  entryPoint: string;
+  programArguments: string[];
   workingDirectory: string;
   logDir: string;
-  envVars: { CONVEX_URL: string; FLUX_PORT: string };
+  envVars: { PATH: string; CONVEX_URL: string; FLUX_PORT: string };
 }): string {
+  const programArgs = opts.programArguments
+    .map((arg) => `\t\t<string>${escapeXml(arg)}</string>`)
+    .join("\n");
+
   const e = {
     label: escapeXml(LABEL),
     workDir: escapeXml(opts.workingDirectory),
-    bun: escapeXml(opts.bunPath),
-    entry: escapeXml(opts.entryPoint),
+    path: escapeXml(opts.envVars.PATH),
     convexUrl: escapeXml(opts.envVars.CONVEX_URL),
     fluxPort: escapeXml(opts.envVars.FLUX_PORT),
     logDir: escapeXml(opts.logDir),
@@ -104,14 +106,13 @@ function generatePlist(opts: {
 
 	<key>ProgramArguments</key>
 	<array>
-		<string>${e.bun}</string>
-		<string>${e.entry}</string>
+${programArgs}
 	</array>
 
 	<key>EnvironmentVariables</key>
 	<dict>
-		<key>NODE_ENV</key>
-		<string>production</string>
+		<key>PATH</key>
+		<string>${e.path}</string>
 		<key>CONVEX_URL</key>
 		<string>${e.convexUrl}</string>
 		<key>FLUX_PORT</key>
@@ -143,14 +144,26 @@ export async function daemonInstall(): Promise<void> {
   const launchAgentsDir = join(home, "Library/LaunchAgents");
   const plistPath = join(launchAgentsDir, PLIST_FILENAME);
   const logDir = join(home, ".flux/logs");
-  const entryPoint = join(root, "src/index.ts");
 
   // 1. Resolve dependencies
   const bunPath = resolveBunPath();
   const envVars = resolveEnvVars();
+  const programArguments = [bunPath, "run", "dev"];
 
-  console.log(`Bun:       ${bunPath}`);
-  console.log(`Entry:     ${entryPoint}`);
+  // Build PATH: bun's directory + standard system paths.
+  // concurrently spawns children via the shell, so bun/bunx/convex must be findable.
+  const bunDir = join(bunPath, "..");
+  const pathEnv = [
+    bunDir,
+    "/usr/local/bin",
+    "/usr/bin",
+    "/bin",
+    "/usr/sbin",
+    "/sbin",
+  ].join(":");
+
+  console.log(`Bun:        ${bunPath}`);
+  console.log(`Mode:       dev`);
   console.log(`CONVEX_URL: ${envVars.CONVEX_URL}`);
   console.log(`FLUX_PORT:  ${envVars.FLUX_PORT}`);
 
@@ -174,11 +187,10 @@ export async function daemonInstall(): Promise<void> {
 
   // 4. Write the plist
   const plist = generatePlist({
-    bunPath,
-    entryPoint,
+    programArguments,
     workingDirectory: root,
     logDir,
-    envVars,
+    envVars: { PATH: pathEnv, ...envVars },
   });
   writeFileSync(plistPath, plist);
   console.log(`Wrote ${plistPath}`);
