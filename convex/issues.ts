@@ -1,6 +1,6 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { internalMutation, mutation, query } from "./_generated/server";
 import {
@@ -281,17 +281,21 @@ export const bulkUpdate = mutation({
     const now = Date.now();
     const updated = [];
 
-    for (const { issueId, ...fields } of args.updates) {
+    for (const { issueId, priority, ...rest } of args.updates) {
       await getActiveIssue(ctx, issueId);
 
-      const patches: Record<string, unknown> = { updatedAt: now };
-      if (fields.status !== undefined) patches.status = fields.status;
-      if (fields.priority !== undefined) {
-        patches.priority = fields.priority;
-        patches.priorityOrder = toPriorityOrder(fields.priority);
-      }
+      const patch: Partial<Doc<"issues">> = {
+        updatedAt: now,
+        ...Object.fromEntries(
+          Object.entries(rest).filter(([, v]) => v !== undefined),
+        ),
+        ...(priority !== undefined && {
+          priority,
+          priorityOrder: toPriorityOrder(priority),
+        }),
+      };
 
-      await ctx.db.patch(issueId, patches);
+      await ctx.db.patch(issueId, patch);
       const doc = await ctx.db.get(issueId);
       if (!doc)
         throw new Error(`Failed to read back issue ${issueId} after update`);
@@ -319,26 +323,22 @@ export const update = mutation({
   handler: async (ctx, args) => {
     await getActiveIssue(ctx, args.issueId);
 
-    const updates: Record<string, unknown> = { updatedAt: Date.now() };
-    if (args.title !== undefined) updates.title = args.title;
-    if (args.description !== undefined) updates.description = args.description;
-    if (args.status !== undefined) updates.status = args.status;
-    if (args.priority !== undefined) {
-      updates.priority = args.priority;
-      updates.priorityOrder = toPriorityOrder(args.priority);
-    }
-    if (args.assignee !== undefined) updates.assignee = args.assignee;
-    if (args.sourceIssueId !== undefined)
-      updates.sourceIssueId = args.sourceIssueId;
-    if (args.closeType !== undefined) updates.closeType = args.closeType;
-    if (args.closeReason !== undefined) updates.closeReason = args.closeReason;
-    if (args.epicId !== undefined) updates.epicId = args.epicId;
-    if (args.labelIds !== undefined) updates.labelIds = args.labelIds;
+    const { issueId, priority, ...rest } = args;
+    const patch: Partial<Doc<"issues">> = {
+      updatedAt: Date.now(),
+      ...Object.fromEntries(
+        Object.entries(rest).filter(([, v]) => v !== undefined),
+      ),
+      ...(priority !== undefined && {
+        priority,
+        priorityOrder: toPriorityOrder(priority),
+      }),
+    };
 
-    await ctx.db.patch(args.issueId, updates);
-    const updated = await ctx.db.get(args.issueId);
+    await ctx.db.patch(issueId, patch);
+    const updated = await ctx.db.get(issueId);
     if (!updated)
-      throw new Error(`Failed to read back issue ${args.issueId} after update`);
+      throw new Error(`Failed to read back issue ${issueId} after update`);
     return updated;
   },
 });
