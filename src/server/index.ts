@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { serve } from "bun";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
-import { createApiHandler } from "./api";
+import { createApiHandler, handleToolRequest } from "./api";
 import { getConvexClient } from "./convex";
 import { createMcpHandler } from "./mcp";
 import { getOrchestrator } from "./orchestrator";
@@ -30,7 +30,9 @@ function createToolContext(project: Project): ToolContext {
  *
  * Given `/api/projects/<id>/orchestrator`, returns `{ projectId: "<id>", subPath: "orchestrator" }`.
  * Given `/api/projects/<id>/config`, returns `{ projectId: "<id>", subPath: "config" }`.
+ * Given `/api/projects/<id>/tools`, returns `{ projectId: "<id>", subPath: "tools" }`.
  * Given `/sse/projects/<id>/activity`, returns `{ projectId: "<id>", subPath: "sse-activity" }`.
+ * Given `/mcp/projects/<id>`, returns `{ projectId: "<id>", subPath: "mcp" }`.
  * Returns null for paths that don't match a project-scoped sub-route.
  */
 function parseProjectScopedRoute(
@@ -38,7 +40,7 @@ function parseProjectScopedRoute(
 ): { projectId: string; subPath: string } | null {
   // Match /api/projects/:id/<sub>
   const apiMatch = pathname.match(
-    /^\/api\/projects\/([^/]+)\/(orchestrator|config)$/,
+    /^\/api\/projects\/([^/]+)\/(orchestrator|config|tools)$/,
   );
   if (apiMatch?.[1] && apiMatch[2]) {
     return { projectId: apiMatch[1], subPath: apiMatch[2] };
@@ -47,6 +49,11 @@ function parseProjectScopedRoute(
   const sseMatch = pathname.match(/^\/sse\/projects\/([^/]+)\/activity$/);
   if (sseMatch?.[1]) {
     return { projectId: sseMatch[1], subPath: "sse-activity" };
+  }
+  // Match /mcp/projects/:id
+  const mcpMatch = pathname.match(/^\/mcp\/projects\/([^/]+)$/);
+  if (mcpMatch?.[1]) {
+    return { projectId: mcpMatch[1], subPath: "mcp" };
   }
   return null;
 }
@@ -99,6 +106,8 @@ export async function startServer(projects: Project[]) {
    * Handle project-scoped requests:
    *   POST /api/projects/:id/orchestrator
    *   GET  /api/projects/:id/config
+   *   POST /api/projects/:id/tools
+   *   POST /mcp/projects/:id
    *   GET  /sse/projects/:id/activity
    *
    * Validates the project exists in Convex before dispatching.
@@ -171,6 +180,22 @@ export async function startServer(projects: Project[]) {
         });
       }
 
+      case "tools": {
+        if (!projectPath) {
+          return Response.json(
+            { error: `Project ${projectId} has no path configured.` },
+            { status: 400 },
+          );
+        }
+        const ctx = createToolContext({
+          _id: project._id,
+          slug: project.slug,
+          name: project.name,
+          path: projectPath,
+        });
+        return handleToolRequest(req, ctx);
+      }
+
       case "sse-activity": {
         if (!projectPath) {
           return Response.json(
@@ -180,6 +205,21 @@ export async function startServer(projects: Project[]) {
         }
         const handler = createSSEHandler(() =>
           getOrchestrator(projectId as Id<"projects">, projectPath),
+        );
+        return handler(req);
+      }
+
+      case "mcp": {
+        if (!projectPath) {
+          return Response.json(
+            { error: `Project ${projectId} has no path configured.` },
+            { status: 400 },
+          );
+        }
+        const handler = createMcpHandler(
+          projectId as Id<"projects">,
+          project.slug,
+          projectPath,
         );
         return handler(req);
       }
@@ -249,7 +289,7 @@ export async function startServer(projects: Project[]) {
     "/api/projects": (req) => handleProjectsApi(req),
 
     // Wildcard: handles both /api/projects/:id (CRUD) and
-    // /api/projects/:id/orchestrator, /api/projects/:id/config
+    // /api/projects/:id/orchestrator, /api/projects/:id/config, /api/projects/:id/tools
     "/api/projects/*": (req) => {
       const url = new URL(req.url);
       const scoped = parseProjectScopedRoute(url.pathname);
@@ -262,6 +302,16 @@ export async function startServer(projects: Project[]) {
 
     // SSE project-scoped wildcard
     "/sse/projects/*": (req) => {
+      const url = new URL(req.url);
+      const scoped = parseProjectScopedRoute(url.pathname);
+      if (scoped) {
+        return handleProjectScoped(req, scoped.projectId, scoped.subPath);
+      }
+      return Response.json({ error: "Not found." }, { status: 404 });
+    },
+
+    // MCP project-scoped wildcard
+    "/mcp/projects/*": (req) => {
       const url = new URL(req.url);
       const scoped = parseProjectScopedRoute(url.pathname);
       if (scoped) {
