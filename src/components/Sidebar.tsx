@@ -5,6 +5,7 @@ import {
   faCircleDot,
   faClockRotateLeft,
   faGear,
+  faScrewdriverWrench,
   faTags,
   faTerminal,
 } from "./Icon";
@@ -68,6 +69,12 @@ export function Sidebar() {
         >
           <FontAwesomeIcon icon={faGear} aria-hidden="true" />
           Settings
+        </Link>
+      </li>
+      <li className="mt-auto border-base-300 border-t pt-2">
+        <Link to="/projects">
+          <FontAwesomeIcon icon={faScrewdriverWrench} aria-hidden="true" />
+          Manage Projects
         </Link>
       </li>
     </ul>

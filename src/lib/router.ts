@@ -6,12 +6,14 @@ import {
 } from "@tanstack/react-router";
 import { NotFound } from "../components/NotFound";
 import { ProjectLayout } from "../components/ProjectLayout";
+import { ProjectsLayout } from "../components/ProjectsLayout";
 import { RootLayout } from "../components/RootLayout";
 import { RouteError } from "../components/RouteError";
 import { ActivityPage } from "../pages/ActivityPage";
 import { IssueDetailPage } from "../pages/IssueDetailPage";
 import { IssuesPage } from "../pages/IssuesPage";
 import { LabelsPage } from "../pages/LabelsPage";
+import { ProjectsPage } from "../pages/ProjectsPage";
 import { SessionDetailPage } from "../pages/SessionDetailPage";
 import { SessionsPage } from "../pages/SessionsPage";
 import { SettingsPage } from "../pages/SettingsPage";
@@ -35,6 +37,20 @@ const indexRoute = createRoute({
       params: { projectSlug: context.defaultSlug },
     });
   },
+});
+
+const projectsLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/projects",
+  component: ProjectsLayout,
+  errorComponent: RouteError,
+});
+
+const projectsIndexRoute = createRoute({
+  getParentRoute: () => projectsLayoutRoute,
+  path: "/",
+  component: ProjectsPage,
+  errorComponent: RouteError,
 });
 
 /** Layout route: resolves projectSlug → projectId via Convex query. */
@@ -96,6 +112,7 @@ const settingsRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  projectsLayoutRoute.addChildren([projectsIndexRoute]),
   projectLayoutRoute.addChildren([
     issuesRoute.addChildren([issueDetailRoute]),
     activityRoute,
