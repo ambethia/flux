@@ -1,5 +1,4 @@
 import { memo, useEffect, useMemo, useRef } from "react";
-import { StreamContent } from "../components/StreamContent";
 import { ToolCallCard, type ToolCallPair } from "../components/ToolCallCard";
 import {
   type KeyedStreamEvent,
@@ -283,7 +282,11 @@ const ActivityNodeView = memo(function ActivityNodeView({
         </div>
       );
     case "text":
-      return <StreamContent parsed={node.parsed} />;
+      return (
+        <div className="whitespace-pre-wrap break-words">
+          {node.parsed.text}
+        </div>
+      );
     case "tool_call":
       return <ToolCallCard pair={node.pair} />;
     default: {

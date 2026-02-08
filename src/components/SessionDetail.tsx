@@ -24,7 +24,6 @@ import {
 import { FontAwesomeIcon, faArrowLeft, Icon } from "./Icon";
 import { Markdown } from "./Markdown";
 import { SessionStatusBadge } from "./SessionStatusBadge";
-import { StreamContent } from "./StreamContent";
 import { ToolCallCard, type ToolCallPair } from "./ToolCallCard";
 
 // -- Transcript grouping types ------------------------------------------------
@@ -538,7 +537,7 @@ export function SessionDetail({ sessionId }: { sessionId: Id<"sessions"> }) {
                       key={node.key}
                       className="overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-neutral p-3 font-mono text-neutral-content text-sm"
                     >
-                      <StreamContent parsed={node.parsed} />
+                      {node.parsed.text}
                     </div>
                   );
                 case "tool_call":
