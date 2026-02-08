@@ -1421,6 +1421,17 @@ class Orchestrator {
       timeoutTimer: null,
     };
 
+    // Notify SSE clients of the re-adopted session so the UI reflects it
+    // immediately. The stub monitor has no stdout to pipe, but clients need
+    // the session_start event to know a session is active.
+    this.emitLifecycle({
+      type: "session_start",
+      sessionId: session._id,
+      issueId: session.issueId,
+      pid,
+      monitor: stubMonitor,
+    });
+
     // Poll PID liveness and trigger exit handler when it dies
     this.pollPidAndHandleExit(pid, tmpPath, stubMonitor, resolveExit);
 
