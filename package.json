@@ -9,7 +9,8 @@
     "start": "NODE_ENV=production bun src/index.ts",
     "check": "biome check --write",
     "typecheck": "tsc --noEmit",
-    "lint:schema": "./scripts/lint-schema-constants.sh"
+    "lint:schema": "./scripts/lint-schema-constants.sh",
+    "flux": "bun src/cli.ts"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.1.0",
