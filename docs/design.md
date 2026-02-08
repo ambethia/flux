@@ -182,11 +182,9 @@ Note: "discovered-from" provenance is now tracked via `sourceIssueId` on the iss
 | turns | number? | Number of agent turns in session |
 | tokens | number? | Total tokens consumed |
 | cost | number? | Estimated cost in USD |
-| duration | number? | Session duration in milliseconds |
 | toolCalls | number? | Number of tool calls made |
 | startHead | string? | Git HEAD when work began (recorded at session start) |
 | endHead | string? | Git HEAD when session ended (updated after each session/review) |
-| createdIssueIds | id("issues")[]? | Follow-up issues created by this session |
 | model | string? | LLM model used (e.g., "claude-sonnet-4.5"). Used with llmCost table for pricing. |
 | **Indexes** | by_project, by_project_status, by_issue | |
 

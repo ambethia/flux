@@ -227,10 +227,8 @@ export default defineSchema({
     turns: v.optional(v.number()),
     tokens: v.optional(v.number()),
     cost: v.optional(v.number()),
-    duration: v.optional(v.number()),
     toolCalls: v.optional(v.number()),
     model: v.optional(v.string()),
-    createdIssueIds: v.optional(v.array(v.id("issues"))),
   })
     .index("by_project", ["projectId"])
     .index("by_project_status", ["projectId", "status"])
