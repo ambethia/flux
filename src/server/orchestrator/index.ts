@@ -640,12 +640,16 @@ class Orchestrator {
     const convex = getConvexClient();
     const cwd = await resolveRepoRoot();
 
-    // Capture endHead (fallback to startHead if git fails)
-    let endHead: string;
+    // Capture endHead — undefined if git fails so session record doesn't
+    // falsely claim endHead === startHead (which hides real commits).
+    let endHead: string | undefined;
     try {
       endHead = await getCurrentHead(cwd);
-    } catch {
-      endHead = startHead;
+    } catch (err) {
+      console.warn(
+        `[Orchestrator] Failed to capture endHead for ${issue.shortId} — session record will omit it:`,
+        err,
+      );
     }
 
     // Parse disposition from monitor buffer
@@ -669,7 +673,7 @@ class Orchestrator {
         : undefined,
       note: dispositionResult.success ? dispositionResult.note : undefined,
       agentSessionId: active.agentSessionId ?? undefined,
-      endHead,
+      ...(endHead !== undefined && { endHead }),
     });
 
     // ── Malformed: no valid disposition parsed ──
@@ -870,12 +874,15 @@ class Orchestrator {
     const convex = getConvexClient();
     const cwd = await resolveRepoRoot();
 
-    // Capture endHead
-    let endHead: string;
+    // Capture endHead — undefined if git fails (see handleWorkExit comment)
+    let endHead: string | undefined;
     try {
       endHead = await getCurrentHead(cwd);
-    } catch {
-      endHead = startHead;
+    } catch (err) {
+      console.warn(
+        `[Orchestrator] Failed to capture endHead for ${issue.shortId} — session record will omit it:`,
+        err,
+      );
     }
 
     // Parse review disposition
@@ -892,7 +899,7 @@ class Orchestrator {
         ? dispositionResult.disposition
         : undefined,
       note: dispositionResult.success ? dispositionResult.note : undefined,
-      endHead,
+      ...(endHead !== undefined && { endHead }),
     });
 
     // ── Malformed or Fault: increment failure, leave issue in_progress ──
