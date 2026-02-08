@@ -1,5 +1,17 @@
-import type { SessionPhaseValue, SessionTypeValue } from "$convex/schema";
-import { SessionPhase, SessionType } from "$convex/schema";
+import type {
+  IssuePriorityValue,
+  SessionPhaseValue,
+  SessionTypeValue,
+} from "$convex/schema";
+import { IssuePriority, SessionPhase, SessionType } from "$convex/schema";
+
+export const PRIORITY_OPTIONS: { value: IssuePriorityValue; label: string }[] =
+  [
+    { value: IssuePriority.Critical, label: "Critical" },
+    { value: IssuePriority.High, label: "High" },
+    { value: IssuePriority.Medium, label: "Medium" },
+    { value: IssuePriority.Low, label: "Low" },
+  ];
 
 export function typeLabel(type: SessionTypeValue): string {
   switch (type) {

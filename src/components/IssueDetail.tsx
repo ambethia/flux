@@ -4,10 +4,11 @@ import { useState } from "react";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import type { CloseTypeValue, IssuePriorityValue } from "$convex/schema";
-import { CommentAuthor, IssuePriority, IssueStatus } from "$convex/schema";
+import { CommentAuthor, IssueStatus } from "$convex/schema";
 import { useDismissableError } from "../hooks/useDismissableError";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { callTool } from "../lib/api";
+import { PRIORITY_OPTIONS } from "../lib/format";
 import { CommentsThread } from "./CommentsThread";
 import { DependencySection } from "./DependencySection";
 import { ErrorBanner } from "./ErrorBanner";
@@ -21,13 +22,6 @@ import { LabelBadge } from "./LabelBadge";
 import { LabelPicker } from "./LabelPicker";
 import { Markdown } from "./Markdown";
 import { StatusBadge } from "./StatusBadge";
-
-const PRIORITY_OPTIONS: { value: IssuePriorityValue; label: string }[] = [
-  { value: IssuePriority.Critical, label: "Critical" },
-  { value: IssuePriority.High, label: "High" },
-  { value: IssuePriority.Medium, label: "Medium" },
-  { value: IssuePriority.Low, label: "Low" },
-];
 
 const DEFER_PREFIX = "Deferred: ";
 

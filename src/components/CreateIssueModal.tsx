@@ -5,15 +5,9 @@ import { api } from "$convex/_generated/api";
 import type { IssuePriorityValue } from "$convex/schema";
 import { IssuePriority } from "$convex/schema";
 import { useDismissableError } from "../hooks/useDismissableError";
+import { PRIORITY_OPTIONS } from "../lib/format";
 import { ErrorBanner } from "./ErrorBanner";
 import { FontAwesomeIcon, faPlus } from "./Icon";
-
-const PRIORITY_OPTIONS: { value: IssuePriorityValue; label: string }[] = [
-  { value: IssuePriority.Critical, label: "Critical" },
-  { value: IssuePriority.High, label: "High" },
-  { value: IssuePriority.Medium, label: "Medium" },
-  { value: IssuePriority.Low, label: "Low" },
-];
 
 export function CreateIssueModal() {
   const { projectId } = useRouteContext({ from: "__root__" });
