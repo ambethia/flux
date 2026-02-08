@@ -114,6 +114,18 @@ export const closeTypeValidator = v.union(
   v.literal(CloseType.Wontfix),
 );
 
+export const ProjectState = {
+  Running: "running",
+  Paused: "paused",
+  Stopped: "stopped",
+} as const;
+
+export const projectStateValidator = v.union(
+  v.literal(ProjectState.Running),
+  v.literal(ProjectState.Paused),
+  v.literal(ProjectState.Stopped),
+);
+
 export const Disposition = {
   Done: "done",
   Noop: "noop",
@@ -141,12 +153,16 @@ export type EpicStatusValue = (typeof EpicStatus)[keyof typeof EpicStatus];
 export type CommentAuthorValue =
   (typeof CommentAuthor)[keyof typeof CommentAuthor];
 export type DispositionValue = (typeof Disposition)[keyof typeof Disposition];
+export type ProjectStateValue =
+  (typeof ProjectState)[keyof typeof ProjectState];
 
 export default defineSchema({
   projects: defineTable({
     slug: v.string(),
     name: v.string(),
     issueCounter: v.number(),
+    path: v.optional(v.string()),
+    state: v.optional(projectStateValidator),
   }).index("by_slug", ["slug"]),
 
   issues: defineTable({
