@@ -42,12 +42,12 @@ export function IssueCloseButton({
 /** Expandable form panel rendered below the toolbar. */
 export function IssueCloseFormPanel({
   busy,
-  saving,
+  closing,
   onClose,
   onCancel,
 }: {
   busy: boolean;
-  saving: boolean;
+  closing: boolean;
   onClose: IssueCloseFormProps["onClose"];
   onCancel: () => void;
 }) {
@@ -101,7 +101,7 @@ export function IssueCloseFormPanel({
           onClick={handleClose}
           disabled={busy}
         >
-          {saving ? (
+          {closing ? (
             <span className="loading loading-spinner loading-xs" />
           ) : (
             <FontAwesomeIcon icon={faCircleXmark} aria-hidden="true" />

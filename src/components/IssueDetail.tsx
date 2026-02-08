@@ -242,7 +242,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
           resetting={resetting}
           deferring={deferring}
           undeferring={undeferring}
-          saving={closeSaving}
+          closing={closeSaving}
           onReset={handleResetToOpen}
           onDefer={handleDefer}
           onUndefer={handleUndefer}

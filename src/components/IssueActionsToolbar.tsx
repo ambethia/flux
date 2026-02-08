@@ -22,7 +22,7 @@ interface IssueActionsToolbarProps {
   resetting: boolean;
   deferring: boolean;
   undeferring: boolean;
-  saving: boolean;
+  closing: boolean;
   /** Action handlers */
   onReset: () => void;
   onDefer: (note: string) => Promise<void>;
@@ -42,7 +42,7 @@ export function IssueActionsToolbar({
   resetting,
   deferring,
   undeferring,
-  saving,
+  closing,
   onReset,
   onDefer,
   onUndefer,
@@ -119,7 +119,7 @@ export function IssueActionsToolbar({
       {expandedForm === "close" && (
         <IssueCloseFormPanel
           busy={busy}
-          saving={saving}
+          closing={closing}
           onClose={onClose}
           onCancel={handleCancel}
         />
