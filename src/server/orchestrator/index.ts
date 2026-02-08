@@ -1786,7 +1786,8 @@ export function getOrchestrator(
         console.warn(
           `[Orchestrator] projectPath for ${projectId} changed ` +
             `("${existing.getProjectPath()}" → "${projectPath}") ` +
-            `but orchestrator is "${state}" — deferring update until stopped.`,
+            `but orchestrator is "${state}" — skipping update. ` +
+            "Path will sync on next stop/start cycle.",
         );
       }
     }
