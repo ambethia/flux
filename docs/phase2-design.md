@@ -21,13 +21,44 @@ Following 100+ autonomous task completions via dog-fooding, Flux is ready for Ph
 
 Anvil Tools originated from the forge/bellows game engine's "Anvil" MCP - a hot-loading protocol where agents could modify/extend tools and immediately use them without session reconnection. The insight: this pattern works better as a **CLI-first convention** rather than an MCP protocol.
 
-### Goals
+### The CLI-Native Insight
 
-- **Cross-project shared tools** - Common utilities usable across all projects
-- **Project-owned tools** - Project-specific capabilities
-- **Immediate availability** - Add a tool, it's available immediately
-- **High discoverability/composability** - Self-describing, composable tools
-- **Agent accountability** - Agents identify gaps, extend tools during retros
+**The problem with MCP:** It requires special client support, protocol implementation, session management, and static tool enumeration. When tools need to change dynamically, MCP forces session reconnection.
+
+**The Anvil realization:** Agents are VERY GOOD at calling Bash. Every agent—Claude Code, Opencode, custom agents, even humans—can execute CLI commands. CLI is the universal interface.
+
+Instead of exposing 30+ static MCP tools, expose **one CLI command** with dynamic sub-commands:
+
+```bash
+# Discovery - lists all available tools
+$ flux anvil list
+> issues.create
+> issues.list
+> orchestrator.run
+> fontawesome.search
+
+# Introspection - get schema for any tool
+$ flux anvil describe issues.create
+{
+  "name": "issues.create",
+  "description": "Create a new issue",
+  "parameters": {
+    "title": { "type": "string", "required": true },
+    "description": { "type": "string" }
+  }
+}
+
+# Execution with JSON I/O
+$ flux anvil run issues.create --json '{"title": "foo"}'
+{"id": "FLUX-42", "shortId": "FLUX-42", ...}
+```
+
+**Why this wins:**
+- Works with ANY agent (no MCP protocol needed)
+- Each invocation loads fresh tools from disk (no hot-reload complexity)
+- Self-describing (agents can discover capabilities at runtime)
+- Stateless (no persistent connections to manage)
+- Composable (actions can call other actions internally)
 
 ### Tool Schema Declaration (TBD)
 
@@ -275,6 +306,78 @@ $ flux anvil describe fontawesome searchIcons
 - Two concepts to understand (Zod schemas + manifests)
 
 **Use When:** Want both developer experience (types) and operational flexibility (runtime).
+
+---
+
+### Tool Execution: Ephemeral Runner Pattern
+
+The CLI-native approach pairs perfectly with the **Ephemeral Runner** architecture (see Native Agent section, Option C).
+
+**Execution flow:**
+```typescript
+// Spawn fresh process per task
+const result = await $`flux anvil run ${toolName} --json ${JSON.stringify(args)}`
+return JSON.parse(result.stdout)
+```
+
+**Why this is perfect:**
+1. **Latest tools automatically** - Each invocation loads from disk, no hot-reload needed
+2. **Isolation** - Tool crashes don't affect other tasks or the daemon
+3. **No state management** - Process exits cleanly after execution
+4. **Simple to implement** - Standard child process spawning
+5. **Agent-agnostic** - Works with Claude Code, Opencode, custom agents, or humans
+
+**Comparison with persistent approaches:**
+
+| Aspect | MCP Server | Persistent Agent | Ephemeral CLI |
+|--------|------------|------------------|---------------|
+| Tool updates | Requires reconnection | Hot-reload complexity | Fresh load every time |
+| Crash isolation | Server crash kills session | Agent crash needs restart | Isolated per invocation |
+| Implementation | Protocol compliance | State management | Simple subprocess |
+| Agent support | MCP-compatible only | Custom integration | Universal (bash) |
+| Overhead | Protocol serialization | In-memory registry | Process spawn (~50-100ms) |
+
+**Mitigating spawn overhead:**
+- Acceptable for tasks > few seconds (Flux tasks are typically minutes/hours)
+- Can add caching layer for frequently-called read-only tools if needed
+- Process pool pattern for high-frequency operations (future optimization)
+
+---
+
+### Multi-Agent Support
+
+The CLI-native Anvil works with **any** agent without protocol adaptation:
+
+**Claude Code:**
+```json
+{
+  "mcpServers": {
+    "flux": {
+      "command": "flux",
+      "args": ["mcp"],
+      "env": { "FLUX_URL": "http://localhost:8042" }
+    }
+  }
+}
+```
+Claude Code gets ONE MCP tool (`flux`) that internally calls `flux anvil run ...`
+
+**Opencode:**
+Direct bash calls:
+```bash
+$ flux anvil list
+$ flux anvil run issues.create --title "Fix bug"
+```
+
+**Custom Native Agent:**
+```typescript
+// Spawn child process
+const result = spawnSync('flux', ['anvil', 'run', toolName, '--json', JSON.stringify(args)])
+return JSON.parse(result.stdout)
+```
+
+**Human CLI:**
+Same commands work for direct human usage—no separate CLI tool needed.
 
 ---
 
@@ -961,7 +1064,7 @@ $ flux daemon start    # Managed by OS
 
 | # | Question | Options | Recommendation |
 |---|----------|---------|----------------|
-| 1 | Anvil Schema Declaration | A-F | **F (Hybrid)** - Zod for dev, CLI introspection for runtime |
+| 1 | Anvil Schema Declaration | A-F | **F (Hybrid) + CLI-native** - Zod for dev, CLI introspection for runtime, bash as universal interface |
 | 2 | Auto-Planning Toggle | 1-4 | **1+4** - Binary + Project States |
 | 3 | Native Agent Architecture | A-D | **C** - Ephemeral Tool Runner |
 | 4 | Multi-Project UI | 1-4 | **2+3** - Grid dashboard + sidebar |
@@ -1093,6 +1196,107 @@ export const searchIcons = tool({
   }
 });
 ```
+
+---
+
+## 9. Appendix: CLI-Native Anvil Example
+
+The same FontAwesome tool, implemented as a CLI-native Anvil action:
+
+```typescript
+// anvil/tools/fontawesome.ts
+import { z } from "zod";
+
+// Schema exported for introspection
+export const parameters = z.object({
+  query: z.string()
+    .min(1)
+    .max(50)
+    .describe("Search term (e.g., 'settings', 'user', 'arrow')"),
+  
+  style: z.enum(["solid", "regular", "brand"])
+    .optional()
+    .describe("Filter by icon style. Omit to search all styles."),
+  
+  limit: z.number()
+    .int()
+    .min(1)
+    .max(50)
+    .default(10)
+    .describe("Maximum results to return")
+});
+
+// Type inference from schema
+export type SearchIconsParams = z.infer<typeof parameters>;
+
+// Icon result type
+export interface Icon {
+  name: string;
+  unicode: string;
+  styles: Array<"solid" | "regular" | "brand">;
+  tags: string[];
+}
+
+// Handler implementation
+export async function handler(args: SearchIconsParams): Promise<Icon[]> {
+  const { query, style, limit } = args;
+  
+  // Implementation using FontAwesome GraphQL API
+  const results = await searchFontAwesomeAPI({ query, style, limit });
+  return results;
+}
+
+// Optional: examples for documentation
+export const examples = [
+  {
+    input: { query: "settings", limit: 5 },
+    output: [
+      { name: "gear", unicode: "f013", styles: ["solid"], tags: ["settings", "cog"] },
+      { name: "sliders", unicode: "f1de", styles: ["solid"], tags: ["settings", "controls"] }
+    ]
+  }
+];
+```
+
+**Usage across different agents:**
+
+**Claude Code (via MCP):**
+```json
+// Claude Code calls the flux MCP tool
+{ "tool": "flux", "action": "anvil.run", "toolName": "fontawesome.search", "args": { "query": "settings" } }
+```
+
+**Opencode (direct bash):**
+```bash
+$ flux anvil run fontawesome.search --json '{"query": "settings"}'
+[{"name": "gear", "unicode": "f013", ...}]
+```
+
+**Custom Agent:**
+```typescript
+const result = spawnSync('flux', [
+  'anvil', 'run', 'fontawesome.search', 
+  '--json', JSON.stringify({ query: 'settings' })
+]);
+const icons = JSON.parse(result.stdout);
+```
+
+**Human CLI:**
+```bash
+$ flux anvil list | grep fontawesome
+fontawesome.search - Search FontAwesome icons
+
+$ flux anvil describe fontawesome.search
+{"name": "fontawesome.search", "parameters": {...}}
+
+$ flux anvil run fontawesome.search --query settings --limit 5
+```
+
+**Key differences from MCP approach:**
+- No protocol wrapper needed
+- Fresh process per invocation = latest code automatically
+- Works identically across all agent types
+- Humans use the same interface as agents
 
 ---
 
