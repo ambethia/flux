@@ -3,16 +3,45 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { allTools } from "../src/server/tools/schema";
 
 const FLUX_URL = process.env.FLUX_URL ?? "http://localhost:8042";
-const FLUX_PROJECT_ID = process.env.FLUX_PROJECT_ID;
 
-if (!FLUX_PROJECT_ID) {
-  console.error(
-    "FLUX_PROJECT_ID is required. Set it to the Convex project _id.",
-  );
-  process.exit(1);
+/**
+ * Resolve the project ID — explicit env var takes precedence, otherwise
+ * auto-discover by listing projects from the Flux API. If there is exactly
+ * one project, use it automatically (zero-config for single-project setups).
+ */
+async function resolveProjectId(): Promise<string> {
+  const explicit = process.env.FLUX_PROJECT_ID;
+  if (explicit) return explicit;
+
+  const res = await fetch(`${FLUX_URL}/api/projects`);
+  if (!res.ok) {
+    console.error(
+      `Failed to list projects from ${FLUX_URL}/api/projects: ${res.status} ${res.statusText}`,
+    );
+    process.exit(1);
+  }
+
+  const projects: { id: string }[] = await res.json();
+
+  if (projects.length === 0) {
+    console.error(
+      "No projects found. Create a project first, or set FLUX_PROJECT_ID.",
+    );
+    process.exit(1);
+  }
+
+  if (projects.length > 1) {
+    console.error(
+      `Multiple projects found (${projects.length}). Set FLUX_PROJECT_ID to one of:\n${projects.map((p) => `  ${p.id}`).join("\n")}`,
+    );
+    process.exit(1);
+  }
+
+  return projects[0].id;
 }
 
-const toolsUrl = `${FLUX_URL}/api/projects/${FLUX_PROJECT_ID}/tools`;
+const projectId = await resolveProjectId();
+const toolsUrl = `${FLUX_URL}/api/projects/${projectId}/tools`;
 
 const mcp = new McpServer({ name: "flux", version: "0.1.0" });
 
