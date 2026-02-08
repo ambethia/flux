@@ -291,7 +291,6 @@ This JSON MUST be the last thing you output. Nothing after it.`;
 // ── Disposition Parser ───────────────────────────────────────────────
 
 const VALID_DISPOSITIONS = new Set<string>(Object.values(Disposition));
-const DISPOSITION_PATTERN = /\{[^{}]*"disposition"[^{}]*\}/g;
 
 /**
  * Parse the disposition JSON from agent output lines.
@@ -321,16 +320,80 @@ export function parseDisposition(lines: string[]): DispositionResult {
   };
 }
 
-function tryParseDisposition(text: string): DispositionResult | null {
-  DISPOSITION_PATTERN.lastIndex = 0;
+/**
+ * Extract balanced-brace JSON objects containing "disposition" from text.
+ *
+ * The old regex `\{[^{}]*"disposition"[^{}]*\}` failed when the note field
+ * contained curly braces (TypeScript types, JSX, etc.). This implementation
+ * walks the string tracking brace depth to correctly handle nested braces.
+ */
+export function extractDispositionCandidates(text: string): string[] {
+  const candidates: string[] = [];
+  let i = 0;
 
-  for (
-    let match = DISPOSITION_PATTERN.exec(text);
-    match !== null;
-    match = DISPOSITION_PATTERN.exec(text)
-  ) {
+  while (i < text.length) {
+    if (text[i] !== "{") {
+      i++;
+      continue;
+    }
+
+    // Found an opening brace — walk forward tracking depth
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    const start = i;
+
+    for (let j = i; j < text.length; j++) {
+      const ch = text[j];
+
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+
+      if (ch === "\\") {
+        escaped = true;
+        continue;
+      }
+
+      if (ch === '"') {
+        inString = !inString;
+        continue;
+      }
+
+      if (inString) continue;
+
+      if (ch === "{") depth++;
+      else if (ch === "}") {
+        depth--;
+        if (depth === 0) {
+          const candidate = text.slice(start, j + 1);
+          if (candidate.includes('"disposition"')) {
+            candidates.push(candidate);
+          }
+          i = j + 1;
+          break;
+        }
+      }
+    }
+
+    // Unclosed brace — skip past this opening brace
+    if (depth !== 0) i = start + 1;
+  }
+
+  return candidates;
+}
+
+function tryParseDisposition(text: string): DispositionResult | null {
+  const candidates = extractDispositionCandidates(text);
+
+  // Try candidates in reverse order (last match wins, matching old behavior)
+  for (let i = candidates.length - 1; i >= 0; i--) {
     try {
-      const parsed = JSON.parse(match[0]) as Record<string, unknown>;
+      const parsed = JSON.parse(candidates[i] as string) as Record<
+        string,
+        unknown
+      >;
       if (
         VALID_DISPOSITIONS.has(parsed.disposition as string) &&
         typeof parsed.note === "string"
