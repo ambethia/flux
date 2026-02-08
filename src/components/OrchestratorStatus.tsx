@@ -8,7 +8,11 @@ import type { SessionPhaseValue } from "$convex/schema";
 import { SessionPhase } from "$convex/schema";
 import { useDismissableError } from "../hooks/useDismissableError";
 import { useOrchestratorStatus } from "../hooks/useOrchestratorStatus";
-import { callTool } from "../lib/api";
+import {
+  enableOrchestrator,
+  killOrchestrator,
+  stopOrchestrator,
+} from "../lib/orchestratorApi";
 import { FontAwesomeIcon, faPlay, faSkull, faStop } from "./Icon";
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -112,11 +116,11 @@ export function OrchestratorStatus({
   // ── Actions ──────────────────────────────────────────────────────
 
   const handleAction = useCallback(
-    async (tool: string, action: Transition["action"]) => {
+    async (action: Transition["action"], fn: () => Promise<unknown>) => {
       const currentState = status?.state ?? "stopped";
       setInflightAction(action);
       try {
-        await callTool(tool);
+        await fn();
         clearActionError();
         // Enter transition state — persists until SSE-driven refetch confirms new state
         setTransition({ action, fromState: currentState });
@@ -131,9 +135,9 @@ export function OrchestratorStatus({
     [refetch, status?.state, clearActionError, showActionError],
   );
 
-  const handleEnable = () => handleAction("orchestrator_enable", "enable");
-  const handleStop = () => handleAction("orchestrator_stop", "stop");
-  const handleKill = () => handleAction("orchestrator_kill", "kill");
+  const handleEnable = () => handleAction("enable", enableOrchestrator);
+  const handleStop = () => handleAction("stop", stopOrchestrator);
+  const handleKill = () => handleAction("kill", killOrchestrator);
 
   // ── Derived State ────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { OrchestratorStatusData } from "@/shared/orchestrator";
-import { callTool } from "../lib/api";
+import { fetchOrchestratorStatus } from "../lib/orchestratorApi";
 import { useSSE } from "./useSSE";
 
 /**
@@ -21,9 +21,7 @@ export function useOrchestratorStatus() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const data = await callTool<OrchestratorStatusData>(
-        "orchestrator_status",
-      );
+      const data = await fetchOrchestratorStatus();
       setStatus(data.status);
       setError(null);
     } catch (err) {
