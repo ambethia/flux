@@ -12,6 +12,7 @@ import { createProjectsApiHandler } from "./projectsApi";
 import type { Project } from "./setup";
 import { gracefulShutdown } from "./shutdown";
 import { createSSEHandler } from "./sse";
+import { recoverRunningProjects } from "./startupRecovery";
 import type { ToolContext } from "./tools";
 
 const DEFAULT_PORT = 8042;
@@ -342,9 +343,15 @@ export async function startServer(projects: Project[]) {
     routes,
   });
 
+  // FLUX-280: Eagerly recover projects in 'running' state before starting
+  // the watcher. This creates orchestrators and runs orphan recovery for each,
+  // logging a summary of what was found. The returned initial states seed the
+  // watcher so it doesn't redundantly re-enable these orchestrators.
+  const initialStates = await recoverRunningProjects();
+
   // Subscribe to project state changes and drive orchestrator lifecycle.
   // Runs after server bind so orchestrator APIs are available immediately.
-  const unsubscribeWatcher = startProjectStateWatcher();
+  const unsubscribeWatcher = startProjectStateWatcher(initialStates);
 
   // Install signal handlers for graceful shutdown.
   // SIGTERM: sent by launchd (or `kill <pid>`) before SIGKILL.

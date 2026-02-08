@@ -50,16 +50,23 @@ function enqueueTransition(
 
 /**
  * Start watching all projects for state transitions.
- * Returns an unsubscribe function.
+ *
+ * @param initialStates — Pre-seed known project states so the first subscription
+ *   callback doesn't re-trigger transitions for projects already recovered during
+ *   startup (see recoverRunningProjects).
+ * @returns An unsubscribe function.
  */
-export function startProjectStateWatcher(): () => void {
+export function startProjectStateWatcher(
+  initialStates?: Map<Id<"projects">, ProjectStateValue>,
+): () => void {
   const convex = getConvexClient();
 
-  // Track previous state per project to detect transitions
-  const previousStates = new Map<
-    Id<"projects">,
-    ProjectStateValue | undefined
-  >();
+  // Track previous state per project to detect transitions.
+  // Pre-seed from startup recovery so the watcher doesn't redundantly enable
+  // orchestrators that were already enabled during recoverRunningProjects().
+  const previousStates = new Map<Id<"projects">, ProjectStateValue | undefined>(
+    initialStates,
+  );
 
   const unsubscribe = convex.onUpdate(api.projects.list, {}, (projects) => {
     const snapshots: ProjectSnapshot[] = projects.map((p) => ({

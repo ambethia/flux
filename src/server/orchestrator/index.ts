@@ -32,6 +32,13 @@ import {
 } from "./agents";
 import { SessionMonitor } from "./monitor";
 
+/** Recovery stats returned by orphan recovery on enable(). */
+export type OrphanRecoveryStats = {
+  deadSessions: number;
+  adoptedSessions: number;
+  orphanedIssues: number;
+};
+
 /** Runtime info about the currently active session. */
 interface ActiveSession {
   sessionId: Id<"sessions">;
@@ -176,7 +183,7 @@ class Orchestrator {
    * Enable the auto-scheduler: persist config, recover orphans, subscribe to ready issues.
    * Transitions from Stopped → Idle and begins watching for work.
    */
-  async enable(): Promise<void> {
+  async enable(): Promise<OrphanRecoveryStats> {
     if (this.state === OrchestratorState.Busy) {
       throw new Error(
         "Cannot enable scheduler while busy. Wait for current session to complete.",
@@ -201,7 +208,7 @@ class Orchestrator {
     }
 
     // Recover orphaned sessions before subscribing
-    await this.recoverOrphanedSessions();
+    const stats = await this.recoverOrphanedSessions();
 
     // Subscribe to ready issues
     this.pendingStop = false;
@@ -218,6 +225,8 @@ class Orchestrator {
 
     // Notify SSE clients of the state transition
     this.emitLifecycle({ type: "state_change", state: this.state });
+
+    return stats;
   }
 
   /**
@@ -1425,12 +1434,18 @@ class Orchestrator {
    * record but failed to reset the issue status — leaving the issue stuck
    * as in_progress with no session working on it.
    */
-  private async recoverOrphanedSessions(): Promise<void> {
+  private async recoverOrphanedSessions(): Promise<OrphanRecoveryStats> {
     const convex = getConvexClient();
     const sessions = await convex.query(api.sessions.list, {
       projectId: this.projectId,
       status: SessionStatus.Running,
     });
+
+    const stats: OrphanRecoveryStats = {
+      deadSessions: 0,
+      adoptedSessions: 0,
+      orphanedIssues: 0,
+    };
 
     // Pre-pass: identify which issues have live Running sessions.
     // Must be computed before the recovery loop because the loop may `break`
@@ -1448,6 +1463,7 @@ class Orchestrator {
       const alive = pid ? isProcessAlive(pid) : false;
 
       if (!alive) {
+        stats.deadSessions++;
         await convex.mutation(api.sessions.update, {
           sessionId: session._id,
           status: SessionStatus.Failed,
@@ -1481,14 +1497,22 @@ class Orchestrator {
           continue;
         }
         const adopted = await this.adoptOrphanedSession(session, pid);
-        if (adopted) break;
+        if (adopted) {
+          stats.adoptedSessions++;
+          break;
+        }
       }
     }
 
     // FLUX-269: Detect in_progress issues with no active session.
     // This catches the case where the session was cleaned up but the issue
     // status was never reset (e.g., transient error in exit handler).
-    await this.recoverOrphanedIssues(convex, issuesWithLiveSessions);
+    stats.orphanedIssues = await this.recoverOrphanedIssues(
+      convex,
+      issuesWithLiveSessions,
+    );
+
+    return stats;
   }
 
   /**
@@ -1501,12 +1525,13 @@ class Orchestrator {
   private async recoverOrphanedIssues(
     convex: ReturnType<typeof getConvexClient>,
     issuesWithLiveSessions: Set<string>,
-  ): Promise<void> {
+  ): Promise<number> {
     const inProgressIssues = await convex.query(api.issues.list, {
       projectId: this.projectId,
       status: IssueStatus.InProgress,
     });
 
+    let count = 0;
     for (const issue of inProgressIssues) {
       if (issuesWithLiveSessions.has(issue._id)) continue;
 
@@ -1518,7 +1543,10 @@ class Orchestrator {
         status: IssueStatus.Open,
         assignee: null,
       });
+      count++;
     }
+
+    return count;
   }
 
   /**
