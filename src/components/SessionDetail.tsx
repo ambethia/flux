@@ -368,7 +368,9 @@ export function SessionDetail({ sessionId }: { sessionId: Id<"sessions"> }) {
             </span>
           </div>
           {session.note && (
-            <p className="whitespace-pre-wrap text-sm">{session.note}</p>
+            <div className="text-sm">
+              <Markdown content={session.note} />
+            </div>
           )}
         </div>
       )}
