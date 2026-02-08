@@ -98,6 +98,13 @@ export function createSSEHandler(getOrchestrator: () => Orchestrator) {
               );
             } else if (event.type === "monitor_changed") {
               subscribeToMonitor(event.monitor);
+            } else if (event.type === "state_change") {
+              send(
+                formatSSE("status", {
+                  state: event.state,
+                  message: "State changed",
+                }),
+              );
             }
           },
         );

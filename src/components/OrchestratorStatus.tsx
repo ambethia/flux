@@ -1,14 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type {
-  OrchestratorState,
-  OrchestratorStatusData,
-} from "@/shared/orchestrator";
+import type { OrchestratorState } from "@/shared/orchestrator";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import type { SessionPhaseValue } from "$convex/schema";
 import { SessionPhase } from "$convex/schema";
+import { useOrchestratorStatus } from "../hooks/useOrchestratorStatus";
 import { callTool } from "../lib/api";
 import { FontAwesomeIcon, faPlay, faSkull, faStop } from "./Icon";
 
@@ -50,14 +48,8 @@ const TRANSITION_SHORT_LABELS: Record<Transition["action"], string> = {
 /** Max time (ms) to show a transition before giving up and clearing it. */
 const TRANSITION_TIMEOUT_MS = 15_000;
 
-/** Poll interval during a transition (ms). */
-const FAST_POLL_MS = 500;
-
-/** Normal poll interval (ms). */
-const NORMAL_POLL_MS = 3_000;
-
 /**
- * Returns true when the polled state indicates the transition is complete.
+ * Returns true when the current state indicates the transition is complete.
  * - stop/kill: complete when state is no longer the fromState (busy → idle/stopped)
  * - enable: complete when state is no longer "stopped"
  */
@@ -75,54 +67,22 @@ export function OrchestratorStatus({
 }: {
   projectId: Id<"projects">;
 }) {
-  const [status, setStatus] = useState<OrchestratorStatusData["status"] | null>(
-    null,
-  );
-  const [error, setError] = useState<string | null>(null);
+  const { status, error: statusError, refetch } = useOrchestratorStatus();
+  const [actionError, setActionError] = useState<string | null>(null);
   const [inflightAction, setInflightAction] = useState<string | null>(null);
   const [transition, setTransition] = useState<Transition | null>(null);
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Subscribe to orchestratorConfig for the `enabled` flag (real-time via Convex)
   const config = useQuery(api.orchestratorConfig.get, { projectId });
 
-  // Poll orchestrator_status — faster during transitions
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const transitionRef = useRef<Transition | null>(null);
-  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Keep ref in sync so fetchStatus closure always sees current transition
-  transitionRef.current = transition;
-
-  const fetchStatus = useCallback(async () => {
-    try {
-      const data = await callTool<OrchestratorStatusData>(
-        "orchestrator_status",
-      );
-      setStatus(data.status);
-      setError(null);
-
-      // Check if an active transition has completed
-      const currentTransition = transitionRef.current;
-      if (
-        currentTransition &&
-        isTransitionComplete(currentTransition, data.status.state)
-      ) {
-        setTransition(null);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  }, []);
-
-  // Manage poll interval — restart interval when transition state changes
+  // Clear transition when SSE-driven status update shows new state
   useEffect(() => {
-    fetchStatus();
-    const interval = transition ? FAST_POLL_MS : NORMAL_POLL_MS;
-    pollRef.current = setInterval(fetchStatus, interval);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [fetchStatus, transition]);
+    if (!status || !transition) return;
+    if (isTransitionComplete(transition, status.state)) {
+      setTransition(null);
+    }
+  }, [status, transition]);
 
   // Safety timeout: clear transition if it lingers too long
   useEffect(() => {
@@ -152,17 +112,18 @@ export function OrchestratorStatus({
       setInflightAction(action);
       try {
         await callTool(tool);
-        // Enter transition state — persist until poll confirms new state
+        setActionError(null);
+        // Enter transition state — persists until SSE-driven refetch confirms new state
         setTransition({ action, fromState: currentState });
-        // Kick off an immediate poll
-        await fetchStatus();
       } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+        setActionError(err instanceof Error ? err.message : String(err));
+        // Refetch so we don't show stale state after a failed action
+        refetch();
       } finally {
         setInflightAction(null);
       }
     },
-    [fetchStatus, status?.state],
+    [refetch, status?.state],
   );
 
   const handleEnable = () => handleAction("orchestrator_enable", "enable");
@@ -171,6 +132,7 @@ export function OrchestratorStatus({
 
   // ── Derived State ────────────────────────────────────────────────
 
+  const error = actionError ?? statusError;
   const state = status?.state ?? "stopped";
   const enabled = config?.enabled ?? false;
   const isTransitioning = transition !== null;

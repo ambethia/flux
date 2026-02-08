@@ -76,6 +76,10 @@ export type OrchestratorLifecycleEvent =
   | {
       type: "monitor_changed";
       monitor: SessionMonitor;
+    }
+  | {
+      type: "state_change";
+      state: OrchestratorState;
     };
 
 /** Orchestrator manages claiming issues, spawning agents, and session lifecycle. */
@@ -201,6 +205,9 @@ class Orchestrator {
     );
 
     this.state = OrchestratorState.Idle;
+
+    // Notify SSE clients of the state transition
+    this.emitLifecycle({ type: "state_change", state: this.state });
   }
 
   /**
@@ -226,6 +233,9 @@ class Orchestrator {
     } else {
       this.state = OrchestratorState.Stopped;
       this.pendingStop = false;
+
+      // Notify SSE clients of the state transition
+      this.emitLifecycle({ type: "state_change", state: this.state });
     }
   }
 
