@@ -21,7 +21,9 @@ export const batchInsert = mutation({
     // Get highest sequence number for this session
     const lastEvent = await ctx.db
       .query("sessionEvents")
-      .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
+      .withIndex("by_session_sequence", (q) =>
+        q.eq("sessionId", args.sessionId),
+      )
       .order("desc")
       .first();
 
@@ -50,7 +52,9 @@ export const recent = query({
     const limit = Math.min(args.limit ?? 100, 500);
     const events = await ctx.db
       .query("sessionEvents")
-      .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
+      .withIndex("by_session_sequence", (q) =>
+        q.eq("sessionId", args.sessionId),
+      )
       .order("desc")
       .take(limit);
 
