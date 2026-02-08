@@ -30,7 +30,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
   const issue = useQuery(api.issues.get, { issueId });
   const allLabels = useQuery(api.labels.list, { projectId });
   const updateIssue = useMutation(api.issues.update);
-  const unstickIssue = useMutation(api.issues.unstick);
+  const retryIssue = useMutation(api.issues.retry);
   const closeIssue = useMutation(api.issues.close);
   const comments = useQuery(api.comments.list, { issueId });
 
@@ -183,7 +183,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
     setResetting(true);
     try {
       if (isStuck) {
-        await unstickIssue({ issueId });
+        await retryIssue({ issueId });
       } else {
         await updateIssue({ issueId, status: IssueStatus.Open });
       }

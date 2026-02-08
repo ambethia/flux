@@ -372,14 +372,6 @@ export const close = mutation({
   },
 });
 
-/** @deprecated Use `retry` instead. Alias kept for UI callsites. */
-export const unstick = mutation({
-  args: { issueId: v.id("issues") },
-  handler: async (ctx, { issueId }) => {
-    return await retryHandler(ctx, issueId);
-  },
-});
-
 export const incrementFailure = mutation({
   args: {
     issueId: v.id("issues"),
