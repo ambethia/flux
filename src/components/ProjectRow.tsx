@@ -219,7 +219,10 @@ export function ProjectRow({ project }: { project: Project }) {
         <code className="text-xs">{project.slug}</code>
       </td>
       <td>
-        <code className="max-w-xs truncate text-xs" title={project.path ?? ""}>
+        <code
+          className="block max-w-xs truncate text-xs"
+          title={project.path ?? ""}
+        >
           {project.path || "—"}
         </code>
       </td>
