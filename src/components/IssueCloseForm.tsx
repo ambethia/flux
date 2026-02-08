@@ -27,9 +27,13 @@ export function IssueCloseForm({ busy, saving, onClose }: IssueCloseFormProps) {
   const [closeReason, setCloseReason] = useState("");
 
   async function handleClose() {
-    await onClose(closeType, closeReason.trim() || undefined);
-    setShowForm(false);
-    setCloseReason("");
+    try {
+      await onClose(closeType, closeReason.trim() || undefined);
+      setShowForm(false);
+      setCloseReason("");
+    } catch {
+      // Parent handles error display — keep form open so user doesn't lose input
+    }
   }
 
   if (!showForm) {

@@ -142,6 +142,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
       await closeIssue({ issueId, closeType, closeReason });
     } catch (err) {
       showError(err);
+      throw err;
     } finally {
       setSaving(false);
     }
