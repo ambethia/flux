@@ -60,6 +60,7 @@ export function IssueCloseFormPanel({
     try {
       await onClose(closeType, closeReason.trim() || undefined);
       setCloseReason("");
+      onCancel();
     } catch {
       // Parent handles error display — keep form open so user doesn't lose input
     }
