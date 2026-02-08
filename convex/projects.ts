@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import { ProjectState, projectStateValidator } from "./schema";
+import { IssueStatus, ProjectState, projectStateValidator } from "./schema";
 
 export const create = mutation({
   args: {
@@ -96,6 +96,51 @@ export const list = query({
   args: {},
   handler: async (ctx) => {
     return await ctx.db.query("projects").collect();
+  },
+});
+
+/** Returns all projects enriched with open issue count and active session flag. */
+export const listWithStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const projects = await ctx.db.query("projects").collect();
+
+    return await Promise.all(
+      projects.map(async (project) => {
+        const openIssues = await ctx.db
+          .query("issues")
+          .withIndex("by_project_deletedAt_status", (q) =>
+            q
+              .eq("projectId", project._id)
+              .eq("deletedAt", undefined)
+              .eq("status", IssueStatus.Open),
+          )
+          .collect();
+
+        const inProgressIssues = await ctx.db
+          .query("issues")
+          .withIndex("by_project_deletedAt_status", (q) =>
+            q
+              .eq("projectId", project._id)
+              .eq("deletedAt", undefined)
+              .eq("status", IssueStatus.InProgress),
+          )
+          .collect();
+
+        const runningSessions = await ctx.db
+          .query("sessions")
+          .withIndex("by_project_status_startedAt", (q) =>
+            q.eq("projectId", project._id).eq("status", "running"),
+          )
+          .collect();
+
+        return {
+          ...project,
+          openIssueCount: openIssues.length + inProgressIssues.length,
+          activeSessionCount: runningSessions.length,
+        };
+      }),
+    );
   },
 });
 

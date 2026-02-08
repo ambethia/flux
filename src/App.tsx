@@ -4,12 +4,8 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { createAppRouter } from "./lib/router";
 import "./index.css";
 
-interface AppProps {
-  defaultSlug: string;
-}
-
-export function App({ defaultSlug }: AppProps) {
-  const router = useMemo(() => createAppRouter({ defaultSlug }), [defaultSlug]);
+export function App() {
+  const router = useMemo(() => createAppRouter(), []);
 
   return (
     <ErrorBoundary>

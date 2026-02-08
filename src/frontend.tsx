@@ -19,24 +19,14 @@ async function start() {
     !data ||
     typeof data !== "object" ||
     !("convexUrl" in data) ||
-    typeof (data as Record<string, unknown>).convexUrl !== "string" ||
-    !("projects" in data) ||
-    !Array.isArray((data as Record<string, unknown>).projects)
+    typeof (data as Record<string, unknown>).convexUrl !== "string"
   ) {
     const shape = JSON.stringify(data).slice(0, 200);
     throw new Error(
-      `Server returned unexpected config format — restart the Bun server.\nExpected { convexUrl, projects[] }, got: ${shape}`,
+      `Server returned unexpected config format — restart the Bun server.\nExpected { convexUrl }, got: ${shape}`,
     );
   }
-  const { convexUrl, projects } = data as {
-    convexUrl: string;
-    projects: Array<{ slug: string }>;
-  };
-
-  const defaultSlug = projects[0]?.slug;
-  if (!defaultSlug) {
-    throw new Error("No projects configured. Create a project first.");
-  }
+  const { convexUrl } = data as { convexUrl: string };
 
   const convex = new ConvexReactClient(convexUrl);
   const rootEl = document.getElementById("root");
@@ -44,7 +34,7 @@ async function start() {
   const root = createRoot(rootEl);
   root.render(
     <ConvexProvider client={convex}>
-      <App defaultSlug={defaultSlug} />
+      <App />
     </ConvexProvider>,
   );
 }

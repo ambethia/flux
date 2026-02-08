@@ -1,8 +1,7 @@
 import {
-  createRootRouteWithContext,
+  createRootRoute,
   createRoute,
   createRouter,
-  redirect,
 } from "@tanstack/react-router";
 import { NotFound } from "../components/NotFound";
 import { ProjectLayout } from "../components/ProjectLayout";
@@ -10,6 +9,7 @@ import { ProjectsLayout } from "../components/ProjectsLayout";
 import { RootLayout } from "../components/RootLayout";
 import { RouteError } from "../components/RouteError";
 import { ActivityPage } from "../pages/ActivityPage";
+import { DashboardPage } from "../pages/DashboardPage";
 import { IssueDetailPage } from "../pages/IssueDetailPage";
 import { IssuesPage } from "../pages/IssuesPage";
 import { LabelsPage } from "../pages/LabelsPage";
@@ -18,25 +18,16 @@ import { SessionDetailPage } from "../pages/SessionDetailPage";
 import { SessionsPage } from "../pages/SessionsPage";
 import { SettingsPage } from "../pages/SettingsPage";
 
-export interface RouterContext {
-  /** Default project slug used for the root `/` redirect. */
-  defaultSlug: string;
-}
-
-const rootRoute = createRootRouteWithContext<RouterContext>()({
+const rootRoute = createRootRoute({
   component: RootLayout,
   notFoundComponent: NotFound,
 });
 
-const indexRoute = createRoute({
+const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  beforeLoad: ({ context }) => {
-    throw redirect({
-      to: "/p/$projectSlug/issues",
-      params: { projectSlug: context.defaultSlug },
-    });
-  },
+  component: DashboardPage,
+  errorComponent: RouteError,
 });
 
 const projectsLayoutRoute = createRoute({
@@ -111,7 +102,7 @@ const settingsRoute = createRoute({
 });
 
 const routeTree = rootRoute.addChildren([
-  indexRoute,
+  dashboardRoute,
   projectsLayoutRoute.addChildren([projectsIndexRoute]),
   projectLayoutRoute.addChildren([
     issuesRoute.addChildren([issueDetailRoute]),
@@ -122,8 +113,8 @@ const routeTree = rootRoute.addChildren([
   ]),
 ]);
 
-export function createAppRouter(context: RouterContext) {
-  return createRouter({ routeTree, context });
+export function createAppRouter() {
+  return createRouter({ routeTree });
 }
 
 export type AppRouter = ReturnType<typeof createAppRouter>;
