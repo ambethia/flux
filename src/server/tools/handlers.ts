@@ -57,12 +57,38 @@ export type ToolHandler = (
  * The MCP SDK validates args before our handler runs, so the parse() here is
  * defense-in-depth — it will fail fast if something slips past the SDK layer
  * rather than silently operating on malformed data.
+ *
+ * All handlers are wrapped in a catch-all that converts thrown errors into
+ * structured `{ error, _meta }` responses, so individual handlers never need
+ * their own try/catch.
  */
 function typedHandler<S extends z.ZodType>(
   schema: S,
   fn: (args: z.infer<S>, ctx: ToolContext) => Promise<ToolResult>,
 ): ToolHandler {
-  return (args, ctx) => fn(schema.parse(args), ctx);
+  return async (args, ctx) => {
+    try {
+      return await fn(schema.parse(args), ctx);
+    } catch (err) {
+      return error(ctx, errMsg(err));
+    }
+  };
+}
+
+/**
+ * Wraps a bare ToolHandler (no schema) with the same catch-all error handling
+ * as `typedHandler`. Use for handlers that take no meaningful arguments.
+ */
+function safeHandler(
+  fn: (args: Record<string, unknown>, ctx: ToolContext) => Promise<ToolResult>,
+): ToolHandler {
+  return async (args, ctx) => {
+    try {
+      return await fn(args, ctx);
+    } catch (err) {
+      return error(ctx, errMsg(err));
+    }
+  };
 }
 
 function buildMeta(ctx: ToolContext) {
@@ -183,55 +209,39 @@ const issues_ready = typedHandler(IssuesReadySchema, async ({ limit }, ctx) => {
 const orchestrator_run = typedHandler(
   OrchestratorRunSchema,
   async ({ issueId }, ctx) => {
-    try {
-      const orchestrator = ctx.getOrchestrator();
-      const result = await orchestrator.run(issueId as Id<"issues">);
-      return ok(ctx, {
-        session: { sessionId: result.sessionId, pid: result.pid },
-      });
-    } catch (err) {
-      return error(ctx, errMsg(err));
-    }
+    const orchestrator = ctx.getOrchestrator();
+    const result = await orchestrator.run(issueId as Id<"issues">);
+    return ok(ctx, {
+      session: { sessionId: result.sessionId, pid: result.pid },
+    });
   },
 );
 
-const orchestrator_kill: ToolHandler = async (_args, ctx) => {
-  try {
-    const orchestrator = ctx.getOrchestrator();
-    await orchestrator.kill();
-    return ok(ctx, { message: "Session killed." });
-  } catch (err) {
-    return error(ctx, errMsg(err));
-  }
-};
+const orchestrator_kill: ToolHandler = safeHandler(async (_args, ctx) => {
+  const orchestrator = ctx.getOrchestrator();
+  await orchestrator.kill();
+  return ok(ctx, { message: "Session killed." });
+});
 
-const orchestrator_status: ToolHandler = async (_args, ctx) => {
+const orchestrator_status: ToolHandler = safeHandler(async (_args, ctx) => {
   const orchestrator = ctx.getOrchestrator();
   const status = orchestrator.getStatus();
   return ok(ctx, { status });
-};
+});
 
-const orchestrator_enable: ToolHandler = async (_args, ctx) => {
-  try {
-    const orchestrator = ctx.getOrchestrator();
-    await orchestrator.enable();
-    const status = orchestrator.getStatus();
-    return ok(ctx, { status });
-  } catch (err) {
-    return error(ctx, errMsg(err));
-  }
-};
+const orchestrator_enable: ToolHandler = safeHandler(async (_args, ctx) => {
+  const orchestrator = ctx.getOrchestrator();
+  await orchestrator.enable();
+  const status = orchestrator.getStatus();
+  return ok(ctx, { status });
+});
 
-const orchestrator_stop: ToolHandler = async (_args, ctx) => {
-  try {
-    const orchestrator = ctx.getOrchestrator();
-    await orchestrator.stop();
-    const status = orchestrator.getStatus();
-    return ok(ctx, { status });
-  } catch (err) {
-    return error(ctx, errMsg(err));
-  }
-};
+const orchestrator_stop: ToolHandler = safeHandler(async (_args, ctx) => {
+  const orchestrator = ctx.getOrchestrator();
+  await orchestrator.stop();
+  const status = orchestrator.getStatus();
+  return ok(ctx, { status });
+});
 
 const sessions_list = typedHandler(
   SessionsListSchema,
@@ -310,60 +320,44 @@ const sessions_show = typedHandler(
 const issues_close = typedHandler(
   IssuesCloseSchema,
   async ({ issueId, closeType, reason }, ctx) => {
-    try {
-      const updated = await ctx.convex.mutation(api.issues.close, {
-        issueId: issueId as Id<"issues">,
-        closeType,
-        closeReason: reason,
-      });
-      return ok(ctx, { issue: updated });
-    } catch (err) {
-      return error(ctx, errMsg(err));
-    }
+    const updated = await ctx.convex.mutation(api.issues.close, {
+      issueId: issueId as Id<"issues">,
+      closeType,
+      closeReason: reason,
+    });
+    return ok(ctx, { issue: updated });
   },
 );
 
 const issues_retry = typedHandler(
   IssuesRetrySchema,
   async ({ issueId }, ctx) => {
-    try {
-      const updated = await ctx.convex.mutation(api.issues.retry, {
-        issueId: issueId as Id<"issues">,
-      });
-      return ok(ctx, { issue: updated });
-    } catch (err) {
-      return error(ctx, errMsg(err));
-    }
+    const updated = await ctx.convex.mutation(api.issues.retry, {
+      issueId: issueId as Id<"issues">,
+    });
+    return ok(ctx, { issue: updated });
   },
 );
 
 const issues_defer = typedHandler(
   IssuesDeferSchema,
   async ({ issueId, note }, ctx) => {
-    try {
-      const updated = await ctx.convex.mutation(api.issues.defer, {
-        issueId: issueId as Id<"issues">,
-        note,
-      });
-      return ok(ctx, { issue: updated });
-    } catch (err) {
-      return error(ctx, errMsg(err));
-    }
+    const updated = await ctx.convex.mutation(api.issues.defer, {
+      issueId: issueId as Id<"issues">,
+      note,
+    });
+    return ok(ctx, { issue: updated });
   },
 );
 
 const issues_undefer = typedHandler(
   IssuesUndeferSchema,
   async ({ issueId, note }, ctx) => {
-    try {
-      const updated = await ctx.convex.mutation(api.issues.undefer, {
-        issueId: issueId as Id<"issues">,
-        note,
-      });
-      return ok(ctx, { issue: updated });
-    } catch (err) {
-      return error(ctx, errMsg(err));
-    }
+    const updated = await ctx.convex.mutation(api.issues.undefer, {
+      issueId: issueId as Id<"issues">,
+      note,
+    });
+    return ok(ctx, { issue: updated });
   },
 );
 
@@ -486,60 +480,48 @@ const epics_update = typedHandler(
 const epics_close = typedHandler(
   EpicsCloseSchema,
   async ({ epicId, reason }, ctx) => {
-    try {
-      const updated = await ctx.convex.mutation(api.epics.close, {
-        epicId: epicId as Id<"epics">,
-        closeReason: reason,
-      });
-      return ok(ctx, { epic: updated });
-    } catch (err) {
-      return error(ctx, errMsg(err));
-    }
+    const updated = await ctx.convex.mutation(api.epics.close, {
+      epicId: epicId as Id<"epics">,
+      closeReason: reason,
+    });
+    return ok(ctx, { epic: updated });
   },
 );
 
 const deps_add = typedHandler(
   DepsAddSchema,
   async ({ blockerId, blockedId }, ctx) => {
-    try {
-      const depId = await ctx.convex.mutation(api.deps.add, {
-        blockerId: blockerId as Id<"issues">,
-        blockedId: blockedId as Id<"issues">,
-      });
-      // Fetch both issues for a useful response
-      const [blocker, blocked] = await Promise.all([
-        ctx.convex.query(api.issues.get, {
-          issueId: blockerId as Id<"issues">,
-        }),
-        ctx.convex.query(api.issues.get, {
-          issueId: blockedId as Id<"issues">,
-        }),
-      ]);
-      return ok(ctx, {
-        dependency: {
-          depId,
-          blocker: { issueId: blockerId, shortId: blocker?.shortId },
-          blocked: { issueId: blockedId, shortId: blocked?.shortId },
-        },
-      });
-    } catch (err) {
-      return error(ctx, errMsg(err));
-    }
+    const depId = await ctx.convex.mutation(api.deps.add, {
+      blockerId: blockerId as Id<"issues">,
+      blockedId: blockedId as Id<"issues">,
+    });
+    // Fetch both issues for a useful response
+    const [blocker, blocked] = await Promise.all([
+      ctx.convex.query(api.issues.get, {
+        issueId: blockerId as Id<"issues">,
+      }),
+      ctx.convex.query(api.issues.get, {
+        issueId: blockedId as Id<"issues">,
+      }),
+    ]);
+    return ok(ctx, {
+      dependency: {
+        depId,
+        blocker: { issueId: blockerId, shortId: blocker?.shortId },
+        blocked: { issueId: blockedId, shortId: blocked?.shortId },
+      },
+    });
   },
 );
 
 const deps_remove = typedHandler(
   DepsRemoveSchema,
   async ({ blockerId, blockedId }, ctx) => {
-    try {
-      const result = await ctx.convex.mutation(api.deps.remove, {
-        blockerId: blockerId as Id<"issues">,
-        blockedId: blockedId as Id<"issues">,
-      });
-      return ok(ctx, { removed: result.deleted });
-    } catch (err) {
-      return error(ctx, errMsg(err));
-    }
+    const result = await ctx.convex.mutation(api.deps.remove, {
+      blockerId: blockerId as Id<"issues">,
+      blockedId: blockedId as Id<"issues">,
+    });
+    return ok(ctx, { removed: result.deleted });
   },
 );
 
@@ -560,55 +542,43 @@ const deps_listForIssue = typedHandler(
 
 // ── Labels ────────────────────────────────────────────────────────────
 
-const labels_list: ToolHandler = async (_args, ctx) => {
+const labels_list: ToolHandler = safeHandler(async (_args, ctx) => {
   const labels = await ctx.convex.query(api.labels.list, {
     projectId: ctx.projectId,
   });
   return ok(ctx, { labels, count: labels.length });
-};
+});
 
 const labels_create = typedHandler(
   LabelsCreateSchema,
   async ({ name, color }, ctx) => {
-    try {
-      const labelId = await ctx.convex.mutation(api.labels.create, {
-        projectId: ctx.projectId,
-        name,
-        color,
-      });
-      return ok(ctx, { labelId, name, color });
-    } catch (err) {
-      return error(ctx, errMsg(err));
-    }
+    const labelId = await ctx.convex.mutation(api.labels.create, {
+      projectId: ctx.projectId,
+      name,
+      color,
+    });
+    return ok(ctx, { labelId, name, color });
   },
 );
 
 const labels_update = typedHandler(
   LabelsUpdateSchema,
   async ({ labelId, ...updates }, ctx) => {
-    try {
-      const updated = await ctx.convex.mutation(api.labels.update, {
-        labelId: labelId as Id<"labels">,
-        ...updates,
-      });
-      return ok(ctx, { label: updated });
-    } catch (err) {
-      return error(ctx, errMsg(err));
-    }
+    const updated = await ctx.convex.mutation(api.labels.update, {
+      labelId: labelId as Id<"labels">,
+      ...updates,
+    });
+    return ok(ctx, { label: updated });
   },
 );
 
 const labels_delete = typedHandler(
   LabelsDeleteSchema,
   async ({ labelId }, ctx) => {
-    try {
-      await ctx.convex.mutation(api.labels.remove, {
-        labelId: labelId as Id<"labels">,
-      });
-      return ok(ctx, { deleted: labelId });
-    } catch (err) {
-      return error(ctx, errMsg(err));
-    }
+    await ctx.convex.mutation(api.labels.remove, {
+      labelId: labelId as Id<"labels">,
+    });
+    return ok(ctx, { deleted: labelId });
   },
 );
 
