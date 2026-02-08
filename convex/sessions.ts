@@ -207,15 +207,20 @@ export const listPaginatedWithIssues = query({
 export const counts = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
-    const sessions = await ctx.db
-      .query("sessions")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .collect();
-
-    const counts: Record<string, number> = {};
-    for (const session of sessions) {
-      counts[session.status] = (counts[session.status] ?? 0) + 1;
-    }
+    const statuses = Object.values(SessionStatus);
+    const buckets = await Promise.all(
+      statuses.map((status) =>
+        ctx.db
+          .query("sessions")
+          .withIndex("by_project_status", (q) =>
+            q.eq("projectId", args.projectId).eq("status", status),
+          )
+          .collect(),
+      ),
+    );
+    const counts: Record<string, number> = Object.fromEntries(
+      statuses.map((status, i) => [status, buckets[i]?.length ?? 0]),
+    );
     return counts;
   },
 });
