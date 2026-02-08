@@ -2,7 +2,12 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import { IssueStatus, ProjectState, projectStateValidator } from "./schema";
+import {
+  IssueStatus,
+  ProjectState,
+  projectStateValidator,
+  SessionStatus,
+} from "./schema";
 
 export const create = mutation({
   args: {
@@ -130,7 +135,7 @@ export const listWithStats = query({
         const runningSessions = await ctx.db
           .query("sessions")
           .withIndex("by_project_status_startedAt", (q) =>
-            q.eq("projectId", project._id).eq("status", "running"),
+            q.eq("projectId", project._id).eq("status", SessionStatus.Running),
           )
           .collect();
 

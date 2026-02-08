@@ -6,15 +6,17 @@ import type { ProjectStateValue } from "$convex/schema";
 import { AddProjectForm } from "./AddProjectForm";
 import { FontAwesomeIcon, faBolt, faCircle, faPlus } from "./Icon";
 
-const STATE_BADGE: Record<string, { label: string; className: string }> = {
+const STATE_BADGE: Record<
+  ProjectStateValue,
+  { label: string; className: string }
+> = {
   running: { label: "Running", className: "badge-success" },
   paused: { label: "Paused", className: "badge-warning" },
   stopped: { label: "Stopped", className: "badge-error" },
 };
 
 function stateBadge(state: ProjectStateValue | undefined) {
-  const info = STATE_BADGE[state ?? "stopped"] ?? STATE_BADGE.stopped;
-  return info;
+  return STATE_BADGE[state ?? "stopped"];
 }
 
 export function ProjectDashboard() {

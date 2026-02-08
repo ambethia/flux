@@ -246,13 +246,7 @@ export async function startServer(projects: Project[]) {
           { status: 500 },
         );
       }
-      return Response.json({
-        convexUrl,
-        projects: projects.map((p) => ({
-          slug: p.slug,
-          name: p.name,
-        })),
-      });
+      return Response.json({ convexUrl });
     },
 
     // Legacy MCP endpoint — replaced by /mcp/projects/:id
