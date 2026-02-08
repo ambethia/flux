@@ -2,16 +2,16 @@ import type { ReactNode } from "react";
 
 /**
  * Lightweight markdown renderer for issue descriptions, close reasons, and comments.
- * Supports: headings, fenced code blocks, horizontal rules, blockquotes, inline code, bold, italic, links (markdown & bare URLs), unordered/ordered lists.
+ * Supports: headings, fenced code blocks, horizontal rules, blockquotes, inline code, bold, italic, strikethrough, links (markdown & bare URLs), unordered/ordered lists.
  * No external dependencies — intentionally minimal for our use case.
  */
 
-/** Parse inline markdown (bold, italic, inline code, links) within a text string. */
+/** Parse inline markdown (bold, italic, strikethrough, inline code, links) within a text string. */
 function parseInline(text: string): ReactNode[] {
   const nodes: ReactNode[] = [];
-  // Regex matches (priority order): inline code, markdown link, bare URL, bold, italic
+  // Regex matches (priority order): inline code, markdown link, bare URL, bold, strikethrough, italic
   const inlinePattern =
-    /(`[^`]+`)|(\[[^\]]+\]\([^)]+\))|(https?:\/\/[^\s<>)\]]+)|(\*\*[^*]+\*\*)|(\*[^*]+\*)/g;
+    /(`[^`]+`)|(\[[^\]]+\]\([^)]+\))|(https?:\/\/[^\s<>)\]]+)|(\*\*[^*]+\*\*)|(~~[^~]+~~)|(\*[^*]+\*)/g;
   let lastIndex = 0;
 
   for (const match of text.matchAll(inlinePattern)) {
@@ -76,6 +76,9 @@ function parseInline(text: string): ReactNode[] {
       nodes.push(
         <strong key={matchIndex}>{parseInline(full.slice(2, -2))}</strong>,
       );
+    } else if (full.startsWith("~~")) {
+      // Strikethrough
+      nodes.push(<del key={matchIndex}>{parseInline(full.slice(2, -2))}</del>);
     } else if (full.startsWith("*")) {
       // Italic
       nodes.push(<em key={matchIndex}>{parseInline(full.slice(1, -1))}</em>);
