@@ -225,6 +225,15 @@ run_check \
   "SessionPhase.*" \
   '\.phase\s*(===|!==)\s*"(work|retro|review)"'
 
+# Local type derivations: (typeof X)[keyof typeof X] for schema constants
+# These types are already exported from convex/schema.ts — import them instead.
+# Constant names: IssueStatus, IssuePriority, SessionStatus, SessionType,
+#   SessionEventDirection, CloseType, EpicStatus, CommentAuthor, Disposition, SessionPhase
+run_check \
+  "Local (typeof X)[keyof typeof X] derivation for schema constant" \
+  "the exported type from convex/schema.ts" \
+  '\(typeof (IssueStatus|IssuePriority|SessionStatus|SessionType|SessionEventDirection|CloseType|EpicStatus|CommentAuthor|Disposition|SessionPhase)\)\[keyof typeof'
+
 # EpicStatus assignments: status: "open", status: "closed" (in epic context)
 # Constant: EpicStatus.Open, EpicStatus.Closed
 # NOTE: EpicStatus values (open, closed) are a subset of IssueStatus values.
