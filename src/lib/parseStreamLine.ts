@@ -316,19 +316,3 @@ function extractToolInput(input: unknown): Record<string, unknown> | null {
   }
   return null;
 }
-
-/** Derive a stable React key from a ParsedLine. Index ensures uniqueness within a list. */
-export function parsedLineKey(p: ParsedLine, index: number): string {
-  switch (p.kind) {
-    case "tool_use":
-      return `tool_use:${p.toolId}`;
-    case "tool_result":
-      return `tool_result:${index}`;
-    case "tool_input_delta":
-      return `tool_input_delta:${p.blockIndex}:${index}`;
-    case "text":
-      return `text:${index}`;
-    case "skip":
-      return `skip:${index}`;
-  }
-}
