@@ -102,6 +102,20 @@ run_check_pcre \
   "IssueStatus.*" \
   '(?<!\w)status:\s*"(open|closed|in_progress|deferred|stuck)"'
 
+# IssuePriority assignments: priority: "critical", priority: "high", etc.
+# Constant: IssuePriority.Critical, IssuePriority.High, etc.
+run_check \
+  "Raw IssuePriority assignment" \
+  "IssuePriority.*" \
+  'priority:\s*"(critical|high|medium|low)"'
+
+# IssuePriority comparisons: .priority === "critical", etc.
+# Constant: IssuePriority.Critical, IssuePriority.High, etc.
+run_check \
+  "Raw IssuePriority comparison" \
+  "IssuePriority.*" \
+  '\.priority\s*(===|!==)\s*"(critical|high|medium|low)"'
+
 # SessionStatus comparisons: .status === "running", etc.
 # Constant: SessionStatus.Running, SessionStatus.Completed, SessionStatus.Failed
 run_check \
@@ -109,12 +123,26 @@ run_check \
   "SessionStatus.*" \
   '\.status\s*(===|!==)\s*"(running|completed|failed)"'
 
+# SessionStatus assignments: status: "running", etc.
+# Uses PCRE2 lookbehind to avoid matching inside words like "sessionStatus"
+run_check_pcre \
+  "Raw SessionStatus assignment" \
+  "SessionStatus.*" \
+  '(?<!\w)status:\s*"(running|completed|failed)"'
+
 # Disposition assignments: disposition: "done", etc.
 # Constant: Disposition.Done, Disposition.Noop, Disposition.Fault
 run_check \
   "Raw Disposition assignment" \
   "Disposition.*" \
   'disposition:\s*"(done|noop|fault)"'
+
+# Disposition comparisons: .disposition === "done", etc.
+# Constant: Disposition.Done, Disposition.Noop, Disposition.Fault
+run_check \
+  "Raw Disposition comparison" \
+  "Disposition.*" \
+  '\.disposition\s*(===|!==)\s*"(done|noop|fault)"'
 
 # VALID_DISPOSITIONS raw set — should derive from Disposition constant
 run_check \
@@ -129,6 +157,21 @@ run_check \
   "SessionEventDirection.*" \
   'direction:\s*"(input|output)"'
 
+# SessionType assignments: type: "work", type: "review"
+# Constant: SessionType.Work, SessionType.Review
+# Uses PCRE2 lookbehind to avoid matching inside words like "sessionType"
+run_check_pcre \
+  "Raw SessionType assignment" \
+  "SessionType.*" \
+  '(?<!\w)type:\s*"(work|review)"'
+
+# SessionType comparisons: .type === "work", .type === "review"
+# Constant: SessionType.Work, SessionType.Review
+run_check \
+  "Raw SessionType comparison" \
+  "SessionType.*" \
+  '\.type\s*(===|!==)\s*"(work|review)"'
+
 # SessionPhase: hand-written type literal instead of importing from schema
 # Constant: import { SessionPhase } from "convex/schema"
 run_check \
@@ -136,12 +179,26 @@ run_check \
   "SessionPhase constant from schema" \
   'type SessionPhase\s*='
 
-# IssuePriority assignments: priority: "critical", priority: "high", etc.
-# Constant: IssuePriority.Critical, IssuePriority.High, etc.
+# SessionPhase assignments: phase: "work", phase: "retro", phase: "review"
+# Constant: SessionPhase.Work, SessionPhase.Retro, SessionPhase.Review
 run_check \
-  "Raw IssuePriority assignment" \
-  "IssuePriority.*" \
-  'priority:\s*"(critical|high|medium|low)"'
+  "Raw SessionPhase assignment" \
+  "SessionPhase.*" \
+  'phase:\s*"(work|retro|review)"'
+
+# SessionPhase comparisons: .phase === "work", .phase === "retro", etc.
+# Constant: SessionPhase.Work, SessionPhase.Retro, SessionPhase.Review
+run_check \
+  "Raw SessionPhase comparison" \
+  "SessionPhase.*" \
+  '\.phase\s*(===|!==)\s*"(work|retro|review)"'
+
+# EpicStatus assignments: status: "open", status: "closed" (in epic context)
+# Constant: EpicStatus.Open, EpicStatus.Closed
+# NOTE: EpicStatus values (open, closed) are a subset of IssueStatus values.
+# The IssueStatus assignment/comparison checks above already catch these raw
+# strings. If a violation appears in epic code, the IssueStatus check will flag
+# it — the developer should use EpicStatus.* in that context instead.
 
 # ── Result ───────────────────────────────────────────────────────────
 
