@@ -1,9 +1,9 @@
 import { SessionEventDirection } from "$convex/schema";
-import type { ToolCallPair } from "../components/ToolCallCard";
 import {
   isDisplayableParsedLine,
   type ParsedLine,
   parseStreamLine,
+  type ToolCallPair,
 } from "./parseStreamLine";
 
 // -- Transcript grouping types ------------------------------------------------

@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef } from "react";
-import { ToolCallCard, type ToolCallPair } from "../components/ToolCallCard";
+import { ToolCallCard } from "../components/ToolCallCard";
 import {
   type KeyedStreamEvent,
   useActivityStream,
@@ -9,6 +9,7 @@ import {
   isDisplayableParsedLine,
   type ParsedLine,
   parseStreamLine,
+  type ToolCallPair,
 } from "../lib/parseStreamLine";
 
 /**

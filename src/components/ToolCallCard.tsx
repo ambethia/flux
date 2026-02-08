@@ -1,12 +1,5 @@
-import type { ParsedLine } from "../lib/parseStreamLine";
-import { summarizeToolInput } from "../lib/parseStreamLine";
+import { summarizeToolInput, type ToolCallPair } from "../lib/parseStreamLine";
 import { FontAwesomeIcon, faCircleCheck, faScrewdriverWrench } from "./Icon";
-
-/** A tool_use paired with its optional tool_result. */
-export type ToolCallPair = {
-  toolUse: Extract<ParsedLine, { kind: "tool_use" }>;
-  toolResult: Extract<ParsedLine, { kind: "tool_result" }> | null;
-};
 
 /** A single collapsible card showing tool name + input summary, with result body. */
 export function ToolCallCard({ pair }: { pair: ToolCallPair }) {

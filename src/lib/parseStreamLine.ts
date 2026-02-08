@@ -30,6 +30,12 @@ export type ParsedLine =
     }
   | { kind: "skip" };
 
+/** A tool_use paired with its optional tool_result. */
+export type ToolCallPair = {
+  toolUse: Extract<ParsedLine, { kind: "tool_use" }>;
+  toolResult: Extract<ParsedLine, { kind: "tool_result" }> | null;
+};
+
 /**
  * Summarize a tool's input arguments into a concise display string.
  * Returns null if there's nothing useful to show.
