@@ -1,14 +1,11 @@
 import { memo, useEffect, useMemo, useRef } from "react";
 import { StreamContent } from "../components/StreamContent";
+import { ToolCallCard, type ToolCallPair } from "../components/ToolCallCard";
 import {
   type KeyedStreamEvent,
   useActivityStream,
 } from "../hooks/useActivityStream";
-import {
-  type ParsedLine,
-  parsedLineKey,
-  parseStreamLine,
-} from "../lib/parseStreamLine";
+import { type ParsedLine, parseStreamLine } from "../lib/parseStreamLine";
 
 /**
  * Accumulator state for streaming tool input.
@@ -116,56 +113,178 @@ function updateAccumulator(
 
 /** Enrich a tool_use ParsedLine with accumulated streaming input if its own input is empty. */
 function enrichToolUse(
-  item: ParsedLine,
+  item: Extract<ParsedLine, { kind: "tool_use" }>,
   toolInputMap: Map<string, Record<string, unknown>>,
-): ParsedLine {
-  if (item.kind !== "tool_use" || item.toolInput) return item;
+): Extract<ParsedLine, { kind: "tool_use" }> {
+  if (item.toolInput) return item;
   const accumulated = toolInputMap.get(item.toolId);
   if (!accumulated) return item;
   return { ...item, toolInput: accumulated };
 }
 
-const EventLine = memo(function EventLine({
-  event,
-  toolInputMap,
+// -- Display node types for the grouped activity feed -------------------------
+
+type ActivityNode =
+  | {
+      type: "session_start";
+      key: number;
+      event: KeyedStreamEvent & { type: "session_start" };
+    }
+  | {
+      type: "status";
+      key: number;
+      event: KeyedStreamEvent & { type: "status" };
+    }
+  | { type: "text"; key: string; parsed: Extract<ParsedLine, { kind: "text" }> }
+  | { type: "tool_call"; key: string; pair: ToolCallPair };
+
+/**
+ * Group flat activity events into display nodes, merging tool_use + tool_result
+ * pairs into single ToolCallPair entries.
+ *
+ * Streaming events arrive one at a time:
+ *   content_block_start (tool_use) → input_json_deltas → assistant (tool_use with input)
+ *   → user (tool_result)
+ *
+ * We accumulate pending tool_use items and pair them with subsequent tool_results
+ * by toolUseId. Unmatched tool_use items are emitted as pending (no result).
+ * De-duplication by toolId handles the content_block_start + assistant overlap.
+ */
+function groupActivityNodes(
+  events: KeyedStreamEvent[],
+  toolInputMap: Map<string, Record<string, unknown>>,
+): ActivityNode[] {
+  const nodes: ActivityNode[] = [];
+  // Pending tool_use items awaiting their results, indexed by toolId for dedup
+  const pendingToolUses = new Map<
+    string,
+    Extract<ParsedLine, { kind: "tool_use" }>
+  >();
+  // Insertion order for pending tool_uses (toolId), so we emit them in order
+  const pendingOrder: string[] = [];
+
+  for (const event of events) {
+    if (event.type === "session_start") {
+      // Flush pending before new session
+      flushPending(nodes, pendingToolUses, pendingOrder);
+      nodes.push({ type: "session_start", key: event.id, event });
+      continue;
+    }
+    if (event.type === "status") {
+      nodes.push({ type: "status", key: event.id, event });
+      continue;
+    }
+
+    // Activity event — parse and group
+    const items = parseStreamLine(event.content).filter(
+      (p) => p.kind !== "skip" && p.kind !== "tool_input_delta",
+    );
+
+    for (const item of items) {
+      if (item.kind === "tool_use") {
+        const enriched = enrichToolUse(item, toolInputMap);
+        const existing = pendingToolUses.get(enriched.toolId);
+        if (!existing) {
+          pendingToolUses.set(enriched.toolId, enriched);
+          pendingOrder.push(enriched.toolId);
+        } else if (!existing.toolInput && enriched.toolInput) {
+          // Prefer the version with input (full assistant message over content_block_start)
+          pendingToolUses.set(enriched.toolId, enriched);
+        }
+      } else if (item.kind === "tool_result") {
+        // Try to match with a pending tool_use
+        const matchId = item.toolUseId;
+        const matched = matchId ? pendingToolUses.get(matchId) : null;
+        if (matched) {
+          nodes.push({
+            type: "tool_call",
+            key: `tool_call:${matched.toolId}`,
+            pair: { toolUse: matched, toolResult: item },
+          });
+          pendingToolUses.delete(matched.toolId);
+          const orderIdx = pendingOrder.indexOf(matched.toolId);
+          if (orderIdx !== -1) pendingOrder.splice(orderIdx, 1);
+        } else {
+          // Orphaned result — synthesize a tool_use for it
+          nodes.push({
+            type: "tool_call",
+            key: `orphan_result:${item.toolUseId ?? nodes.length}`,
+            pair: {
+              toolUse: {
+                kind: "tool_use",
+                toolName: item.toolName ?? "unknown",
+                toolId: item.toolUseId ?? "",
+                toolInput: null,
+                blockIndex: null,
+              },
+              toolResult: item,
+            },
+          });
+        }
+      } else if (item.kind === "text") {
+        nodes.push({
+          type: "text",
+          key: `text:${event.id}:${nodes.length}`,
+          parsed: item,
+        });
+      }
+    }
+  }
+
+  // Flush remaining pending tool_uses (still in-flight or session ended)
+  flushPending(nodes, pendingToolUses, pendingOrder);
+
+  return nodes;
+}
+
+/** Emit pending tool_use items as tool_call nodes without results. */
+function flushPending(
+  nodes: ActivityNode[],
+  pending: Map<string, Extract<ParsedLine, { kind: "tool_use" }>>,
+  order: string[],
+) {
+  for (const toolId of order) {
+    const toolUse = pending.get(toolId);
+    if (!toolUse) continue;
+    nodes.push({
+      type: "tool_call",
+      key: `tool_call:${toolUse.toolId}`,
+      pair: { toolUse, toolResult: null },
+    });
+  }
+  pending.clear();
+  order.length = 0;
+}
+
+// -- Rendering ----------------------------------------------------------------
+
+const ActivityNodeView = memo(function ActivityNodeView({
+  node,
 }: {
-  event: KeyedStreamEvent;
-  toolInputMap: Map<string, Record<string, unknown>>;
+  node: ActivityNode;
 }) {
-  switch (event.type) {
+  switch (node.type) {
     case "session_start":
       return (
         <div className="mb-1 border-base-content/20 border-b pb-1 text-info/60 text-xs">
-          ── Session {event.sessionId.slice(0, 8)} │ Issue: {event.issueId} │
-          PID: {event.pid} ──
+          ── Session {node.event.sessionId.slice(0, 8)} │ Issue:{" "}
+          {node.event.issueId} │ PID: {node.event.pid} ──
         </div>
       );
-    case "activity": {
-      const items = parseStreamLine(event.content).filter(
-        (p) => p.kind !== "skip" && p.kind !== "tool_input_delta",
-      );
-      if (items.length === 0) return null;
-      return (
-        <>
-          {items.map((parsed, i) => (
-            <StreamContent
-              key={parsedLineKey(parsed, i)}
-              parsed={enrichToolUse(parsed, toolInputMap)}
-            />
-          ))}
-        </>
-      );
-    }
     case "status":
       return (
         <div className="text-warning italic">
-          [{event.state}] {event.message}
+          [{node.event.state}] {node.event.message}
         </div>
       );
+    case "text":
+      return <StreamContent parsed={node.parsed} />;
+    case "tool_call":
+      return <ToolCallCard pair={node.pair} />;
     default: {
-      const _exhaustive: never = event;
+      const _exhaustive: never = node;
       throw new Error(
-        `Unhandled event type: ${(_exhaustive as KeyedStreamEvent).type}`,
+        `Unhandled node type: ${(_exhaustive as ActivityNode).type}`,
       );
     }
   }
@@ -183,6 +302,12 @@ export function ActivityPage() {
   const toolInputMap = useMemo(
     () => updateAccumulator(accRef.current, events),
     [events],
+  );
+
+  // Group events into display nodes with tool_use + tool_result pairing
+  const displayNodes = useMemo(
+    () => groupActivityNodes(events, toolInputMap),
+    [events, toolInputMap],
   );
 
   // Track whether user has scrolled away from the bottom
@@ -247,12 +372,8 @@ export function ActivityPage() {
               : "Connecting to activity stream..."}
           </div>
         ) : (
-          events.map((event) => (
-            <EventLine
-              key={event.id}
-              event={event}
-              toolInputMap={toolInputMap}
-            />
+          displayNodes.map((node) => (
+            <ActivityNodeView key={node.key} node={node} />
           ))
         )}
       </div>
