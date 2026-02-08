@@ -532,6 +532,14 @@ Every tool response includes `_meta`:
 ```json
 {
   "project": "arcloop",
+  "timestamp": 1234567890
+}
+```
+
+**TODO (FLUX-245)**: Add orchestrator status context:
+```json
+{
+  "project": "arcloop",
   "timestamp": 1234567890,
   "orchestrator_status": "running",
   "active_session": "session-id-or-null",
@@ -577,14 +585,16 @@ Issues that need human review before work begins should be created with `status=
 - Scheduler never picks up deferred issues
 - Once undeferred (status changed to `open`), issue enters the ready queue
 
-## Keyboard Shortcuts (MVP)
+## Keyboard Shortcuts (MVP) — TODO FLUX-246
 
 Essential keyboard shortcuts for power users. Establishes the pattern; more shortcuts will be added Post-MVP.
 
-| Shortcut | Action | Context |
-|----------|--------|---------|
-| `Cmd/Ctrl + K` | **Global Search** | Opens quick search across all issues |
-| `Cmd/Ctrl + Shift + N` | **Quick Create** | Opens create issue modal with title focused |
+**Status**: Not yet implemented
+
+| Shortcut | Action | Context | Status |
+|----------|--------|---------|--------|
+| `Cmd/Ctrl + K` | **Global Search** | Opens quick search across all issues | 🔲 TODO |
+| `Cmd/Ctrl + Shift + N` | **Quick Create** | Opens create issue modal with title focused | 🔲 TODO |
 
 **Search Modal (`Cmd+K`)**:
 - Type to search across issue titles and descriptions
@@ -1136,40 +1146,52 @@ When spawning an agent, the orchestrator:
 **Auto-commit Failure Handling:**
 
 When auto-commit fails (no git config, merge conflicts, permission issues):
-1. **Log the error** with full details in sessionEvents
-2. **Create comment** on the issue: `FLUX auto-commit failed: {reason}. Session: {sessionId}`
-3. **Alert the user** via browser notification: "FLUX: Auto-commit failed for {shortId}"
-4. **Continue anyway** — don't block work because of auto-commit failure
-5. **Human resolves later** — can commit manually or discard changes
+1. **Log a warning** with full details to console
+2. **Continue anyway** — don't block work because of auto-commit failure
+3. **Human resolves later** — can commit manually or discard changes
 
-This approach prioritizes progress over tidiness. The comment provides audit trail and debugging context. The agent can still complete its work, and the human can clean up git state afterwards.
+This approach prioritizes progress over tidiness. The orchestrator proceeds to the next phase even if auto-commit fails. The agent is responsible for committing their own work; auto-commit is a safety net only.
 
 **Common auto-commit failures:**
 - No git user.name/user.email configured
 - Pre-commit hooks failing (linting, tests)
 - File permission issues
 - Disk space issues
-- Merge conflicts (rare, but possible if human modified files during session)
+- Agent PID still alive (race condition guard — will retry next phase)
 
 **Recovery:**
 ```bash
-# Human sees the notification, checks git status
+# Human sees uncommitted changes, checks git status
 git status
 git add .
-git commit -m "manual commit after flux auto-commit failed"
+git commit -m "manual commit after flux auto-commit"
 # Or discard changes if they were experimental
 git reset --hard HEAD
 ```
 
 **Auto-commit message format** (when Flux commits on behalf of agent):
 ```
-[{shortId}] chore(flux): auto-commit uncommitted agent changes
-
-Flux committed these changes because the agent session ended with
-a dirty working tree. Please review and amend as appropriate.
+[{shortId}] chore(flux): auto-commit uncommitted agent changes ({phase})
 
 Session: {sessionId}
-Disposition: {disposition}
+```
+
+Where `{phase}` is one of: `work`, `retro`, `review`, or `pre-session`.
+
+**Agent prompt instructions**: Include explicit commit guidance in work prompts:
+```
+Commit your changes before ending the session. Use clear, descriptive commit
+messages. If you cannot complete the task, commit any partial progress with
+a WIP prefix so work is not lost.
+
+Important: The Flux orchestrator auto-commits any dirty working tree after your 
+session ends with a generic message. To ensure your commits have proper messages, 
+always use a single atomic command:
+
+git add <files> && git commit -m "descriptive message"
+
+Never separate `git add` and `git commit` into two tool calls — the orchestrator 
+may auto-commit between them, stealing your staged changes.
 ```
 
 **Agent prompt instructions**: Include explicit commit guidance in work prompts:
