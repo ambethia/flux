@@ -10,12 +10,12 @@ import {
   issueStatusValidator,
 } from "./schema";
 
-export const PRIORITY_ORDER: Record<string, number> = {
+const PRIORITY_ORDER: Record<string, number> = {
   [IssuePriority.Critical]: 0,
   [IssuePriority.High]: 1,
   [IssuePriority.Medium]: 2,
   [IssuePriority.Low]: 3,
-} as const;
+};
 
 /** Convert a priority string to its numeric sort order. */
 function toPriorityOrder(
