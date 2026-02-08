@@ -72,7 +72,11 @@ export function OrchestratorStatus({
 }: {
   projectId: Id<"projects">;
 }) {
-  const { status, error: statusError, refetch } = useOrchestratorStatus();
+  const {
+    status,
+    error: statusError,
+    refetch,
+  } = useOrchestratorStatus(projectId);
   const {
     error: actionError,
     showError: showActionError,
@@ -135,9 +139,12 @@ export function OrchestratorStatus({
     [refetch, status?.state, clearActionError, showActionError],
   );
 
-  const handleEnable = () => handleAction("enable", enableOrchestrator);
-  const handleStop = () => handleAction("stop", stopOrchestrator);
-  const handleKill = () => handleAction("kill", killOrchestrator);
+  const handleEnable = () =>
+    handleAction("enable", () => enableOrchestrator(projectId));
+  const handleStop = () =>
+    handleAction("stop", () => stopOrchestrator(projectId));
+  const handleKill = () =>
+    handleAction("kill", () => killOrchestrator(projectId));
 
   // ── Derived State ────────────────────────────────────────────────
 

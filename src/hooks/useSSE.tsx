@@ -28,12 +28,18 @@ interface SSEContextValue {
 const SSEContext = createContext<SSEContextValue | null>(null);
 
 /**
- * Provider that manages a single EventSource connection to /sse/activity.
+ * Provider that manages a single EventSource connection to /sse/projects/:projectId/activity.
  * All consumers share this connection — no duplicate subscriptions.
  *
  * Reconnects automatically with exponential backoff (1s → 30s max).
  */
-export function SSEProvider({ children }: { children: ReactNode }) {
+export function SSEProvider({
+  projectId,
+  children,
+}: {
+  projectId: string;
+  children: ReactNode;
+}) {
   const [connected, setConnected] = useState(false);
 
   // Map of event type → Set of listeners. Mutable ref so we can
@@ -84,7 +90,7 @@ export function SSEProvider({ children }: { children: ReactNode }) {
 
     function connect() {
       if (disposed) return;
-      const es = new EventSource("/sse/activity");
+      const es = new EventSource(`/sse/projects/${projectId}/activity`);
       activeES = es;
 
       es.addEventListener("open", () => {
@@ -126,7 +132,7 @@ export function SSEProvider({ children }: { children: ReactNode }) {
       activeES?.close();
       if (retryTimer) clearTimeout(retryTimer);
     };
-  }, []);
+  }, [projectId]);
 
   const value = useMemo<SSEContextValue>(
     () => ({ connected, subscribe: subscribeRef.current }),

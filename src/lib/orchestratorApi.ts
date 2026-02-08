@@ -3,15 +3,16 @@ import type { OrchestratorStatusData } from "@/shared/orchestrator";
 type OrchestratorAction = "enable" | "stop" | "kill" | "status";
 
 /**
- * Call the dedicated orchestrator API endpoint.
+ * Call the dedicated orchestrator API endpoint for a specific project.
  *
- * Goes directly to `/api/orchestrator` — a purpose-built route that skips
- * the generic MCP tool dispatch layer used by agents.
+ * Routes to `/api/projects/:projectId/orchestrator` — a purpose-built route
+ * that skips the generic MCP tool dispatch layer used by agents.
  */
 async function callOrchestratorApi<T = unknown>(
+  projectId: string,
   action: OrchestratorAction,
 ): Promise<T> {
-  const res = await fetch("/api/orchestrator", {
+  const res = await fetch(`/api/projects/${projectId}/orchestrator`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action }),
@@ -29,21 +30,29 @@ async function callOrchestratorApi<T = unknown>(
 }
 
 /** Enable the orchestrator scheduler. */
-export function enableOrchestrator(): Promise<OrchestratorStatusData> {
-  return callOrchestratorApi<OrchestratorStatusData>("enable");
+export function enableOrchestrator(
+  projectId: string,
+): Promise<OrchestratorStatusData> {
+  return callOrchestratorApi<OrchestratorStatusData>(projectId, "enable");
 }
 
 /** Gracefully stop the orchestrator scheduler. */
-export function stopOrchestrator(): Promise<OrchestratorStatusData> {
-  return callOrchestratorApi<OrchestratorStatusData>("stop");
+export function stopOrchestrator(
+  projectId: string,
+): Promise<OrchestratorStatusData> {
+  return callOrchestratorApi<OrchestratorStatusData>(projectId, "stop");
 }
 
 /** Kill the active session (SIGTERM). */
-export function killOrchestrator(): Promise<{ message: string }> {
-  return callOrchestratorApi<{ message: string }>("kill");
+export function killOrchestrator(
+  projectId: string,
+): Promise<{ message: string }> {
+  return callOrchestratorApi<{ message: string }>(projectId, "kill");
 }
 
 /** Fetch current orchestrator status. */
-export function fetchOrchestratorStatus(): Promise<OrchestratorStatusData> {
-  return callOrchestratorApi<OrchestratorStatusData>("status");
+export function fetchOrchestratorStatus(
+  projectId: string,
+): Promise<OrchestratorStatusData> {
+  return callOrchestratorApi<OrchestratorStatusData>(projectId, "status");
 }

@@ -25,6 +25,7 @@ function IssueNotificationWatcher() {
 }
 
 export function AppShell() {
+  const { projectId } = useRouteContext({ from: "__root__" });
   const searchRef = useRef<SearchModalHandle>(null);
   const createRef = useRef<CreateIssueModalHandle>(null);
 
@@ -39,7 +40,7 @@ export function AppShell() {
 
   return (
     <NotificationProvider>
-      <SSEProvider>
+      <SSEProvider projectId={projectId}>
         <IssueNotificationWatcher />
         <div className="drawer lg:drawer-open">
           <input id="app-drawer" type="checkbox" className="drawer-toggle" />

@@ -12,7 +12,7 @@ import { useSSE } from "./useSSE";
  *
  * Requires an <SSEProvider> ancestor.
  */
-export function useOrchestratorStatus() {
+export function useOrchestratorStatus(projectId: string) {
   const { subscribe } = useSSE();
   const [status, setStatus] = useState<OrchestratorStatusData["status"] | null>(
     null,
@@ -21,13 +21,13 @@ export function useOrchestratorStatus() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const data = await fetchOrchestratorStatus();
+      const data = await fetchOrchestratorStatus(projectId);
       setStatus(data.status);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     const unsubs: Array<() => void> = [];

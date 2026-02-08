@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { serve } from "bun";
+import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import { createApiHandler } from "./api";
 import { getConvexClient } from "./convex";
@@ -22,6 +23,32 @@ function createToolContext(project: Project): ToolContext {
     projectSlug: project.slug,
     getOrchestrator: () => getOrchestrator(project._id, project.path),
   };
+}
+
+/**
+ * Parse project-scoped sub-routes from a URL path.
+ *
+ * Given `/api/projects/<id>/orchestrator`, returns `{ projectId: "<id>", subPath: "orchestrator" }`.
+ * Given `/api/projects/<id>/config`, returns `{ projectId: "<id>", subPath: "config" }`.
+ * Given `/sse/projects/<id>/activity`, returns `{ projectId: "<id>", subPath: "sse-activity" }`.
+ * Returns null for paths that don't match a project-scoped sub-route.
+ */
+function parseProjectScopedRoute(
+  pathname: string,
+): { projectId: string; subPath: string } | null {
+  // Match /api/projects/:id/<sub>
+  const apiMatch = pathname.match(
+    /^\/api\/projects\/([^/]+)\/(orchestrator|config)$/,
+  );
+  if (apiMatch?.[1] && apiMatch[2]) {
+    return { projectId: apiMatch[1], subPath: apiMatch[2] };
+  }
+  // Match /sse/projects/:id/activity
+  const sseMatch = pathname.match(/^\/sse\/projects\/([^/]+)\/activity$/);
+  if (sseMatch?.[1]) {
+    return { projectId: sseMatch[1], subPath: "sse-activity" };
+  }
+  return null;
 }
 
 export async function startServer(projects: Project[]) {
@@ -64,13 +91,92 @@ export async function startServer(projects: Project[]) {
     defaultProject.path,
   );
   const handleApi = createApiHandler(defaultCtx);
-  const handleSSE = createSSEHandler(() =>
-    getOrchestrator(defaultProject._id, defaultProject.path),
-  );
-  const handleOrchestratorApi = createOrchestratorApiHandler(() =>
-    getOrchestrator(defaultProject._id, defaultProject.path),
-  );
   const handleProjectsApi = createProjectsApiHandler(getConvexClient());
+
+  const convex = getConvexClient();
+
+  /**
+   * Handle project-scoped requests:
+   *   POST /api/projects/:id/orchestrator
+   *   GET  /api/projects/:id/config
+   *   GET  /sse/projects/:id/activity
+   *
+   * Validates the project exists in Convex before dispatching.
+   */
+  async function handleProjectScoped(
+    req: Request,
+    projectId: string,
+    subPath: string,
+  ): Promise<Response> {
+    // Validate project exists in Convex
+    const project = await convex.query(api.projects.getById, {
+      projectId: projectId as Id<"projects">,
+    });
+    if (!project) {
+      return Response.json(
+        { error: `Project ${projectId} not found.` },
+        { status: 404 },
+      );
+    }
+
+    // Ensure the project has a path (required for orchestrator/SSE)
+    const projectPath = project.path;
+
+    switch (subPath) {
+      case "orchestrator": {
+        if (!projectPath) {
+          return Response.json(
+            { error: `Project ${projectId} has no path configured.` },
+            { status: 400 },
+          );
+        }
+        const handler = createOrchestratorApiHandler(() =>
+          getOrchestrator(projectId as Id<"projects">, projectPath),
+        );
+        return handler(req);
+      }
+
+      case "config": {
+        if (req.method !== "GET") {
+          return Response.json(
+            { error: "Method not allowed. Use GET." },
+            { status: 405 },
+          );
+        }
+        const convexUrl = process.env.CONVEX_URL;
+        if (!convexUrl) {
+          return Response.json(
+            { error: "CONVEX_URL not configured" },
+            { status: 500 },
+          );
+        }
+        return Response.json({
+          convexUrl,
+          projectId: project._id,
+          slug: project.slug,
+          name: project.name,
+          path: project.path ?? null,
+          state: project.state ?? null,
+        });
+      }
+
+      case "sse-activity": {
+        if (!projectPath) {
+          return Response.json(
+            { error: `Project ${projectId} has no path configured.` },
+            { status: 400 },
+          );
+        }
+        const handler = createSSEHandler(() =>
+          getOrchestrator(projectId as Id<"projects">, projectPath),
+        );
+        return handler(req);
+      }
+
+      default:
+        return Response.json({ error: "Not found." }, { status: 404 });
+    }
+  }
 
   const routes: Record<
     string,
@@ -107,10 +213,51 @@ export async function startServer(projects: Project[]) {
 
     "/mcp": (req) => handleMcp(req),
     "/api/tools": (req) => handleApi(req),
-    "/api/orchestrator": (req) => handleOrchestratorApi(req),
+
+    // Legacy orchestrator endpoint — replaced by /api/projects/:id/orchestrator
+    "/api/orchestrator": () =>
+      Response.json(
+        {
+          error:
+            "This endpoint has been removed. Use POST /api/projects/:projectId/orchestrator instead.",
+        },
+        { status: 410 },
+      ),
+
+    // Legacy SSE endpoint — replaced by /sse/projects/:id/activity
+    "/sse/activity": () =>
+      Response.json(
+        {
+          error:
+            "This endpoint has been removed. Use GET /sse/projects/:projectId/activity instead.",
+        },
+        { status: 410 },
+      ),
+
+    // Project CRUD routes (top-level)
     "/api/projects": (req) => handleProjectsApi(req),
-    "/api/projects/*": (req) => handleProjectsApi(req),
-    "/sse/activity": (req) => handleSSE(req),
+
+    // Wildcard: handles both /api/projects/:id (CRUD) and
+    // /api/projects/:id/orchestrator, /api/projects/:id/config
+    "/api/projects/*": (req) => {
+      const url = new URL(req.url);
+      const scoped = parseProjectScopedRoute(url.pathname);
+      if (scoped) {
+        return handleProjectScoped(req, scoped.projectId, scoped.subPath);
+      }
+      // Fall through to project CRUD handler (e.g. /api/projects/:id)
+      return handleProjectsApi(req);
+    },
+
+    // SSE project-scoped wildcard
+    "/sse/projects/*": (req) => {
+      const url = new URL(req.url);
+      const scoped = parseProjectScopedRoute(url.pathname);
+      if (scoped) {
+        return handleProjectScoped(req, scoped.projectId, scoped.subPath);
+      }
+      return Response.json({ error: "Not found." }, { status: 404 });
+    },
   };
 
   // In production, serve the Vite-built frontend from dist/.
