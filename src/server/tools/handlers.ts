@@ -92,9 +92,14 @@ function ok(ctx: ToolContext, data: Record<string, unknown>): ToolResult {
   };
 }
 
-function error(message: string): ToolResult {
+function error(ctx: ToolContext, message: string): ToolResult {
   return {
-    content: [{ type: "text", text: message }],
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({ error: message, _meta: buildMeta(ctx) }),
+      },
+    ],
     isError: true,
   };
 }
@@ -139,6 +144,7 @@ const issues_get = typedHandler(IssuesGetSchema, async ({ issueId }, ctx) => {
   });
   if (!issue) {
     return error(
+      ctx,
       `Issue not found: ${issueId}. Use issues_list to find valid IDs.`,
     );
   }
@@ -183,7 +189,7 @@ const orchestrator_run = typedHandler(
         session: { sessionId: result.sessionId, pid: result.pid },
       });
     } catch (err) {
-      return error(String(err instanceof Error ? err.message : err));
+      return error(ctx, String(err instanceof Error ? err.message : err));
     }
   },
 );
@@ -194,7 +200,7 @@ const orchestrator_kill: ToolHandler = async (_args, ctx) => {
     await orchestrator.kill();
     return ok(ctx, { message: "Session killed." });
   } catch (err) {
-    return error(String(err instanceof Error ? err.message : err));
+    return error(ctx, String(err instanceof Error ? err.message : err));
   }
 };
 
@@ -211,7 +217,7 @@ const orchestrator_enable: ToolHandler = async (_args, ctx) => {
     const status = orchestrator.getStatus();
     return ok(ctx, { status });
   } catch (err) {
-    return error(String(err instanceof Error ? err.message : err));
+    return error(ctx, String(err instanceof Error ? err.message : err));
   }
 };
 
@@ -222,7 +228,7 @@ const orchestrator_stop: ToolHandler = async (_args, ctx) => {
     const status = orchestrator.getStatus();
     return ok(ctx, { status });
   } catch (err) {
-    return error(String(err instanceof Error ? err.message : err));
+    return error(ctx, String(err instanceof Error ? err.message : err));
   }
 };
 
@@ -246,6 +252,7 @@ const sessions_show = typedHandler(
     });
     if (!session) {
       return error(
+        ctx,
         `Session not found: ${sessionId}. Use sessions_list to find valid IDs.`,
       );
     }
@@ -310,7 +317,7 @@ const issues_close = typedHandler(
       });
       return ok(ctx, { issue: updated });
     } catch (err) {
-      return error(String(err instanceof Error ? err.message : err));
+      return error(ctx, String(err instanceof Error ? err.message : err));
     }
   },
 );
@@ -324,7 +331,7 @@ const issues_retry = typedHandler(
       });
       return ok(ctx, { issue: updated });
     } catch (err) {
-      return error(String(err instanceof Error ? err.message : err));
+      return error(ctx, String(err instanceof Error ? err.message : err));
     }
   },
 );
@@ -344,7 +351,7 @@ const issues_defer = typedHandler(
       });
       return ok(ctx, { issue: updated });
     } catch (err) {
-      return error(String(err instanceof Error ? err.message : err));
+      return error(ctx, String(err instanceof Error ? err.message : err));
     }
   },
 );
@@ -363,7 +370,7 @@ const issues_undefer = typedHandler(
       });
       return ok(ctx, { issue: updated });
     } catch (err) {
-      return error(String(err instanceof Error ? err.message : err));
+      return error(ctx, String(err instanceof Error ? err.message : err));
     }
   },
 );
@@ -466,6 +473,7 @@ const epics_show = typedHandler(EpicsShowSchema, async ({ epicId }, ctx) => {
   });
   if (!epic) {
     return error(
+      ctx,
       `Epic not found: ${epicId}. Use epics_list to find valid IDs.`,
     );
   }
@@ -493,7 +501,7 @@ const epics_close = typedHandler(
       });
       return ok(ctx, { epic: updated });
     } catch (err) {
-      return error(String(err instanceof Error ? err.message : err));
+      return error(ctx, String(err instanceof Error ? err.message : err));
     }
   },
 );
@@ -523,7 +531,7 @@ const deps_add = typedHandler(
         },
       });
     } catch (err) {
-      return error(String(err instanceof Error ? err.message : err));
+      return error(ctx, String(err instanceof Error ? err.message : err));
     }
   },
 );
@@ -538,7 +546,7 @@ const deps_remove = typedHandler(
       });
       return ok(ctx, { removed: result.deleted });
     } catch (err) {
-      return error(String(err instanceof Error ? err.message : err));
+      return error(ctx, String(err instanceof Error ? err.message : err));
     }
   },
 );
@@ -578,7 +586,7 @@ const labels_create = typedHandler(
       });
       return ok(ctx, { labelId, name, color });
     } catch (err) {
-      return error(String(err instanceof Error ? err.message : err));
+      return error(ctx, String(err instanceof Error ? err.message : err));
     }
   },
 );
@@ -593,7 +601,7 @@ const labels_update = typedHandler(
       });
       return ok(ctx, { label: updated });
     } catch (err) {
-      return error(String(err instanceof Error ? err.message : err));
+      return error(ctx, String(err instanceof Error ? err.message : err));
     }
   },
 );
@@ -607,7 +615,7 @@ const labels_delete = typedHandler(
       });
       return ok(ctx, { deleted: labelId });
     } catch (err) {
-      return error(String(err instanceof Error ? err.message : err));
+      return error(ctx, String(err instanceof Error ? err.message : err));
     }
   },
 );
