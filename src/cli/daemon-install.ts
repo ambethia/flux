@@ -169,7 +169,7 @@ export async function daemonInstall(): Promise<void> {
   })();
   if (isLoaded) {
     console.log(`Unloading existing ${LABEL}...`);
-    execSync(`launchctl unload ${plistPath}`, { stdio: "pipe" });
+    execSync(`launchctl unload "${plistPath}"`, { stdio: "pipe" });
   }
 
   // 4. Write the plist
@@ -184,7 +184,7 @@ export async function daemonInstall(): Promise<void> {
   console.log(`Wrote ${plistPath}`);
 
   // 5. Load the plist
-  execSync(`launchctl load ${plistPath}`);
+  execSync(`launchctl load "${plistPath}"`, { stdio: "pipe" });
   console.log(`Loaded ${LABEL}`);
 
   // 6. Verify
