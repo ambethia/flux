@@ -11,19 +11,19 @@ function statusConfig(status: SessionStatusValue): {
     case SessionStatus.Running:
       return {
         label: "Running",
-        className: "badge-warning",
+        className: "badge-soft badge-warning",
         icon: "fa-spinner fa-spin",
       };
     case SessionStatus.Completed:
       return {
         label: "Completed",
-        className: "badge-success",
+        className: "badge-soft badge-success",
         icon: "fa-circle-check",
       };
     case SessionStatus.Failed:
       return {
         label: "Failed",
-        className: "badge-error",
+        className: "badge-soft badge-error",
         icon: "fa-circle-xmark",
       };
     default: {

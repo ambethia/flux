@@ -5,27 +5,27 @@ import { Icon } from "./Icon";
 const STATUS_CONFIG = {
   [IssueStatus.Open]: {
     label: "Open",
-    className: "badge-info",
+    className: "badge-soft badge-info",
     icon: "fa-circle",
   },
   [IssueStatus.InProgress]: {
     label: "In Progress",
-    className: "badge-warning",
+    className: "badge-soft badge-warning",
     icon: "fa-spinner fa-spin",
   },
   [IssueStatus.Closed]: {
     label: "Closed",
-    className: "badge-success",
+    className: "badge-soft badge-success",
     icon: "fa-circle-check",
   },
   [IssueStatus.Stuck]: {
     label: "Stuck",
-    className: "badge-error",
+    className: "badge-soft badge-error",
     icon: "fa-triangle-exclamation",
   },
   [IssueStatus.Deferred]: {
     label: "Deferred",
-    className: "badge-ghost",
+    className: "badge-soft badge-ghost",
     icon: "fa-circle-pause",
   },
 } as const;
