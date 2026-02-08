@@ -220,10 +220,11 @@ const orchestrator_stop: ToolHandler = async (_args, ctx) => {
 
 const sessions_list = typedHandler(
   SessionsListSchema,
-  async ({ status }, ctx) => {
+  async ({ status, limit }, ctx) => {
     const sessions = await ctx.convex.query(api.sessions.list, {
       projectId: ctx.projectId,
       status,
+      limit,
     });
     return ok(ctx, { sessions, count: sessions.length });
   },

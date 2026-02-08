@@ -254,6 +254,12 @@ export const SessionsListSchema = z.object({
   status: sessionStatusEnum
     .optional()
     .describe("Filter by session status. Omit for all."),
+  limit: z
+    .number()
+    .int()
+    .positive()
+    .default(50)
+    .describe("Maximum number of sessions to return. Default 50."),
 });
 
 export const SessionsShowSchema = z.object({

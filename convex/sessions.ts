@@ -87,24 +87,24 @@ export const list = query({
   args: {
     projectId: v.id("projects"),
     status: v.optional(sessionStatusValidator),
+    limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { status } = args;
-    return status
-      ? await ctx.db
+    const { status, limit } = args;
+    const baseQuery = status
+      ? ctx.db
           .query("sessions")
           .withIndex("by_project_status_startedAt", (q) =>
             q.eq("projectId", args.projectId).eq("status", status),
           )
           .order("desc")
-          .collect()
-      : await ctx.db
+      : ctx.db
           .query("sessions")
           .withIndex("by_project_startedAt", (q) =>
             q.eq("projectId", args.projectId),
           )
-          .order("desc")
-          .collect();
+          .order("desc");
+    return limit ? await baseQuery.take(limit) : await baseQuery.collect();
   },
 });
 
