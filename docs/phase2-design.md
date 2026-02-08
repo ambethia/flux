@@ -929,10 +929,9 @@ Phase 4: Consider Option D (WASM) for untrusted tools
 
 ---
 
-## 3.5 The Flux-Native Agent: Deep Integration Vision (Hypothetical)
+## 3.5 The Flux-Native Agent: Deep Integration Vision
 
-**Status:** Brainstorming / Exploration  
-**Purpose:** Documenting what a custom-built Flux agent could achieve beyond generic agents  
+**Status:** Exploration / Ideation
 
 ### The "Pixie-Dust" Question
 
@@ -1284,9 +1283,9 @@ Flux-Native Agent =
 | Learn from history | ❌ | ✅ |
 | Predict intent & pre-call | ❌ | ✅ |
 
-### Phase C Possibility
+### Future Possibility
 
-This represents a **potential Phase C direction** — not a commitment. The core Flux system (Anvil tools, ambient context, CLI-native design) works with any agent. A custom-built agent would be an optimization, not a requirement.
+This represents an exploration of what a custom-built agent could achieve. The core Flux system (Anvil tools, ambient context, CLI-native design) works with any agent. A custom-built agent would be an optimization, not a requirement.
 
 **When to consider building:**
 - After 100+ tasks with generic agents
@@ -1590,7 +1589,7 @@ $ flux daemon start    # Managed by OS
 | 2026-02-08 | CLI-Native Anvil | Agents use bash universally, not MCP | ✅ Insight |
 | 2026-02-08 | Deep Engine Vision | Anvil enables runtime introspection, not just CLI | ✅ Insight |
 | 2026-02-08 | Ambient Context | Pre-called queries, keyword triggers, live dashboard | ✅ Insight |
-| 2026-02-08 | Native Agent Vision | Deep integration, push updates, learned patterns | 📝 Brainstorming |
+| 2026-02-08 | Native Agent Vision | Deep integration, push updates, learned patterns | 📝 Exploration |
 
 ---
 
