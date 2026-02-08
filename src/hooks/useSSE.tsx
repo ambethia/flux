@@ -3,6 +3,7 @@ import {
   type ReactNode,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -39,7 +40,14 @@ export function SSEProvider({ children }: { children: ReactNode }) {
   // add/remove listeners without re-running the EventSource effect.
   const listenersRef = useRef(new Map<SSEEventType, Set<SSEListener>>());
 
+  // Track connection state outside React so subscribe can read it
+  // synchronously without depending on the `connected` state value.
+  const connectedRef = useRef(false);
+
   // Stable subscribe function — never changes identity.
+  // When subscribing to "open" on an already-connected provider,
+  // the listener is invoked immediately so late subscribers don't
+  // silently miss the initial connection event.
   const subscribeRef = useRef(
     (eventType: SSEEventType, listener: SSEListener) => {
       let set = listenersRef.current.get(eventType);
@@ -48,6 +56,13 @@ export function SSEProvider({ children }: { children: ReactNode }) {
         listenersRef.current.set(eventType, set);
       }
       set.add(listener);
+
+      // Fire immediately for late "open" subscribers so they can
+      // do their initial fetch even if the connection is already up.
+      if (eventType === "open" && connectedRef.current) {
+        listener(new MessageEvent("open"));
+      }
+
       return () => {
         set.delete(listener);
       };
@@ -73,6 +88,7 @@ export function SSEProvider({ children }: { children: ReactNode }) {
       activeES = es;
 
       es.addEventListener("open", () => {
+        connectedRef.current = true;
         setConnected(true);
         retryDelay = 1000;
         dispatch("open", new MessageEvent("open"));
@@ -89,6 +105,7 @@ export function SSEProvider({ children }: { children: ReactNode }) {
       }
 
       es.addEventListener("error", () => {
+        connectedRef.current = false;
         setConnected(false);
         es.close();
         activeES = null;
@@ -105,15 +122,16 @@ export function SSEProvider({ children }: { children: ReactNode }) {
 
     return () => {
       disposed = true;
+      connectedRef.current = false;
       activeES?.close();
       if (retryTimer) clearTimeout(retryTimer);
     };
   }, []);
 
-  const value: SSEContextValue = {
-    connected,
-    subscribe: subscribeRef.current,
-  };
+  const value = useMemo<SSEContextValue>(
+    () => ({ connected, subscribe: subscribeRef.current }),
+    [connected],
+  );
 
   return <SSEContext.Provider value={value}>{children}</SSEContext.Provider>;
 }
