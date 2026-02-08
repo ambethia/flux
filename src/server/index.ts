@@ -6,6 +6,7 @@ import { getConvexClient } from "./convex";
 import { createMcpHandler } from "./mcp";
 import { getOrchestrator } from "./orchestrator";
 import { createOrchestratorApiHandler } from "./orchestratorApi";
+import { createProjectsApiHandler } from "./projectsApi";
 import { createSSEHandler } from "./sse";
 import type { ToolContext } from "./tools";
 
@@ -29,6 +30,7 @@ export async function startServer(
   const handleOrchestratorApi = createOrchestratorApiHandler(() =>
     getOrchestrator(projectId),
   );
+  const handleProjectsApi = createProjectsApiHandler(getConvexClient());
 
   const routes: Record<
     string,
@@ -55,6 +57,8 @@ export async function startServer(
     "/mcp": (req) => handleMcp(req),
     "/api/tools": (req) => handleApi(req),
     "/api/orchestrator": (req) => handleOrchestratorApi(req),
+    "/api/projects": (req) => handleProjectsApi(req),
+    "/api/projects/*": (req) => handleProjectsApi(req),
     "/sse/activity": (req) => handleSSE(req),
   };
 

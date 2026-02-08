@@ -91,3 +91,21 @@ export const getById = query({
     return await ctx.db.get(projectId);
   },
 });
+
+export const list = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("projects").collect();
+  },
+});
+
+export const remove = mutation({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    const project = await ctx.db.get(projectId);
+    if (!project) {
+      throw new Error(`Project ${projectId} not found`);
+    }
+    await ctx.db.delete(projectId);
+  },
+});
