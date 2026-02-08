@@ -73,15 +73,14 @@ export function useActivityStream(): ActivityStreamState & {
   // --- Batching machinery ---
   // Incoming events accumulate here between animation frames.
   const bufferRef = useRef<KeyedStreamEvent[]>([]);
-  // Whether we have a pending rAF flush scheduled.
-  const flushScheduledRef = useRef(false);
+  // rAF handle so we can cancel on unmount.
+  const rafRef = useRef<number | null>(null);
 
   /** Schedule a flush on the next animation frame (if not already scheduled). */
   const scheduleFlush = useCallback(() => {
-    if (flushScheduledRef.current) return;
-    flushScheduledRef.current = true;
-    requestAnimationFrame(() => {
-      flushScheduledRef.current = false;
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
       const pending = bufferRef.current;
       if (pending.length === 0) return;
       // Swap the buffer so new events accumulate in a fresh array
@@ -105,6 +104,10 @@ export function useActivityStream(): ActivityStreamState & {
 
   const clear = useCallback(() => {
     bufferRef.current = [];
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
     setEvents([]);
     setCurrentSession(null);
   }, []);
@@ -198,6 +201,7 @@ export function useActivityStream(): ActivityStreamState & {
       disposed = true;
       es?.close();
       if (retryTimer.current) clearTimeout(retryTimer.current);
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
   }, [enqueue, scheduleFlush]);
 
