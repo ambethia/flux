@@ -1,12 +1,12 @@
 import { useState } from "react";
 import type { CloseTypeValue } from "$convex/schema";
-import {
-  FontAwesomeIcon,
-  faArrowRotateLeft,
-  faCirclePause,
-  faCirclePlay,
-} from "./Icon";
+import { FontAwesomeIcon, faArrowRotateLeft } from "./Icon";
 import { IssueCloseButton, IssueCloseFormPanel } from "./IssueCloseForm";
+import {
+  IssueDeferButton,
+  IssueDeferFormPanel,
+  IssueUndeferButton,
+} from "./IssueDeferForm";
 
 type ExpandedForm = "defer" | "close" | null;
 
@@ -49,7 +49,6 @@ export function IssueActionsToolbar({
   onClose,
 }: IssueActionsToolbarProps) {
   const [expandedForm, setExpandedForm] = useState<ExpandedForm>(null);
-  const [deferNote, setDeferNote] = useState("");
 
   const hasAnyButton = showReset || showDefer || showUndefer || showClose;
   if (!hasAnyButton) return null;
@@ -58,17 +57,7 @@ export function IssueActionsToolbar({
     setExpandedForm((prev) => (prev === form ? null : form));
   }
 
-  async function handleDeferSubmit() {
-    try {
-      await onDefer(deferNote.trim() || "Deferred from UI");
-      setExpandedForm(null);
-      setDeferNote("");
-    } catch {
-      // Parent handles error display — keep form open so user doesn't lose input
-    }
-  }
-
-  function handleCloseCancel() {
+  function handleCancel() {
     setExpandedForm(null);
   }
 
@@ -93,31 +82,19 @@ export function IssueActionsToolbar({
         )}
 
         {showUndefer && (
-          <button
-            type="button"
-            className="btn btn-outline btn-info btn-sm"
-            onClick={onUndefer}
-            disabled={busy}
-          >
-            {undeferring ? (
-              <span className="loading loading-spinner loading-xs" />
-            ) : (
-              <FontAwesomeIcon icon={faCirclePlay} aria-hidden="true" />
-            )}
-            Undefer Issue
-          </button>
+          <IssueUndeferButton
+            busy={busy}
+            undeferring={undeferring}
+            onUndefer={onUndefer}
+          />
         )}
 
         {showDefer && (
-          <button
-            type="button"
-            className={`btn btn-outline btn-warning btn-sm ${expandedForm === "defer" ? "btn-active" : ""}`}
-            onClick={() => toggleForm("defer")}
-            disabled={busy}
-          >
-            <FontAwesomeIcon icon={faCirclePause} aria-hidden="true" />
-            Defer Issue
-          </button>
+          <IssueDeferButton
+            busy={busy}
+            expanded={expandedForm === "defer"}
+            onToggle={() => toggleForm("defer")}
+          />
         )}
 
         {showClose && (
@@ -131,42 +108,12 @@ export function IssueActionsToolbar({
 
       {/* Expanded form panels */}
       {expandedForm === "defer" && (
-        <div className="flex flex-col gap-3 rounded-lg border border-warning/30 bg-base-200 p-4">
-          <h3 className="font-medium">Defer Issue</h3>
-          <textarea
-            className="textarea"
-            placeholder="Reason for deferring (optional)"
-            value={deferNote}
-            onChange={(e) => setDeferNote(e.target.value)}
-            rows={2}
-          />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className="btn btn-warning btn-sm"
-              onClick={handleDeferSubmit}
-              disabled={busy}
-            >
-              {deferring ? (
-                <span className="loading loading-spinner loading-xs" />
-              ) : (
-                <FontAwesomeIcon icon={faCirclePause} aria-hidden="true" />
-              )}
-              Confirm Defer
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                setExpandedForm(null);
-                setDeferNote("");
-              }}
-              disabled={busy}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <IssueDeferFormPanel
+          busy={busy}
+          deferring={deferring}
+          onDefer={onDefer}
+          onCancel={handleCancel}
+        />
       )}
 
       {expandedForm === "close" && (
@@ -174,7 +121,7 @@ export function IssueActionsToolbar({
           busy={busy}
           saving={saving}
           onClose={onClose}
-          onCancel={handleCloseCancel}
+          onCancel={handleCancel}
         />
       )}
     </div>
