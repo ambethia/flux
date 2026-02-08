@@ -399,7 +399,11 @@ export const search = query({
 export const retry = mutation({
   args: { issueId: v.id("issues") },
   handler: async (ctx, { issueId }) => {
-    await getActiveIssue(ctx, issueId);
+    const issue = await getActiveIssue(ctx, issueId);
+    if (issue.status !== IssueStatus.Stuck)
+      throw new Error(
+        `Cannot retry issue ${issueId}: not stuck (status: ${issue.status})`,
+      );
 
     await ctx.db.patch(issueId, {
       failureCount: 0,
