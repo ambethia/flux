@@ -1,3 +1,4 @@
+import type { Id } from "$convex/_generated/dataModel";
 import { closeConvexClient } from "./convex";
 import {
   getAllOrchestrators,
@@ -122,7 +123,7 @@ export async function gracefulShutdown(opts: {
   // 6. Remove all orchestrator instances
   for (const [projectId] of orchestrators) {
     try {
-      removeOrchestrator(projectId as Parameters<typeof removeOrchestrator>[0]);
+      removeOrchestrator(projectId as Id<"projects">);
     } catch {
       // May not be stopped yet if kill path failed — best effort
     }
