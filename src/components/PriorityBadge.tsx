@@ -20,7 +20,7 @@ const PRIORITY_CONFIG = {
   },
   [IssuePriority.Low]: {
     label: "Low",
-    className: "badge-ghost",
+    className: "badge-outline badge-neutral",
     icon: "fa-arrow-down",
   },
 } as const;
