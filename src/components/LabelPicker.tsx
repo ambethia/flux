@@ -1,8 +1,9 @@
 import { useRouteContext } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
+import { useDismiss } from "../hooks/useDismiss";
 import { FontAwesomeIcon, faTag } from "./Icon";
 import { LabelBadge } from "./LabelBadge";
 
@@ -20,18 +21,8 @@ export function LabelPicker({
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      const container = containerRef.current;
-      if (container && !container.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(containerRef, close, open);
 
   if (allLabels === undefined) {
     return <span className="loading loading-spinner loading-xs" />;

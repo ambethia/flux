@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import type { IssueStatusValue } from "$convex/schema";
+import { useDismiss } from "../hooks/useDismiss";
 import { FontAwesomeIcon, faPlus, faXmark } from "./Icon";
 import { IssueSearchResults, useIssueSearch } from "./IssueSearchResults";
 import { StatusBadge } from "./StatusBadge";
@@ -218,26 +219,8 @@ function IssuePicker({
     searchInputRef.current?.focus();
   }, []);
 
-  // Close on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      const container = containerRef.current;
-      if (container && !container.contains(e.target as Node)) {
-        onClose();
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [onClose]);
-
-  // Close on Escape
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  // Dismiss on outside click or Escape
+  useDismiss(containerRef, onClose);
 
   const filtered = results?.filter((issue) => !excludeIds.has(issue._id)) ?? [];
 
