@@ -73,12 +73,8 @@ export async function gracefulShutdown(opts: {
     );
 
     const waitResults = await Promise.allSettled(
-      busyOrchestrators.map(([projectId, orch]) =>
-        raceTimeout(
-          orch.waitForStopped(),
-          gracefulTimeoutMs,
-          `Orchestrator ${projectId} did not stop within ${gracefulTimeoutMs}ms`,
-        ),
+      busyOrchestrators.map(([, orch]) =>
+        orch.waitForStopped(gracefulTimeoutMs),
       ),
     );
 
@@ -100,13 +96,7 @@ export async function gracefulShutdown(opts: {
           killPromises.push(
             orch
               .kill()
-              .then(() =>
-                raceTimeout(
-                  orch.waitForStopped(),
-                  10_000,
-                  `Orchestrator ${projectId} did not stop after kill`,
-                ),
-              )
+              .then(() => orch.waitForStopped(10_000))
               .catch((err) => {
                 console.error(
                   `[Shutdown] Force-kill failed for ${projectId}:`,
@@ -134,28 +124,4 @@ export async function gracefulShutdown(opts: {
   console.log("[Shutdown] Convex client closed");
 
   console.log("[Shutdown] Graceful shutdown complete");
-}
-
-/**
- * Race a promise against a timeout. Rejects with the given message if
- * the promise does not settle within `ms` milliseconds.
- */
-function raceTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  message: string,
-): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(message)), ms);
-    promise.then(
-      (val) => {
-        clearTimeout(timer);
-        resolve(val);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      },
-    );
-  });
 }

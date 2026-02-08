@@ -581,16 +581,19 @@ class Orchestrator {
     // and will apply kill-specific finalization (hand-off semantics).
   }
 
-  /** Max time to wait for Stopped state before giving up (30s). */
+  /** Default max time to wait for Stopped state before giving up (30s). */
   private static readonly WAIT_FOR_STOPPED_TIMEOUT_MS = 30_000;
 
   /**
    * Returns a promise that resolves when the orchestrator reaches Stopped state.
    * Resolves immediately if already stopped.
-   * Rejects after 30s if Stopped is never reached — prevents indefinite hangs
-   * when the caller (e.g., project state watcher) needs to proceed with cleanup.
+   * Rejects after `timeoutMs` (default 30s) if Stopped is never reached —
+   * prevents indefinite hangs when the caller needs to proceed with cleanup.
+   *
+   * @param timeoutMs Override the default 30s timeout (e.g., for graceful shutdown).
    */
-  waitForStopped(): Promise<void> {
+  waitForStopped(timeoutMs?: number): Promise<void> {
+    const ms = timeoutMs ?? Orchestrator.WAIT_FOR_STOPPED_TIMEOUT_MS;
     if (this.state === OrchestratorState.Stopped) {
       return Promise.resolve();
     }
@@ -599,11 +602,11 @@ class Orchestrator {
         unsub();
         reject(
           new Error(
-            `[Orchestrator] waitForStopped timed out after ${Orchestrator.WAIT_FOR_STOPPED_TIMEOUT_MS}ms — ` +
+            `[Orchestrator] waitForStopped timed out after ${ms}ms — ` +
               `current state: "${this.state}". This indicates a bug in the shutdown path.`,
           ),
         );
-      }, Orchestrator.WAIT_FOR_STOPPED_TIMEOUT_MS);
+      }, ms);
 
       const unsub = this.onLifecycle((event) => {
         if (
