@@ -5,8 +5,8 @@ type OrchestratorAction = "enable" | "stop" | "kill" | "status";
 /**
  * Call the dedicated orchestrator API endpoint.
  *
- * Unlike `callTool`, this goes directly to `/api/orchestrator` — a purpose-built
- * route that skips the generic MCP tool dispatch layer.
+ * Goes directly to `/api/orchestrator` — a purpose-built route that skips
+ * the generic MCP tool dispatch layer used by agents.
  */
 async function callOrchestratorApi<T = unknown>(
   action: OrchestratorAction,
