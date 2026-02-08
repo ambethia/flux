@@ -536,7 +536,12 @@ class Orchestrator {
     // Clear PID watchdog — no longer needed once exit is being handled
     this.clearPidWatchdog();
 
-    // Wait for monitor to finish draining stdout before finalizing
+    // Wait for monitor to finish draining stdout before finalizing.
+    // Explicit fallback: if the monitor stream errors during drain, we still
+    // proceed with shutdown(). The monitor has already captured output into
+    // its buffer up to the failure point — disposition parsing and session
+    // finalization can work with partial output. Blocking teardown here would
+    // wedge the orchestrator in Busy state permanently.
     try {
       await this.activeSession.monitorDone;
     } catch (err) {
@@ -768,7 +773,11 @@ class Orchestrator {
       console.warn(
         `[Orchestrator] No agentSessionId captured for ${issue.shortId}, skipping retro`,
       );
-      // Record the skip as a comment on the issue for traceability
+      // Record the skip as a comment on the issue for traceability.
+      // Explicit fallback: the comment is informational only — it documents
+      // why retro was skipped but doesn't affect the pipeline. If comment
+      // creation fails (e.g., transient Convex error), the session still
+      // proceeds to review. The retro skip is also logged to stdout above.
       try {
         await convex.mutation(api.comments.create, {
           issueId,
@@ -823,7 +832,11 @@ class Orchestrator {
       );
     }
 
-    // Update session endHead after retro
+    // Update session endHead after retro.
+    // Explicit fallback: endHead is metadata for traceability (linking session
+    // to its final git state). If this update fails, the session record simply
+    // lacks endHead — disposition parsing, review spawning, and issue lifecycle
+    // are unaffected. The pipeline must proceed to review regardless.
     try {
       const endHead = await getCurrentHead(cwd);
       await convex.mutation(api.sessions.update, {
