@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 
 export const exists = query({
@@ -67,18 +68,13 @@ export const update = mutation({
         throw new Error(`${k} must be a positive integer, got ${val}`);
       }
     }
-    // Strip undefined values from numeric fields
-    const updates: Record<string, unknown> = {};
-    for (const [k, val] of Object.entries(patch)) {
-      if (val !== undefined) updates[k] = val;
-    }
+    // Strip undefined values from numeric fields, then handle focusEpicId
+    const updates: Partial<Doc<"orchestratorConfig">> = Object.fromEntries(
+      Object.entries(patch).filter(([, v]) => v !== undefined),
+    );
     // Handle focusEpicId: null clears it, undefined means no change
     if (focusEpicId !== undefined) {
-      if (focusEpicId === null) {
-        updates.focusEpicId = undefined;
-      } else {
-        updates.focusEpicId = focusEpicId;
-      }
+      updates.focusEpicId = focusEpicId === null ? undefined : focusEpicId;
     }
     await ctx.db.patch(config._id, updates);
     return { success: true };

@@ -1,5 +1,6 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import {
   dispositionValidator,
@@ -61,25 +62,16 @@ export const update = mutation({
     phase: v.optional(sessionPhaseValidator),
   },
   handler: async (ctx, args) => {
-    const session = await ctx.db.get(args.sessionId);
-    if (!session) throw new Error(`Session ${args.sessionId} not found`);
+    const { sessionId, ...rest } = args;
+    const session = await ctx.db.get(sessionId);
+    if (!session) throw new Error(`Session ${sessionId} not found`);
 
-    const updates: Record<string, unknown> = {};
-    if (args.status !== undefined) updates.status = args.status;
-    if (args.endedAt !== undefined) updates.endedAt = args.endedAt;
-    if (args.exitCode !== undefined) updates.exitCode = args.exitCode;
-    if (args.lastHeartbeat !== undefined)
-      updates.lastHeartbeat = args.lastHeartbeat;
-    if (args.disposition !== undefined) updates.disposition = args.disposition;
-    if (args.note !== undefined) updates.note = args.note;
-    if (args.agentSessionId !== undefined)
-      updates.agentSessionId = args.agentSessionId;
-    if (args.startHead !== undefined) updates.startHead = args.startHead;
-    if (args.endHead !== undefined) updates.endHead = args.endHead;
-    if (args.phase !== undefined) updates.phase = args.phase;
+    const patch: Partial<Doc<"sessions">> = Object.fromEntries(
+      Object.entries(rest).filter(([, v]) => v !== undefined),
+    );
 
-    await ctx.db.patch(args.sessionId, updates);
-    return await ctx.db.get(args.sessionId);
+    await ctx.db.patch(sessionId, patch);
+    return await ctx.db.get(sessionId);
   },
 });
 

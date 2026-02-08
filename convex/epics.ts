@@ -86,17 +86,18 @@ export const update = mutation({
     description: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const epic = await ctx.db.get(args.epicId);
-    if (!epic) throw new Error(`Epic ${args.epicId} not found`);
+    const { epicId, ...rest } = args;
+    const epic = await ctx.db.get(epicId);
+    if (!epic) throw new Error(`Epic ${epicId} not found`);
 
-    const updates: Record<string, unknown> = {};
-    if (args.title !== undefined) updates.title = args.title;
-    if (args.description !== undefined) updates.description = args.description;
+    const patch: Partial<Doc<"epics">> = Object.fromEntries(
+      Object.entries(rest).filter(([, v]) => v !== undefined),
+    );
 
-    if (Object.keys(updates).length === 0) return epic;
+    if (Object.keys(patch).length === 0) return epic;
 
-    await ctx.db.patch(args.epicId, updates);
-    return await ctx.db.get(args.epicId);
+    await ctx.db.patch(epicId, patch);
+    return await ctx.db.get(epicId);
   },
 });
 

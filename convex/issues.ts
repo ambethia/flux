@@ -452,20 +452,17 @@ export const incrementFailure = mutation({
     const issue = await getActiveIssue(ctx, issueId);
 
     const newCount = issue.failureCount + 1;
-    const updates: Record<string, unknown> = {
+    const exceeded = newCount >= maxFailures;
+    const reopen = !exceeded && reopenToOpen !== false;
+
+    const patch: Partial<Doc<"issues">> = {
       failureCount: newCount,
       updatedAt: Date.now(),
+      ...(exceeded && { status: IssueStatus.Stuck, assignee: undefined }),
+      ...(reopen && { status: IssueStatus.Open, assignee: undefined }),
     };
 
-    if (newCount >= maxFailures) {
-      updates.status = IssueStatus.Stuck;
-      updates.assignee = undefined;
-    } else if (reopenToOpen !== false) {
-      updates.status = IssueStatus.Open;
-      updates.assignee = undefined;
-    }
-
-    await ctx.db.patch(issueId, updates);
+    await ctx.db.patch(issueId, patch);
     const updated = await ctx.db.get(issueId);
     if (!updated)
       throw new Error(
