@@ -1,9 +1,73 @@
-import { useNavigate, useRouter } from "@tanstack/react-router";
+import {
+  type NavigateFn,
+  useMatches,
+  useNavigate,
+} from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import { useRef } from "react";
 import { api } from "$convex/_generated/api";
 import { useProjectSlug } from "../hooks/useProjectId";
 import { ProjectStateBadge } from "./ProjectStateBadge";
+
+/**
+ * Navigate to the equivalent route under a different project slug.
+ * Detail routes (issue, session) drop to their parent list since
+ * the entity ID won't exist cross-project.
+ *
+ * Each case uses a literal route string so TanStack Router validates
+ * the route + params at compile time. If a route is renamed or removed,
+ * this switch will produce a type error instead of a silent 404.
+ */
+function navigateToProject(
+  navigate: NavigateFn,
+  matches: Array<{ routeId: string }>,
+  newSlug: string,
+): void {
+  // Walk matches from deepest to shallowest to find the most specific project route.
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const match = matches[i];
+    if (!match) continue;
+    switch (match.routeId) {
+      case "/p/$projectSlug/issues/$issueId":
+      case "/p/$projectSlug/issues":
+        navigate({
+          to: "/p/$projectSlug/issues",
+          params: { projectSlug: newSlug },
+        });
+        return;
+      case "/p/$projectSlug/sessions/$sessionId":
+      case "/p/$projectSlug/sessions":
+        navigate({
+          to: "/p/$projectSlug/sessions",
+          params: { projectSlug: newSlug },
+        });
+        return;
+      case "/p/$projectSlug/activity":
+        navigate({
+          to: "/p/$projectSlug/activity",
+          params: { projectSlug: newSlug },
+        });
+        return;
+      case "/p/$projectSlug/labels":
+        navigate({
+          to: "/p/$projectSlug/labels",
+          params: { projectSlug: newSlug },
+        });
+        return;
+      case "/p/$projectSlug/settings":
+        navigate({
+          to: "/p/$projectSlug/settings",
+          params: { projectSlug: newSlug },
+        });
+        return;
+    }
+  }
+  // Fallback: navigate to issues list
+  navigate({
+    to: "/p/$projectSlug/issues",
+    params: { projectSlug: newSlug },
+  });
+}
 
 /**
  * Compact project switcher dropdown for the app shell navbar.
@@ -13,7 +77,7 @@ import { ProjectStateBadge } from "./ProjectStateBadge";
 export function ProjectSwitcher() {
   const currentSlug = useProjectSlug();
   const projects = useQuery(api.projects.list);
-  const { state: routerState } = useRouter();
+  const matches = useMatches();
   const navigate = useNavigate();
   const detailsRef = useRef<HTMLDetailsElement>(null);
 
@@ -21,18 +85,10 @@ export function ProjectSwitcher() {
 
   const current = projects.find((p) => p.slug === currentSlug);
 
-  /** Extract the sub-route after `/p/:slug/` and rebuild for a new slug. */
   function switchTo(slug: string) {
     if (slug === currentSlug) return;
 
-    const path = routerState.location.pathname;
-    // path looks like /p/flux/issues or /p/flux/sessions/abc123
-    const prefix = `/p/${currentSlug}`;
-    const subRoute = path.startsWith(prefix)
-      ? path.slice(prefix.length) || "/issues"
-      : "/issues";
-
-    navigate({ to: `/p/${slug}${subRoute}` });
+    navigateToProject(navigate, matches, slug);
 
     // Close the dropdown
     const details = detailsRef.current;
