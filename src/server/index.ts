@@ -57,11 +57,7 @@ function parseProjectScopedRoute(
   return null;
 }
 
-export async function startServer(projects: Project[]) {
-  if (projects.length === 0) {
-    throw new Error("startServer requires at least one project");
-  }
-
+export async function startServer() {
   const port = Number(process.env.FLUX_PORT) || DEFAULT_PORT;
 
   const handleProjectsApi = createProjectsApiHandler(getConvexClient());
