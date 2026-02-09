@@ -123,7 +123,7 @@ launchctl stop dev.flux.daemon
 launchd automatically restarts the process. No need to run `start` — KeepAlive handles it.
 
 **When to restart:**
-- Hot reload is stuck (code changes not reflected after a few seconds)
+- `bun --watch` restart is stuck (code changes not reflected after a few seconds)
 - `convex dev` lost connection
 - Server is in a bad state
 

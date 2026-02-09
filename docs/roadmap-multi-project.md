@@ -40,7 +40,7 @@ What already works and what doesn't, based on codebase analysis.
 
 | Component | File | Issue |
 |-----------|------|-------|
-| Orchestrator singleton | `src/server/orchestrator/index.ts:1648-1658` | `globalThis.__fluxOrchestrator` stores one instance |
+| Orchestrator singleton | `src/server/orchestrator/orchestrator.ts` | Module-level `_instance` stores one instance |
 | Server startup | `src/index.ts` | `ensureProject()` called once, locks to one project |
 | API config | `src/server/index.ts:14-83` | `/api/config` returns single `projectId` |
 | MCP handler | `src/server/mcp.ts` | `createMcpHandler(projectId)` bound at startup |
@@ -86,11 +86,11 @@ Single source of truth for project identity is the Convex `projects` table. The 
 
 #### Context
 
-The orchestrator is currently a singleton cached on `globalThis.__fluxOrchestrator`. It subscribes to `api.issues.ready` for one project, manages one `activeSession`, and has one state machine (Stopped/Idle/Busy). All of this is per-project already in logic — the singleton pattern is the only bottleneck.
+The orchestrator is currently a module-level singleton in `orchestrator.ts`. It subscribes to `api.issues.ready` for one project, manages one `activeSession`, and has one state machine (Stopped/Idle/Busy). All of this is per-project already in logic — the singleton pattern is the only bottleneck.
 
 #### Work
 
-- **Replace singleton with Map** — Change `getOrchestrator(projectId)` to maintain a `Map<string, Orchestrator>` on `globalThis`. Each project gets its own instance. Hot-reload preservation works the same way (the Map survives HMR).
+- **Replace singleton with Map** — Change `getOrchestrator(projectId)` to maintain a `Map<string, Orchestrator>`. Each project gets its own instance. With `--watch` mode, the process restarts fully on code changes — no HMR survival needed.
 
 - **Per-project Convex subscriptions** — Each `Orchestrator` already calls `convex.onUpdate(api.issues.ready, {projectId})`. With multiple instances, each subscribes independently. The Convex client handles multiplexed subscriptions natively.
 
