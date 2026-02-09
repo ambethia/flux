@@ -12,8 +12,11 @@
 import type { Id } from "./_generated/dataModel";
 import { internalMutation } from "./_generated/server";
 import {
+  CounterEntity,
   IssuePriority,
   type IssuePriorityValue,
+  IssueStatus,
+  SessionStatus,
   toPriorityOrder,
 } from "./schema";
 
@@ -146,5 +149,91 @@ export const backfillPriorityOrder = internalMutation({
     }
 
     return { patched, skipped, total: allIssues.length };
+  },
+});
+
+/**
+ * Backfill `statusCounts` from existing issues and sessions.
+ *
+ * Added for FLUX-357 (counter table for O(1) counting). Counts all non-deleted
+ * issues and all sessions per project per status, then upserts the counter rows.
+ *
+ * Safe to re-run: replaces counters with freshly computed values each time.
+ */
+export const backfillStatusCounts = internalMutation({
+  handler: async (ctx) => {
+    const projects = await ctx.db.query("projects").collect();
+    let countersWritten = 0;
+
+    for (const project of projects) {
+      // --- Issues: count non-deleted issues per status ---
+      for (const status of Object.values(IssueStatus)) {
+        const docs = await ctx.db
+          .query("issues")
+          .withIndex("by_project_deletedAt_status", (q) =>
+            q
+              .eq("projectId", project._id)
+              .eq("deletedAt", undefined)
+              .eq("status", status),
+          )
+          .collect();
+
+        const existing = await ctx.db
+          .query("statusCounts")
+          .withIndex("by_project_entity_status", (q) =>
+            q
+              .eq("projectId", project._id)
+              .eq("entity", CounterEntity.Issues)
+              .eq("status", status),
+          )
+          .unique();
+
+        if (existing) {
+          await ctx.db.patch(existing._id, { count: docs.length });
+        } else {
+          await ctx.db.insert("statusCounts", {
+            projectId: project._id,
+            entity: CounterEntity.Issues,
+            status,
+            count: docs.length,
+          });
+        }
+        countersWritten++;
+      }
+
+      // --- Sessions: count all sessions per status ---
+      for (const status of Object.values(SessionStatus)) {
+        const docs = await ctx.db
+          .query("sessions")
+          .withIndex("by_project_status_startedAt", (q) =>
+            q.eq("projectId", project._id).eq("status", status),
+          )
+          .collect();
+
+        const existing = await ctx.db
+          .query("statusCounts")
+          .withIndex("by_project_entity_status", (q) =>
+            q
+              .eq("projectId", project._id)
+              .eq("entity", CounterEntity.Sessions)
+              .eq("status", status),
+          )
+          .unique();
+
+        if (existing) {
+          await ctx.db.patch(existing._id, { count: docs.length });
+        } else {
+          await ctx.db.insert("statusCounts", {
+            projectId: project._id,
+            entity: CounterEntity.Sessions,
+            status,
+            count: docs.length,
+          });
+        }
+        countersWritten++;
+      }
+    }
+
+    return { countersWritten, projects: projects.length };
   },
 });

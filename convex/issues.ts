@@ -5,6 +5,7 @@ import type { DatabaseReader, MutationCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import {
   CommentAuthor,
+  CounterEntity,
   closeTypeValidator,
   IssuePriority,
   IssueStatus,
@@ -13,6 +14,11 @@ import {
   issueStatusValidator,
   toPriorityOrder,
 } from "./schema";
+import {
+  adjustStatusCount,
+  readStatusCounts,
+  transitionStatusCount,
+} from "./statusCounts";
 
 function generateShortId(slug: string, counter: number): string {
   return `${slug.toUpperCase()}-${counter}`;
@@ -61,6 +67,14 @@ export const create = mutation({
       labelIds: args.labelIds,
       updatedAt: Date.now(),
     });
+
+    await adjustStatusCount(
+      ctx,
+      args.projectId,
+      CounterEntity.Issues,
+      IssueStatus.Open,
+      +1,
+    );
 
     return issueId;
   },
@@ -114,6 +128,14 @@ export const bulkCreate = mutation({
     }
 
     await ctx.db.patch(args.projectId, { issueCounter: counter });
+
+    await adjustStatusCount(
+      ctx,
+      args.projectId,
+      CounterEntity.Issues,
+      IssueStatus.Open,
+      created.length,
+    );
 
     return created;
   },
@@ -246,6 +268,13 @@ export const claim = mutation({
       assignee,
       updatedAt: Date.now(),
     });
+    await transitionStatusCount(
+      ctx,
+      issue.projectId,
+      CounterEntity.Issues,
+      IssueStatus.Open,
+      IssueStatus.InProgress,
+    );
     const updated = await ctx.db.get(issueId);
     if (!updated)
       throw new Error(`Failed to read back issue ${issueId} after claim`);
@@ -267,12 +296,12 @@ export const bulkUpdate = mutation({
     const now = Date.now();
     const updated = [];
 
-    for (const { issueId, priority, ...rest } of args.updates) {
-      await getActiveIssue(ctx, issueId);
+    for (const { issueId, priority, status, ...rest } of args.updates) {
+      const issue = await getActiveIssue(ctx, issueId);
 
       const patch: Partial<Doc<"issues">> = {
         updatedAt: now,
-        ...buildPatch(rest),
+        ...buildPatch({ status, ...rest }),
         ...(priority !== undefined && {
           priority,
           priorityOrder: toPriorityOrder(priority),
@@ -280,6 +309,17 @@ export const bulkUpdate = mutation({
       };
 
       await ctx.db.patch(issueId, patch);
+
+      if (status !== undefined && status !== issue.status) {
+        await transitionStatusCount(
+          ctx,
+          issue.projectId,
+          CounterEntity.Issues,
+          issue.status,
+          status,
+        );
+      }
+
       const doc = await ctx.db.get(issueId);
       if (!doc)
         throw new Error(`Failed to read back issue ${issueId} after update`);
@@ -329,7 +369,7 @@ export const update = mutation({
     labelIds: nullable(v.array(v.id("labels"))),
   },
   handler: async (ctx, args) => {
-    await getActiveIssue(ctx, args.issueId);
+    const issue = await getActiveIssue(ctx, args.issueId);
 
     const { issueId, priority, ...rest } = args;
     const patch: Partial<Doc<"issues">> = {
@@ -342,6 +382,17 @@ export const update = mutation({
     };
 
     await ctx.db.patch(issueId, patch);
+
+    if (args.status !== undefined && args.status !== issue.status) {
+      await transitionStatusCount(
+        ctx,
+        issue.projectId,
+        CounterEntity.Issues,
+        issue.status,
+        args.status,
+      );
+    }
+
     const updated = await ctx.db.get(issueId);
     if (!updated)
       throw new Error(`Failed to read back issue ${issueId} after update`);
@@ -363,6 +414,7 @@ export const close = mutation({
     // the exit handler and wedge the orchestrator in Busy state.
     if (issue.status === IssueStatus.Closed) return issue;
 
+    const oldStatus = issue.status;
     await ctx.db.patch(issueId, {
       status: IssueStatus.Closed,
       closeType,
@@ -371,6 +423,13 @@ export const close = mutation({
       assignee: undefined,
       updatedAt: Date.now(),
     });
+    await transitionStatusCount(
+      ctx,
+      issue.projectId,
+      CounterEntity.Issues,
+      oldStatus,
+      IssueStatus.Closed,
+    );
     const updated = await ctx.db.get(issueId);
     if (!updated)
       throw new Error(`Failed to read back issue ${issueId} after close`);
@@ -390,6 +449,7 @@ export const defer = mutation({
       throw new Error(`Cannot defer issue ${issueId}: already closed`);
     }
 
+    const oldStatus = issue.status;
     const now = Date.now();
     await ctx.db.patch(issueId, {
       status: IssueStatus.Deferred,
@@ -397,6 +457,13 @@ export const defer = mutation({
       assignee: undefined,
       updatedAt: now,
     });
+    await transitionStatusCount(
+      ctx,
+      issue.projectId,
+      CounterEntity.Issues,
+      oldStatus,
+      IssueStatus.Deferred,
+    );
     await ctx.db.insert("comments", {
       issueId,
       content: `Deferred: ${note}`,
@@ -431,6 +498,13 @@ export const undefer = mutation({
       assignee: undefined,
       updatedAt: now,
     });
+    await transitionStatusCount(
+      ctx,
+      issue.projectId,
+      CounterEntity.Issues,
+      IssueStatus.Deferred,
+      IssueStatus.Open,
+    );
     await ctx.db.insert("comments", {
       issueId,
       content: note ? `Undeferred: ${note}` : "Undeferred",
@@ -453,9 +527,16 @@ export const incrementFailure = mutation({
   handler: async (ctx, { issueId, maxFailures, reopenToOpen }) => {
     const issue = await getActiveIssue(ctx, issueId);
 
+    const oldStatus = issue.status;
     const newCount = issue.failureCount + 1;
     const exceeded = newCount >= maxFailures;
     const reopen = !exceeded && reopenToOpen !== false;
+
+    const newStatus = exceeded
+      ? IssueStatus.Stuck
+      : reopen
+        ? IssueStatus.Open
+        : undefined;
 
     const patch: Partial<Doc<"issues">> = {
       failureCount: newCount,
@@ -465,6 +546,17 @@ export const incrementFailure = mutation({
     };
 
     await ctx.db.patch(issueId, patch);
+
+    if (newStatus !== undefined) {
+      await transitionStatusCount(
+        ctx,
+        issue.projectId,
+        CounterEntity.Issues,
+        oldStatus,
+        newStatus,
+      );
+    }
+
     const updated = await ctx.db.get(issueId);
     if (!updated)
       throw new Error(
@@ -548,6 +640,13 @@ async function retryHandler(ctx: MutationCtx, issueId: Id<"issues">) {
     assignee: undefined,
     updatedAt: Date.now(),
   });
+  await transitionStatusCount(
+    ctx,
+    issue.projectId,
+    CounterEntity.Issues,
+    IssueStatus.Stuck,
+    IssueStatus.Open,
+  );
   const updated = await ctx.db.get(issueId);
   if (!updated)
     throw new Error(`Failed to read back issue ${issueId} after retry`);
@@ -565,30 +664,21 @@ export const retry = mutation({
  * Count non-deleted issues for a project, grouped by status.
  * Exported for reuse by other queries (e.g. projects.listWithStats).
  *
- * When `statuses` is provided, only those buckets are queried — avoids
- * wasted reads when the caller doesn't need every status (FLUX-356).
+ * Reads from the `statusCounts` counter table — O(1) per status bucket
+ * instead of full index scans. FLUX-357.
+ *
+ * When `statuses` is provided, only those buckets are read.
  */
 export async function countIssuesByStatus(
   db: DatabaseReader,
   projectId: Id<"projects">,
   statuses?: IssueStatusValue[],
 ): Promise<Record<string, number>> {
-  const targetStatuses = statuses ?? Object.values(IssueStatus);
-  const buckets = await Promise.all(
-    targetStatuses.map((status) =>
-      db
-        .query("issues")
-        .withIndex("by_project_deletedAt_status", (q) =>
-          q
-            .eq("projectId", projectId)
-            .eq("deletedAt", undefined)
-            .eq("status", status),
-        )
-        .collect(),
-    ),
-  );
-  return Object.fromEntries(
-    targetStatuses.map((status, i) => [status, buckets[i]?.length ?? 0]),
+  return readStatusCounts(
+    db,
+    projectId,
+    CounterEntity.Issues,
+    statuses ?? Object.values(IssueStatus),
   );
 }
 

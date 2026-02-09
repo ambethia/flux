@@ -100,6 +100,19 @@ export const commentAuthorValidator = v.union(
   v.literal(CommentAuthor.Flux),
 );
 
+export const CounterEntity = {
+  Issues: "issues",
+  Sessions: "sessions",
+} as const;
+
+export const counterEntityValidator = v.union(
+  v.literal(CounterEntity.Issues),
+  v.literal(CounterEntity.Sessions),
+);
+
+export type CounterEntityValue =
+  (typeof CounterEntity)[keyof typeof CounterEntity];
+
 export const CloseType = {
   Completed: "completed",
   Noop: "noop",
@@ -285,4 +298,11 @@ export default defineSchema({
   })
     .index("by_blocker_blocked", ["blockerId", "blockedId"])
     .index("by_blocked", ["blockedId"]),
+
+  statusCounts: defineTable({
+    projectId: v.id("projects"),
+    entity: counterEntityValidator,
+    status: v.string(),
+    count: v.number(),
+  }).index("by_project_entity_status", ["projectId", "entity", "status"]),
 });

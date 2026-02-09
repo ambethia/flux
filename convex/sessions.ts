@@ -4,6 +4,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { DatabaseReader } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import {
+  CounterEntity,
   dispositionValidator,
   SessionStatus,
   type SessionStatusValue,
@@ -11,6 +12,11 @@ import {
   sessionStatusValidator,
   sessionTypeValidator,
 } from "./schema";
+import {
+  adjustStatusCount,
+  readStatusCounts,
+  transitionStatusCount,
+} from "./statusCounts";
 
 export const create = mutation({
   args: {
@@ -45,6 +51,14 @@ export const create = mutation({
       model: args.model,
     });
 
+    await adjustStatusCount(
+      ctx,
+      args.projectId,
+      CounterEntity.Sessions,
+      SessionStatus.Running,
+      +1,
+    );
+
     return await ctx.db.get(sessionId);
   },
 });
@@ -73,6 +87,17 @@ export const update = mutation({
     );
 
     await ctx.db.patch(sessionId, patch);
+
+    if (args.status !== undefined && args.status !== session.status) {
+      await transitionStatusCount(
+        ctx,
+        session.projectId,
+        CounterEntity.Sessions,
+        session.status,
+        args.status,
+      );
+    }
+
     return await ctx.db.get(sessionId);
   },
 });
@@ -166,37 +191,25 @@ export const listPaginatedWithIssues = query({
   },
 });
 
-// Scaling note: .collect() fetches all documents per status to count them.
-// Convex has no native indexed count, so alternatives are:
-//   1. Counter table — increment/decrement on session create/status change
-//   2. This approach — acceptable while session volume is low (hundreds)
-// If session counts reach thousands per project, migrate to a counter table.
-
 /**
  * Count sessions for a project, grouped by status.
  * Exported for reuse by other queries (e.g. projects.listWithStats).
  *
- * When `statuses` is provided, only those buckets are queried — avoids
- * wasted reads when the caller doesn't need every status (FLUX-356).
+ * Reads from the `statusCounts` counter table — O(1) per status bucket
+ * instead of full index scans. FLUX-357.
+ *
+ * When `statuses` is provided, only those buckets are read.
  */
 export async function countSessionsByStatus(
   db: DatabaseReader,
   projectId: Id<"projects">,
   statuses?: SessionStatusValue[],
 ): Promise<Record<string, number>> {
-  const targetStatuses = statuses ?? Object.values(SessionStatus);
-  const buckets = await Promise.all(
-    targetStatuses.map((status) =>
-      db
-        .query("sessions")
-        .withIndex("by_project_status_startedAt", (q) =>
-          q.eq("projectId", projectId).eq("status", status),
-        )
-        .collect(),
-    ),
-  );
-  return Object.fromEntries(
-    targetStatuses.map((status, i) => [status, buckets[i]?.length ?? 0]),
+  return readStatusCounts(
+    db,
+    projectId,
+    CounterEntity.Sessions,
+    statuses ?? Object.values(SessionStatus),
   );
 }
 

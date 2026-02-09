@@ -21,6 +21,7 @@ import type * as projects from "../projects.js";
 import type * as seeds from "../seeds.js";
 import type * as sessionEvents from "../sessionEvents.js";
 import type * as sessions from "../sessions.js";
+import type * as statusCounts from "../statusCounts.js";
 
 import type {
   ApiFromModules,
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   seeds: typeof seeds;
   sessionEvents: typeof sessionEvents;
   sessions: typeof sessions;
+  statusCounts: typeof statusCounts;
 }>;
 
 /**

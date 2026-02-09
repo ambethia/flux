@@ -204,6 +204,7 @@ const CascadeSteps = {
   Labels: "labels",
   Epics: "epics",
   OrchestratorConfig: "orchestratorConfig",
+  StatusCounts: "statusCounts",
 } as const;
 
 type CascadeStep = (typeof CascadeSteps)[keyof typeof CascadeSteps];
@@ -214,6 +215,7 @@ const cascadeStepValidator = v.union(
   v.literal(CascadeSteps.Labels),
   v.literal(CascadeSteps.Epics),
   v.literal(CascadeSteps.OrchestratorConfig),
+  v.literal(CascadeSteps.StatusCounts),
 );
 
 const CASCADE_STEPS: CascadeStep[] = [
@@ -222,6 +224,7 @@ const CASCADE_STEPS: CascadeStep[] = [
   CascadeSteps.Labels,
   CascadeSteps.Epics,
   CascadeSteps.OrchestratorConfig,
+  CascadeSteps.StatusCounts,
 ];
 
 /** Maximum retry attempts for each batch mutation in the cascade. */
@@ -421,6 +424,20 @@ export const cascadeDeleteBatch = internalMutation({
           .take(batchSize);
         for (const config of configs) {
           await ctx.db.delete(config._id);
+          deleted++;
+        }
+        break;
+      }
+
+      case CascadeSteps.StatusCounts: {
+        const counters = await ctx.db
+          .query("statusCounts")
+          .withIndex("by_project_entity_status", (q) =>
+            q.eq("projectId", projectId),
+          )
+          .take(batchSize);
+        for (const counter of counters) {
+          await ctx.db.delete(counter._id);
           deleted++;
         }
         break;
