@@ -116,8 +116,11 @@ export const listWithStats = query({
     return await Promise.all(
       projects.map(async (project) => {
         const [issueCounts, sessionCounts] = await Promise.all([
-          countIssuesByStatus(ctx.db, project._id),
-          countSessionsByStatus(ctx.db, project._id),
+          countIssuesByStatus(ctx.db, project._id, [
+            IssueStatus.Open,
+            IssueStatus.InProgress,
+          ]),
+          countSessionsByStatus(ctx.db, project._id, [SessionStatus.Running]),
         ]);
 
         return {

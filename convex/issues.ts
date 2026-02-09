@@ -8,6 +8,7 @@ import {
   closeTypeValidator,
   IssuePriority,
   IssueStatus,
+  type IssueStatusValue,
   issuePriorityValidator,
   issueStatusValidator,
   toPriorityOrder,
@@ -563,14 +564,18 @@ export const retry = mutation({
 /**
  * Count non-deleted issues for a project, grouped by status.
  * Exported for reuse by other queries (e.g. projects.listWithStats).
+ *
+ * When `statuses` is provided, only those buckets are queried — avoids
+ * wasted reads when the caller doesn't need every status (FLUX-356).
  */
 export async function countIssuesByStatus(
   db: DatabaseReader,
   projectId: Id<"projects">,
+  statuses?: IssueStatusValue[],
 ): Promise<Record<string, number>> {
-  const statuses = Object.values(IssueStatus);
+  const targetStatuses = statuses ?? Object.values(IssueStatus);
   const buckets = await Promise.all(
-    statuses.map((status) =>
+    targetStatuses.map((status) =>
       db
         .query("issues")
         .withIndex("by_project_deletedAt_status", (q) =>
@@ -583,7 +588,7 @@ export async function countIssuesByStatus(
     ),
   );
   return Object.fromEntries(
-    statuses.map((status, i) => [status, buckets[i]?.length ?? 0]),
+    targetStatuses.map((status, i) => [status, buckets[i]?.length ?? 0]),
   );
 }
 

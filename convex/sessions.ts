@@ -6,6 +6,7 @@ import { mutation, query } from "./_generated/server";
 import {
   dispositionValidator,
   SessionStatus,
+  type SessionStatusValue,
   sessionPhaseValidator,
   sessionStatusValidator,
   sessionTypeValidator,
@@ -174,14 +175,18 @@ export const listPaginatedWithIssues = query({
 /**
  * Count sessions for a project, grouped by status.
  * Exported for reuse by other queries (e.g. projects.listWithStats).
+ *
+ * When `statuses` is provided, only those buckets are queried — avoids
+ * wasted reads when the caller doesn't need every status (FLUX-356).
  */
 export async function countSessionsByStatus(
   db: DatabaseReader,
   projectId: Id<"projects">,
+  statuses?: SessionStatusValue[],
 ): Promise<Record<string, number>> {
-  const statuses = Object.values(SessionStatus);
+  const targetStatuses = statuses ?? Object.values(SessionStatus);
   const buckets = await Promise.all(
-    statuses.map((status) =>
+    targetStatuses.map((status) =>
       db
         .query("sessions")
         .withIndex("by_project_status_startedAt", (q) =>
@@ -191,7 +196,7 @@ export async function countSessionsByStatus(
     ),
   );
   return Object.fromEntries(
-    statuses.map((status, i) => [status, buckets[i]?.length ?? 0]),
+    targetStatuses.map((status, i) => [status, buckets[i]?.length ?? 0]),
   );
 }
 
