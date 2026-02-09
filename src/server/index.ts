@@ -157,21 +157,22 @@ export async function startServer(projects: Project[]) {
       }
 
       case "sse-activity": {
-        if (!projectPath) {
-          return Response.json(
-            { error: `Project ${projectId} has no path configured.` },
-            { status: 400 },
-          );
+        const runner = orchestrator.getRunner(projectId as Id<"projects">);
+        if (!runner) {
+          // Return a single SSE status event instead of throwing.
+          // The UI handles reconnection — this prevents error spam for disabled projects.
+          const body = `event: status\ndata: ${JSON.stringify({
+            state: "disabled",
+            message: "Project is not enabled or has no runner.",
+          })}\n\n`;
+          return new Response(body, {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache",
+            },
+          });
         }
-        const handler = createSSEHandler(() => {
-          const runner = orchestrator.getRunner(projectId as Id<"projects">);
-          if (!runner) {
-            throw new Error(
-              `No runner for project ${projectId}. Is the project enabled?`,
-            );
-          }
-          return runner;
-        });
+        const handler = createSSEHandler(() => runner);
         return handler(req);
       }
 

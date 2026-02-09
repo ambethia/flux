@@ -112,6 +112,8 @@ class ProjectRunner {
     (event: OrchestratorLifecycleEvent) => void
   >();
   private destroyed = false;
+  /** Resolves when the current handleExit() call completes. Used by destroy() to await cleanup. */
+  private exitHandlerDone: Promise<void> | null = null;
 
   constructor(
     projectId: Id<"projects">,
@@ -241,13 +243,19 @@ class ProjectRunner {
     }
     this.readyIssues = [];
 
-    // Kill active session if busy
+    // Kill active session and await the exit handler so handleExit() can
+    // mark the session as Failed in Convex before the client is closed.
     if (this.state === OrchestratorState.Busy && this.activeSession) {
       this.clearSessionTimeout();
       this.clearPidWatchdog();
       this.activeSession.killed = true;
       this.activeSession.process.kill();
-      // Don't wait for exit — destroy is fire-and-forget
+      if (this.exitHandlerDone) {
+        await Promise.race([
+          this.exitHandlerDone,
+          new Promise<void>((resolve) => setTimeout(resolve, 10_000)),
+        ]);
+      }
     }
   }
 
@@ -382,11 +390,8 @@ class ProjectRunner {
     // 10. Wire up agentSessionId extraction from stream-json
     this.wireAgentSessionIdExtraction(this.activeSession, monitor);
 
-    // 11. Fire-and-forget: handle agent exit in background
-    agentProcess.wait().then(
-      ({ exitCode }) => this.handleExit(exitCode),
-      () => this.handleExit(1),
-    );
+    // 11. Handle agent exit in background (tracked so destroy() can await it)
+    this.trackProcessExit(agentProcess);
 
     // 12. Start session timeout enforcement
     this.startSessionTimeout();
@@ -530,6 +535,20 @@ class ProjectRunner {
   }
 
   // ── Exit handling ────────────────────────────────────────────────────
+
+  /**
+   * Register the exit handler for a process and track its completion.
+   * Replaces direct `.wait().then()` so destroy() can await cleanup
+   * before the Convex client is closed.
+   */
+  private trackProcessExit(agentProcess: AgentProcess): void {
+    const { promise, resolve } = Promise.withResolvers<void>();
+    this.exitHandlerDone = promise;
+    agentProcess.wait().then(
+      ({ exitCode }) => this.handleExit(exitCode).finally(resolve),
+      () => this.handleExit(1).finally(resolve),
+    );
+  }
 
   private async handleExit(exitCode: number): Promise<void> {
     if (!this.activeSession) return;
@@ -993,10 +1012,7 @@ class ProjectRunner {
       phase: SessionPhase.Retro,
     });
 
-    retroProcess.wait().then(
-      ({ exitCode }) => this.handleExit(exitCode),
-      () => this.handleExit(1),
-    );
+    this.trackProcessExit(retroProcess);
 
     this.startSessionTimeout();
     this.startPidWatchdog();
@@ -1099,10 +1115,7 @@ class ProjectRunner {
     this.wireAgentSessionIdExtraction(active, reviewMonitor);
     this.emitLifecycle({ type: "monitor_changed", monitor: reviewMonitor });
 
-    reviewProcess.wait().then(
-      ({ exitCode }) => this.handleExit(exitCode),
-      () => this.handleExit(1),
-    );
+    this.trackProcessExit(reviewProcess);
 
     this.startSessionTimeout();
     this.startPidWatchdog();
@@ -1353,10 +1366,7 @@ class ProjectRunner {
       resolveExit,
     );
 
-    stubProcess.wait().then(
-      ({ exitCode }) => this.handleExit(exitCode),
-      () => this.handleExit(1),
-    );
+    this.trackProcessExit(stubProcess);
 
     this.startSessionTimeout(session.startedAt);
 

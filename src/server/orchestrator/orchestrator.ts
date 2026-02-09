@@ -1,6 +1,8 @@
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
+import { IssueStatus, SessionStatus } from "$convex/schema";
 import { getConvexClient } from "../convex";
+import { isProcessAlive } from "../process";
 import { type OrphanRecoveryStats, ProjectRunner } from "./index";
 
 /**
@@ -20,11 +22,16 @@ class Orchestrator {
   async start(): Promise<void> {
     const convex = getConvexClient();
 
+    // Global orphan recovery: mark dead sessions as Failed for ALL projects
+    // (including disabled ones) before creating runners. This catches sessions
+    // orphaned by unclean shutdowns where destroy() couldn't update Convex.
+    const allProjects = await convex.query(api.projects.list, {});
+    await this.recoverGlobalOrphans(convex, allProjects);
+
     // Do an initial eager sync before subscribing so that runners
     // are created immediately (subscription callback may fire with
     // the same data, which syncRunners handles idempotently).
-    const projects = await convex.query(api.projects.list, {});
-    await this.syncRunners(projects);
+    await this.syncRunners(allProjects);
 
     // Subscribe for ongoing changes
     this.unsubscribeProjects = convex.onUpdate(
@@ -98,6 +105,56 @@ class Orchestrator {
         }
         this.runners.delete(projectId);
       }
+    }
+  }
+
+  /**
+   * Recover orphaned sessions across ALL projects (including disabled ones).
+   * Marks sessions with dead PIDs as Failed and reopens their issues.
+   * Runs before per-project runners are created so they start with clean state.
+   */
+  private async recoverGlobalOrphans(
+    convex: ReturnType<typeof getConvexClient>,
+    projects: Array<{ _id: Id<"projects">; slug: string }>,
+  ): Promise<void> {
+    let totalRecovered = 0;
+    for (const project of projects) {
+      const sessions = await convex.query(api.sessions.list, {
+        projectId: project._id,
+        status: SessionStatus.Running,
+      });
+      for (const session of sessions) {
+        const pid = session.pid;
+        const alive = pid ? isProcessAlive(pid) : false;
+        if (alive) continue; // Will be handled by per-project runner adoption
+
+        totalRecovered++;
+        console.log(
+          `[Orchestrator] Global recovery: marking dead session ${session._id} ` +
+            `(PID ${pid ?? "null"}) as failed for "${project.slug}"`,
+        );
+        await convex.mutation(api.sessions.update, {
+          sessionId: session._id,
+          status: SessionStatus.Failed,
+          endedAt: Date.now(),
+          exitCode: -1,
+        });
+        const issue = await convex.query(api.issues.get, {
+          issueId: session.issueId,
+        });
+        if (issue && issue.status !== IssueStatus.Closed) {
+          await convex.mutation(api.issues.update, {
+            issueId: session.issueId,
+            status: IssueStatus.Open,
+            assignee: null,
+          });
+        }
+      }
+    }
+    if (totalRecovered > 0) {
+      console.log(
+        `[Orchestrator] Global recovery complete: ${totalRecovered} dead session(s) cleaned up`,
+      );
     }
   }
 
