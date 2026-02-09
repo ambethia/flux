@@ -1,5 +1,5 @@
+import { sanitizeConvexError } from "../lib/sanitizeError";
 import type { ProjectRunner } from "./orchestrator";
-import { sanitizeConvexError } from "./sanitizeError";
 
 type OrchestratorAction = "kill" | "status";
 

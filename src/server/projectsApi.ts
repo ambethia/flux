@@ -1,8 +1,8 @@
 import type { ConvexClient } from "convex/browser";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
+import { sanitizeConvexError } from "../lib/sanitizeError";
 import { inferProjectSlug, validateProjectPath } from "./git";
-import { sanitizeConvexError } from "./sanitizeError";
 
 /**
  * Extract the Convex document ID from the URL path.

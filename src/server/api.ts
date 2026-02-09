@@ -1,4 +1,4 @@
-import { sanitizeConvexError } from "./sanitizeError";
+import { sanitizeConvexError } from "../lib/sanitizeError";
 import { handlers, type ToolContext } from "./tools";
 
 /** Dispatch a single tool request against the given context. */
