@@ -97,14 +97,29 @@ export async function startServer() {
 
     const projectPath = project.path;
 
+    // Guard: all branches except "config" and "sse-activity" require a configured path
+    const needsPath = subPath !== "config" && subPath !== "sse-activity";
+    if (needsPath && !projectPath) {
+      return Response.json(
+        { error: `Project ${projectId} has no path configured.` },
+        { status: 400 },
+      );
+    }
+
+    // Shared ToolContext for branches that use it (tools, mcp).
+    // projectPath is guaranteed non-null when needsPath is true.
+    const toolCtx =
+      subPath === "tools" || subPath === "mcp"
+        ? createToolContext({
+            _id: project._id,
+            slug: project.slug,
+            name: project.name,
+            path: projectPath as string,
+          })
+        : null;
+
     switch (subPath) {
       case "orchestrator": {
-        if (!projectPath) {
-          return Response.json(
-            { error: `Project ${projectId} has no path configured.` },
-            { status: 400 },
-          );
-        }
         const handler = createOrchestratorApiHandler(() => {
           const runner = orchestrator.getRunner(projectId as Id<"projects">);
           if (!runner) {
@@ -141,21 +156,8 @@ export async function startServer() {
         });
       }
 
-      case "tools": {
-        if (!projectPath) {
-          return Response.json(
-            { error: `Project ${projectId} has no path configured.` },
-            { status: 400 },
-          );
-        }
-        const ctx = createToolContext({
-          _id: project._id,
-          slug: project.slug,
-          name: project.name,
-          path: projectPath,
-        });
-        return handleToolRequest(req, ctx);
-      }
+      case "tools":
+        return handleToolRequest(req, toolCtx as ToolContext);
 
       case "sse-activity": {
         const runner = orchestrator.getRunner(projectId as Id<"projects">);
@@ -177,21 +179,8 @@ export async function startServer() {
         return handler(req);
       }
 
-      case "mcp": {
-        if (!projectPath) {
-          return Response.json(
-            { error: `Project ${projectId} has no path configured.` },
-            { status: 400 },
-          );
-        }
-        const ctx = createToolContext({
-          _id: project._id,
-          slug: project.slug,
-          name: project.name,
-          path: projectPath,
-        });
-        return handleMcpRequest(req, ctx);
-      }
+      case "mcp":
+        return handleMcpRequest(req, toolCtx as ToolContext);
 
       default:
         return Response.json({ error: "Not found." }, { status: 404 });
