@@ -2,10 +2,10 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  redirect,
 } from "@tanstack/react-router";
 import { NotFound } from "../components/NotFound";
 import { ProjectLayout } from "../components/ProjectLayout";
-import { ProjectsLayout } from "../components/ProjectsLayout";
 import { RootLayout } from "../components/RootLayout";
 import { RouteError } from "../components/RouteError";
 import { ActivityPage } from "../pages/ActivityPage";
@@ -13,7 +13,6 @@ import { DashboardPage } from "../pages/DashboardPage";
 import { IssueDetailPage } from "../pages/IssueDetailPage";
 import { IssuesPage } from "../pages/IssuesPage";
 import { LabelsPage } from "../pages/LabelsPage";
-import { ProjectsPage } from "../pages/ProjectsPage";
 import { SessionDetailPage } from "../pages/SessionDetailPage";
 import { SessionsPage } from "../pages/SessionsPage";
 import { SettingsPage } from "../pages/SettingsPage";
@@ -30,18 +29,13 @@ const dashboardRoute = createRoute({
   errorComponent: RouteError,
 });
 
-const projectsLayoutRoute = createRoute({
+/** Redirect legacy /projects bookmarks to the dashboard. */
+const projectsRedirectRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/projects",
-  component: ProjectsLayout,
-  errorComponent: RouteError,
-});
-
-const projectsIndexRoute = createRoute({
-  getParentRoute: () => projectsLayoutRoute,
-  path: "/",
-  component: ProjectsPage,
-  errorComponent: RouteError,
+  beforeLoad: () => {
+    throw redirect({ to: "/", replace: true });
+  },
 });
 
 /** Layout route: resolves projectSlug → projectId via Convex query. */
@@ -103,7 +97,7 @@ const settingsRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
-  projectsLayoutRoute.addChildren([projectsIndexRoute]),
+  projectsRedirectRoute,
   projectLayoutRoute.addChildren([
     issuesRoute.addChildren([issueDetailRoute]),
     activityRoute,

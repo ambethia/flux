@@ -72,9 +72,9 @@ export function Sidebar() {
         </Link>
       </li>
       <li className="mt-auto border-base-300 border-t pt-2">
-        <Link to="/projects">
+        <Link to="/">
           <FontAwesomeIcon icon={faScrewdriverWrench} aria-hidden="true" />
-          Manage Projects
+          All Projects
         </Link>
       </li>
     </ul>

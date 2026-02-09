@@ -1,9 +1,9 @@
-import { Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import { useState } from "react";
 import { api } from "$convex/_generated/api";
 import { AddProjectForm } from "./AddProjectForm";
-import { FontAwesomeIcon, faBolt, faCircle, faPlus } from "./Icon";
+import { FontAwesomeIcon, faPlus } from "./Icon";
+import { ProjectCard } from "./ProjectCard";
 
 export function ProjectDashboard() {
   const projects = useQuery(api.projects.listWithStats, {});
@@ -58,47 +58,9 @@ export function ProjectDashboard() {
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {projects.map((project) => {
-          const isEnabled = project.enabled ?? false;
-          return (
-            <Link
-              key={project._id}
-              to="/p/$projectSlug/issues"
-              params={{ projectSlug: project.slug }}
-              className="card bg-base-200 shadow-sm transition-shadow hover:shadow-md"
-            >
-              <div className="card-body gap-3">
-                <div className="flex items-start justify-between">
-                  <h2 className="card-title text-lg">{project.name}</h2>
-                  {project.activeSessionCount > 0 && (
-                    <span
-                      className="animate-pulse text-success"
-                      title={`${project.activeSessionCount} active session${project.activeSessionCount === 1 ? "" : "s"}`}
-                    >
-                      <FontAwesomeIcon icon={faBolt} aria-hidden="true" />
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`badge badge-sm ${isEnabled ? "badge-success" : "badge-error"}`}
-                  >
-                    <FontAwesomeIcon
-                      icon={faCircle}
-                      className="mr-1 text-[0.5rem]"
-                      aria-hidden="true"
-                    />
-                    {isEnabled ? "Enabled" : "Disabled"}
-                  </span>
-                  <span className="text-base-content/60 text-sm">
-                    {project.openIssueCount} open{" "}
-                    {project.openIssueCount === 1 ? "issue" : "issues"}
-                  </span>
-                </div>
-              </div>
-            </Link>
-          );
-        })}
+        {projects.map((project) => (
+          <ProjectCard key={project._id} project={project} />
+        ))}
       </div>
     </div>
   );
