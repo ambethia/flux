@@ -176,24 +176,42 @@ export const remove = mutation({
 //
 // Strategy: an internalAction loops through cleanup steps, calling an
 // internalMutation per batch. Each batch stays well under the limit.
+//
+// FLUX-348: Leaf data (comments, deps, sessionEvents) is deleted inline
+// with its parent. Each issue/session batch reads a bounded page of parents,
+// deletes all their children, then deletes the parents themselves. This
+// avoids the unbounded .collect() that previously read ALL parents on
+// every batch call.
 
 /**
- * Maximum documents to delete per batch mutation.
+ * Maximum delete operations per batch mutation.
  * Each doc requires a read + delete = 2 operations. 500 deletes ≈ 1000 ops,
  * well under the ~8192 limit even accounting for index queries.
  */
 const CASCADE_BATCH_SIZE = 500;
 
 /**
- * Cascade cleanup steps, processed in order. Leaf data (comments, deps,
- * sessionEvents) is deleted before their parents (issues, sessions) so
- * indexes remain consistent within each batch mutation.
+ * Maximum parent documents (issues/sessions) to process per batch.
+ * For each parent we read + delete its children, then delete the parent.
+ * A smaller page keeps total operations bounded even when parents have
+ * many children. The action loop calls repeatedly until parents are
+ * exhausted.
+ */
+const PARENT_PAGE_SIZE = 50;
+
+/**
+ * Maximum children to delete per parent per batch. Prevents a single
+ * parent with thousands of children from blowing the operation limit.
+ * When a parent has more children than this, the batch returns early
+ * and the action loop processes the same parent again on the next call.
+ */
+const CHILDREN_PER_PARENT_LIMIT = 200;
+
+/**
+ * Cascade cleanup steps, processed in order.
+ * Issues and Sessions delete their children inline (FLUX-348).
  */
 const CascadeSteps = {
-  Comments: "comments",
-  DependenciesBlocker: "dependencies_blocker",
-  DependenciesBlocked: "dependencies_blocked",
-  SessionEvents: "sessionEvents",
   Issues: "issues",
   Sessions: "sessions",
   Labels: "labels",
@@ -204,10 +222,6 @@ const CascadeSteps = {
 type CascadeStep = (typeof CascadeSteps)[keyof typeof CascadeSteps];
 
 const cascadeStepValidator = v.union(
-  v.literal(CascadeSteps.Comments),
-  v.literal(CascadeSteps.DependenciesBlocker),
-  v.literal(CascadeSteps.DependenciesBlocked),
-  v.literal(CascadeSteps.SessionEvents),
   v.literal(CascadeSteps.Issues),
   v.literal(CascadeSteps.Sessions),
   v.literal(CascadeSteps.Labels),
@@ -216,10 +230,6 @@ const cascadeStepValidator = v.union(
 );
 
 const CASCADE_STEPS: CascadeStep[] = [
-  CascadeSteps.Comments,
-  CascadeSteps.DependenciesBlocker,
-  CascadeSteps.DependenciesBlocked,
-  CascadeSteps.SessionEvents,
   CascadeSteps.Issues,
   CascadeSteps.Sessions,
   CascadeSteps.Labels,
@@ -241,7 +251,7 @@ export const cascadeDeleteProject = internalAction({
           internal.projects.cascadeDeleteBatch,
           { projectId, step, batchSize: CASCADE_BATCH_SIZE },
         );
-        hasMore = result.deleted >= CASCADE_BATCH_SIZE;
+        hasMore = result.deleted >= 1;
       }
     }
   },
@@ -249,7 +259,17 @@ export const cascadeDeleteProject = internalAction({
 
 /**
  * Delete up to `batchSize` orphaned documents for one cascade step.
- * Returns the count of documents deleted so the action knows whether to loop.
+ *
+ * For Issues: reads a bounded page of issues, deletes each issue's comments
+ * and dependencies first, then deletes the issue. If any issue still has
+ * remaining children (hit CHILDREN_PER_PARENT_LIMIT), returns early so the
+ * action loop re-processes it.
+ *
+ * For Sessions: reads a bounded page of sessions, deletes each session's
+ * events first, then deletes the session.
+ *
+ * For Labels/Epics/OrchestratorConfig: directly queryable by projectId,
+ * deleted in simple batches.
  */
 export const cascadeDeleteBatch = internalMutation({
   args: {
@@ -261,104 +281,56 @@ export const cascadeDeleteBatch = internalMutation({
     let deleted = 0;
 
     switch (step) {
-      case CascadeSteps.Comments: {
-        // Comments reference issues which reference the project.
-        // We must find the project's issues first, then their comments.
+      case CascadeSteps.Issues: {
+        // Read a bounded page of issues and delete each with its children.
         const issues = await ctx.db
           .query("issues")
           .withIndex("by_project_deletedAt_status", (q) =>
             q.eq("projectId", projectId),
           )
-          .collect();
+          .take(PARENT_PAGE_SIZE);
+
         for (const issue of issues) {
           if (deleted >= batchSize) break;
+
+          // Delete comments for this issue
           const comments = await ctx.db
             .query("comments")
             .withIndex("by_issue", (q) => q.eq("issueId", issue._id))
-            .take(batchSize - deleted);
+            .take(CHILDREN_PER_PARENT_LIMIT);
           for (const comment of comments) {
             await ctx.db.delete(comment._id);
             deleted++;
           }
-        }
-        break;
-      }
+          // If we hit the child limit, this issue has more children.
+          // Return early so the action loop re-processes it.
+          if (comments.length >= CHILDREN_PER_PARENT_LIMIT) break;
 
-      case CascadeSteps.DependenciesBlocker: {
-        const issues = await ctx.db
-          .query("issues")
-          .withIndex("by_project_deletedAt_status", (q) =>
-            q.eq("projectId", projectId),
-          )
-          .collect();
-        for (const issue of issues) {
-          if (deleted >= batchSize) break;
-          const deps = await ctx.db
+          // Delete dependencies where this issue is the blocker
+          const depsBlocker = await ctx.db
             .query("dependencies")
             .withIndex("by_blocker_blocked", (q) =>
               q.eq("blockerId", issue._id),
             )
-            .take(batchSize - deleted);
-          for (const dep of deps) {
+            .take(CHILDREN_PER_PARENT_LIMIT);
+          for (const dep of depsBlocker) {
             await ctx.db.delete(dep._id);
             deleted++;
           }
-        }
-        break;
-      }
+          if (depsBlocker.length >= CHILDREN_PER_PARENT_LIMIT) break;
 
-      case CascadeSteps.DependenciesBlocked: {
-        const issues = await ctx.db
-          .query("issues")
-          .withIndex("by_project_deletedAt_status", (q) =>
-            q.eq("projectId", projectId),
-          )
-          .collect();
-        for (const issue of issues) {
-          if (deleted >= batchSize) break;
-          const deps = await ctx.db
+          // Delete dependencies where this issue is blocked
+          const depsBlocked = await ctx.db
             .query("dependencies")
             .withIndex("by_blocked", (q) => q.eq("blockedId", issue._id))
-            .take(batchSize - deleted);
-          for (const dep of deps) {
+            .take(CHILDREN_PER_PARENT_LIMIT);
+          for (const dep of depsBlocked) {
             await ctx.db.delete(dep._id);
             deleted++;
           }
-        }
-        break;
-      }
+          if (depsBlocked.length >= CHILDREN_PER_PARENT_LIMIT) break;
 
-      case CascadeSteps.SessionEvents: {
-        const sessions = await ctx.db
-          .query("sessions")
-          .withIndex("by_project_startedAt", (q) =>
-            q.eq("projectId", projectId),
-          )
-          .collect();
-        for (const session of sessions) {
-          if (deleted >= batchSize) break;
-          const events = await ctx.db
-            .query("sessionEvents")
-            .withIndex("by_session_sequence", (q) =>
-              q.eq("sessionId", session._id),
-            )
-            .take(batchSize - deleted);
-          for (const event of events) {
-            await ctx.db.delete(event._id);
-            deleted++;
-          }
-        }
-        break;
-      }
-
-      case CascadeSteps.Issues: {
-        const issues = await ctx.db
-          .query("issues")
-          .withIndex("by_project_deletedAt_status", (q) =>
-            q.eq("projectId", projectId),
-          )
-          .take(batchSize);
-        for (const issue of issues) {
+          // All children deleted — safe to delete the issue itself.
           await ctx.db.delete(issue._id);
           deleted++;
         }
@@ -371,8 +343,25 @@ export const cascadeDeleteBatch = internalMutation({
           .withIndex("by_project_startedAt", (q) =>
             q.eq("projectId", projectId),
           )
-          .take(batchSize);
+          .take(PARENT_PAGE_SIZE);
+
         for (const session of sessions) {
+          if (deleted >= batchSize) break;
+
+          // Delete session events
+          const events = await ctx.db
+            .query("sessionEvents")
+            .withIndex("by_session_sequence", (q) =>
+              q.eq("sessionId", session._id),
+            )
+            .take(CHILDREN_PER_PARENT_LIMIT);
+          for (const event of events) {
+            await ctx.db.delete(event._id);
+            deleted++;
+          }
+          if (events.length >= CHILDREN_PER_PARENT_LIMIT) break;
+
+          // All events deleted — safe to delete the session itself.
           await ctx.db.delete(session._id);
           deleted++;
         }
