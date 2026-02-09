@@ -98,7 +98,11 @@ export class SessionMonitor {
         }
       }
     } finally {
-      reader.releaseLock();
+      // Bun.spawn stdout readers may not implement releaseLock (returns undefined).
+      // Guard to prevent TypeError on every session teardown.
+      if (typeof reader.releaseLock === "function") {
+        reader.releaseLock();
+      }
     }
 
     // Handle final partial line (only if not aborted — data would be lost anyway)
