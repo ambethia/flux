@@ -1099,27 +1099,31 @@ class ProjectRunner {
     }
 
     // Fetch follow-up issues created from this issue to avoid duplicates in review
-    let relatedIssues: Array<{
-      shortId: string;
-      title: string;
-      status: string;
-    }> = [];
+    let followUpIssues: Awaited<
+      ReturnType<typeof convex.query<typeof api.issues.listFollowUps>>
+    >;
     try {
-      const followUpIssues = await convex.query(api.issues.listFollowUps, {
+      followUpIssues = await convex.query(api.issues.listFollowUps, {
         issueId,
       });
-      relatedIssues = followUpIssues.map((i) => ({
-        shortId: i.shortId,
-        title: i.title,
-        status: i.status,
-      }));
     } catch (err) {
-      console.warn(
-        `[ProjectRunner] Failed to fetch related issues for ${issue.shortId} — ` +
-          "review may create duplicate follow-ups:",
+      console.error(
+        `[ProjectRunner] Failed to fetch related issues for ${issue.shortId}:`,
         err,
       );
+      await convex.mutation(api.issues.update, {
+        issueId,
+        status: IssueStatus.Stuck,
+      });
+      this.finalize();
+      return;
     }
+
+    const relatedIssues = followUpIssues.map((i) => ({
+      shortId: i.shortId,
+      title: i.title,
+      status: i.status,
+    }));
 
     const reviewPrompt = this.provider.buildReviewPrompt({
       shortId: issue.shortId,
