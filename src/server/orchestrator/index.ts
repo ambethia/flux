@@ -1148,7 +1148,10 @@ class ProjectRunner {
               // Get commit log for this review iteration
               let reviewCommitLog: string | undefined;
               let commitLogError: string | undefined;
-              if (session.startHead && session.endHead) {
+              if (!session.startHead || !session.endHead) {
+                commitLogError =
+                  "Git commit refs not recorded for this session";
+              } else {
                 try {
                   reviewCommitLog = await getCommitLogBetween(
                     cwd,

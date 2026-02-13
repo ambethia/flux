@@ -491,4 +491,31 @@ describe("buildReviewPrompt", () => {
       "- Commits: (Failed to retrieve commit log: invalid revision)",
     );
   });
+
+  test("shows commit log error when git refs missing", () => {
+    const prompt = buildReviewPrompt({
+      shortId: "FLUX-100",
+      title: "Test Issue",
+      diff: "diff content",
+      commitLog: "commit log",
+      relatedIssues: [],
+      reviewIteration: 2,
+      maxReviewIterations: 10,
+      previousReviews: [
+        {
+          iteration: 1,
+          disposition: "done",
+          note: "Fixed issue",
+          createdIssues: [],
+          commitLogError: "Git commit refs not recorded for this session",
+        },
+      ],
+    });
+
+    expect(prompt).toContain("## Previous Review Iterations");
+    expect(prompt).toContain("### Review 1");
+    expect(prompt).toContain(
+      "- Commits: (Git commit refs not recorded for this session)",
+    );
+  });
 });
