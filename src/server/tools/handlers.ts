@@ -41,6 +41,10 @@ export type ToolContext = {
   projectSlug: string;
   /** Returns the ProjectRunner if the project is enabled, undefined otherwise. */
   getRunner: () => ProjectRunner | undefined;
+  /** Current session ID if called from within an agent session, undefined otherwise. */
+  sessionId?: Id<"sessions">;
+  /** Agent name if called from within an agent session, undefined otherwise. */
+  agentName?: string;
 };
 
 export type ToolResult = {
@@ -141,6 +145,8 @@ const issues_create = typedHandler(
       title,
       description,
       priority,
+      ...(ctx.sessionId && { createdInSessionId: ctx.sessionId }),
+      ...(ctx.agentName && { createdByAgent: ctx.agentName }),
     });
     const issue = await ctx.convex.query(api.issues.get, {
       issueId: issueId as Id<"issues">,
@@ -395,6 +401,8 @@ const issues_bulk_create = typedHandler(
     const created = await ctx.convex.mutation(api.issues.bulkCreate, {
       projectId: ctx.projectId,
       issues,
+      ...(ctx.sessionId && { createdInSessionId: ctx.sessionId }),
+      ...(ctx.agentName && { createdByAgent: ctx.agentName }),
     });
     return ok(ctx, { issues: created, count: created.length });
   },

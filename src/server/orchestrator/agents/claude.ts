@@ -15,10 +15,15 @@ import type {
 
 /** Build a clean env for spawned agents, stripping Flux-specific vars
  *  so child processes don't inherit (and clobber) deployment config. */
-function agentEnv(): Record<string, string> {
+function agentEnv(
+  sessionId?: string,
+  agentName?: string,
+): Record<string, string> {
   const env = { ...process.env } as Record<string, string>;
   delete env.CONVEX_URL;
   delete env.CONVEX_DEPLOYMENT;
+  if (sessionId) env.FLUX_SESSION_ID = sessionId;
+  if (agentName) env.FLUX_AGENT_NAME = agentName;
   return env;
 }
 
@@ -37,7 +42,7 @@ export class ClaudeCodeProvider implements AgentProvider {
       ],
       {
         cwd: opts.cwd,
-        env: agentEnv(),
+        env: agentEnv(opts.fluxSessionId, opts.agentName),
         stdout: "pipe",
         stderr: "ignore",
       },
@@ -60,7 +65,7 @@ export class ClaudeCodeProvider implements AgentProvider {
       ],
       {
         cwd: opts.cwd,
-        env: agentEnv(),
+        env: agentEnv(opts.fluxSessionId, opts.agentName),
         stdout: "pipe",
         stderr: "ignore",
       },

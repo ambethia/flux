@@ -69,6 +69,7 @@ export const update = mutation({
     status: v.optional(sessionStatusValidator),
     endedAt: v.optional(v.number()),
     exitCode: v.optional(v.number()),
+    pid: v.optional(v.number()),
     lastHeartbeat: v.optional(v.number()),
     disposition: v.optional(dispositionValidator),
     note: v.optional(v.string()),

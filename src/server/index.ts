@@ -20,14 +20,18 @@ const VERSION: string = JSON.parse(
 
 const DEFAULT_PORT = 8042;
 
-/** Build a ToolContext for a specific project. */
-function createToolContext(project: Project): ToolContext {
+/** Build a ToolContext for a specific project, optionally with session context from headers. */
+function createToolContext(project: Project, req?: Request): ToolContext {
   const orchestrator = getOrCreateOrchestrator();
+  const sessionId = req?.headers.get("X-Flux-Session-Id") ?? undefined;
+  const agentName = req?.headers.get("X-Flux-Agent-Name") ?? undefined;
   return {
     convex: getConvexClient(),
     projectId: project._id,
     projectSlug: project.slug,
     getRunner: () => orchestrator.getRunner(project._id),
+    ...(sessionId && { sessionId: sessionId as Id<"sessions"> }),
+    ...(agentName && { agentName }),
   };
 }
 
@@ -102,12 +106,15 @@ export async function startServer() {
     // projectPath is guaranteed non-null when needsPath is true.
     const toolCtx =
       subPath === "tools" || subPath === "mcp"
-        ? createToolContext({
-            _id: project._id,
-            slug: project.slug,
-            name: project.name,
-            path: projectPath as string,
-          })
+        ? createToolContext(
+            {
+              _id: project._id,
+              slug: project.slug,
+              name: project.name,
+              path: projectPath as string,
+            },
+            req,
+          )
         : null;
 
     switch (subPath) {

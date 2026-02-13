@@ -55,6 +55,10 @@ export interface ReviewPromptContext {
 export interface SpawnOptions {
   cwd: string;
   prompt: string;
+  /** Flux session ID for tracking issue creation */
+  fluxSessionId?: string;
+  /** Agent name (e.g., "claude-work", "claude-review") */
+  agentName?: string;
 }
 
 export interface ResumeOptions {
@@ -62,6 +66,10 @@ export interface ResumeOptions {
   prompt: string;
   /** Provider-specific session ID (e.g., Claude CLI session UUID) */
   sessionId: string;
+  /** Flux session ID for tracking issue creation */
+  fluxSessionId?: string;
+  /** Agent name (e.g., "claude-work", "claude-review") */
+  agentName?: string;
 }
 
 export interface AgentProcess {

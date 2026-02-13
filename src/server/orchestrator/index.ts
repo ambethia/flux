@@ -366,36 +366,46 @@ class ProjectRunner {
       );
     }
 
-    // 5. Build prompt and spawn agent
+    // 5. Create session record first (without PID) so we have a session ID
+    const session = await convex.mutation(api.sessions.create, {
+      projectId: this.projectId,
+      issueId,
+      type: SessionType.Work,
+      agent: this.provider.name,
+      pid: 0, // Placeholder - will be updated after spawn
+      startHead,
+      phase: SessionPhase.Work,
+    });
+    if (!session) {
+      throw new Error("Failed to create session record");
+    }
+
+    // 6. Build prompt and spawn agent with session context
     const issueCtx: WorkPromptContext = {
       shortId: issue.shortId,
       title: issue.title,
       description: issue.description,
     };
     const prompt = this.provider.buildWorkPrompt(issueCtx);
-    const agentProcess = this.provider.spawn({ cwd, prompt });
-
-    // 6. Create session record with startHead
-    const session = await convex.mutation(api.sessions.create, {
-      projectId: this.projectId,
-      issueId,
-      type: SessionType.Work,
-      agent: this.provider.name,
-      pid: agentProcess.pid,
-      startHead,
-      phase: SessionPhase.Work,
+    const agentProcess = this.provider.spawn({
+      cwd,
+      prompt,
+      fluxSessionId: session._id,
+      agentName: `${this.provider.name}-work`,
     });
-    if (!session) {
-      agentProcess.kill();
-      throw new Error("Failed to create session record");
-    }
 
-    // 7. Start monitoring agent output
+    // 7. Update session with actual PID
+    await convex.mutation(api.sessions.update, {
+      sessionId: session._id,
+      pid: agentProcess.pid,
+    });
+
+    // 8. Start monitoring agent output
     const monitor = new SessionMonitor(session._id);
     monitor.recordInput(prompt);
     const monitorDone = monitor.consume(agentProcess.stdout);
 
-    // 8. Track active session
+    // 9. Track active session
     this.activeSession = {
       sessionId: session._id,
       issueId,
@@ -412,7 +422,7 @@ class ProjectRunner {
       timeoutTimer: null,
     };
 
-    // 9. Notify SSE clients of the new session
+    // 10. Notify SSE clients of the new session
     this.emitLifecycle({
       type: "session_start",
       sessionId: session._id,
@@ -421,10 +431,10 @@ class ProjectRunner {
       monitor,
     });
 
-    // 10. Wire up agentSessionId extraction from stream-json
+    // 11. Wire up agentSessionId extraction from stream-json
     this.wireAgentSessionIdExtraction(this.activeSession, monitor);
 
-    // 11. Handle agent exit in background (tracked so destroy() can await it)
+    // 12. Handle agent exit in background (tracked so destroy() can await it)
     this.trackProcessExit(agentProcess);
 
     // 12. Start session timeout enforcement
@@ -1025,6 +1035,8 @@ class ProjectRunner {
       cwd,
       prompt: retroPrompt,
       sessionId: active.agentSessionId,
+      fluxSessionId: active.sessionId,
+      agentName: `${this.provider.name}-retro`,
     });
 
     const retroMonitor = new SessionMonitor(
@@ -1188,25 +1200,34 @@ class ProjectRunner {
       previousReviews,
     });
 
-    const reviewProcess = this.provider.spawn({ cwd, prompt: reviewPrompt });
-
     const reviewSession = await convex.mutation(api.sessions.create, {
       projectId: this.projectId,
       issueId,
       type: SessionType.Review,
       agent: this.provider.name,
-      pid: reviewProcess.pid,
+      pid: 0, // Placeholder - will be updated after spawn
       startHead,
       phase: SessionPhase.Review,
     });
     if (!reviewSession) {
-      reviewProcess.kill();
       console.error(
         `[ProjectRunner] Failed to create review session for ${issue.shortId}`,
       );
       this.finalize();
       return;
     }
+
+    const reviewProcess = this.provider.spawn({
+      cwd,
+      prompt: reviewPrompt,
+      fluxSessionId: reviewSession._id,
+      agentName: `${this.provider.name}-review`,
+    });
+
+    await convex.mutation(api.sessions.update, {
+      sessionId: reviewSession._id,
+      pid: reviewProcess.pid,
+    });
 
     const reviewMonitor = new SessionMonitor(reviewSession._id);
     reviewMonitor.recordInput(reviewPrompt);

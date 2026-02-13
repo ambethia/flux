@@ -200,6 +200,8 @@ export default defineSchema({
     epicId: v.optional(v.id("epics")),
     labelIds: v.optional(v.array(v.id("labels"))),
     deletedAt: v.optional(v.number()),
+    createdInSessionId: v.optional(v.id("sessions")),
+    createdByAgent: v.optional(v.string()),
   })
     .index("by_project_deletedAt_status", ["projectId", "deletedAt", "status"])
     .index("by_project_priority", ["projectId", "deletedAt", "priorityOrder"])
@@ -212,6 +214,7 @@ export default defineSchema({
     .index("by_epic", ["epicId"])
     .index("by_project_shortId", ["projectId", "shortId"])
     .index("by_source_issue", ["sourceIssueId", "deletedAt"])
+    .index("by_created_in_session", ["createdInSessionId"])
     .searchIndex("search_title", {
       searchField: "title",
       filterFields: ["projectId"],

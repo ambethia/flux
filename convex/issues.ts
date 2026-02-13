@@ -42,6 +42,8 @@ export const create = mutation({
     sourceIssueId: v.optional(v.id("issues")),
     epicId: v.optional(v.id("epics")),
     labelIds: v.optional(v.array(v.id("labels"))),
+    createdInSessionId: v.optional(v.id("sessions")),
+    createdByAgent: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.projectId);
@@ -66,6 +68,8 @@ export const create = mutation({
       epicId: args.epicId,
       labelIds: args.labelIds,
       updatedAt: Date.now(),
+      createdInSessionId: args.createdInSessionId,
+      createdByAgent: args.createdByAgent,
     });
 
     await adjustStatusCount(
@@ -93,6 +97,8 @@ export const bulkCreate = mutation({
         labelIds: v.optional(v.array(v.id("labels"))),
       }),
     ),
+    createdInSessionId: v.optional(v.id("sessions")),
+    createdByAgent: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.projectId);
@@ -120,6 +126,8 @@ export const bulkCreate = mutation({
         epicId: issue.epicId,
         labelIds: issue.labelIds,
         updatedAt: now,
+        createdInSessionId: args.createdInSessionId,
+        createdByAgent: args.createdByAgent,
       });
       const doc = await ctx.db.get(issueId);
       if (!doc)
@@ -704,5 +712,24 @@ export const listFollowUps = query({
         q.eq("sourceIssueId", issueId).eq("deletedAt", undefined),
       )
       .collect();
+  },
+});
+
+/**
+ * Fetch all issues created during a specific session.
+ * Returns issues that have `createdInSessionId` pointing to the given session,
+ * excluding soft-deleted issues. Used by review agents to see what follow-up
+ * issues were already created in previous review iterations.
+ */
+export const listBySession = query({
+  args: { sessionId: v.id("sessions") },
+  handler: async (ctx, { sessionId }) => {
+    const issues = await ctx.db
+      .query("issues")
+      .withIndex("by_created_in_session", (q) =>
+        q.eq("createdInSessionId", sessionId),
+      )
+      .collect();
+    return issues.filter((i) => i.deletedAt === undefined);
   },
 });
