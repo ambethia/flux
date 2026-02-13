@@ -202,7 +202,7 @@ This is review iteration ${ctx.reviewIteration} of ${ctx.maxReviewIterations}.`)
         parts.push("- Created issues: (none)");
       }
 
-      if (prevReview.commitLog && prevReview.commitLog.trim()) {
+      if (prevReview.commitLog?.trim()) {
         parts.push("- Commits:");
         parts.push("```");
         parts.push(prevReview.commitLog);

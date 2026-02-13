@@ -127,6 +127,29 @@ export const list = query({
   },
 });
 
+export const listByIssue = query({
+  args: {
+    issueId: v.id("issues"),
+    type: v.optional(sessionTypeValidator),
+    status: v.optional(sessionStatusValidator),
+  },
+  handler: async (ctx, args) => {
+    let sessions = await ctx.db
+      .query("sessions")
+      .withIndex("by_issue", (q) => q.eq("issueId", args.issueId))
+      .collect();
+
+    if (args.type !== undefined) {
+      sessions = sessions.filter((s) => s.type === args.type);
+    }
+    if (args.status !== undefined) {
+      sessions = sessions.filter((s) => s.status === args.status);
+    }
+
+    return sessions.sort((a, b) => a.startedAt - b.startedAt);
+  },
+});
+
 export const get = query({
   args: { sessionId: v.id("sessions") },
   handler: async (ctx, args) => {
