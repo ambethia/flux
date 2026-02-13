@@ -13,6 +13,15 @@ import type {
   WorkPromptContext,
 } from "./types";
 
+/** Build a clean env for spawned agents, stripping Flux-specific vars
+ *  so child processes don't inherit (and clobber) deployment config. */
+function agentEnv(): Record<string, string> {
+  const env = { ...process.env } as Record<string, string>;
+  delete env.CONVEX_URL;
+  delete env.CONVEX_DEPLOYMENT;
+  return env;
+}
+
 export class ClaudeCodeProvider implements AgentProvider {
   name = "claude" as const;
 
@@ -28,6 +37,7 @@ export class ClaudeCodeProvider implements AgentProvider {
       ],
       {
         cwd: opts.cwd,
+        env: agentEnv(),
         stdout: "pipe",
         stderr: "ignore",
       },
@@ -50,6 +60,7 @@ export class ClaudeCodeProvider implements AgentProvider {
       ],
       {
         cwd: opts.cwd,
+        env: agentEnv(),
         stdout: "pipe",
         stderr: "ignore",
       },
