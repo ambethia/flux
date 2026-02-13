@@ -155,6 +155,14 @@ export const IssuesSearchSchema = z.object({
   limit: z.number().optional().describe("Max results. Default 20, max 100."),
 });
 
+export const IssuesListBySessionSchema = z.object({
+  sessionId: z
+    .string()
+    .describe(
+      "The session's document ID (from sessions_list or sessions_show).",
+    ),
+});
+
 export const CommentsListSchema = z.object({
   issueId: z.string().describe("The issue's document ID."),
   limit: z.number().optional().describe("Max results. Default 50, max 200."),
@@ -346,6 +354,13 @@ const issues_search: ToolDef = {
   schema: IssuesSearchSchema.shape,
 };
 
+const issues_list_by_session: ToolDef = {
+  name: "issues_list_by_session",
+  description:
+    "List all issues created during a specific session. Useful for review agents to see what follow-up issues were already created in previous review iterations.",
+  schema: IssuesListBySessionSchema.shape,
+};
+
 const comments_list: ToolDef = {
   name: "comments_list",
   description: "List comments for an issue, ordered by creation time.",
@@ -497,6 +512,7 @@ export const allTools: ToolDef[] = [
   issues_undefer,
   issues_retry,
   issues_search,
+  issues_list_by_session,
 
   // Comments
   comments_list,

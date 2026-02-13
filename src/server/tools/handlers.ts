@@ -21,6 +21,7 @@ import {
   IssuesCreateSchema,
   IssuesDeferSchema,
   IssuesGetSchema,
+  IssuesListBySessionSchema,
   IssuesListSchema,
   IssuesReadySchema,
   IssuesRetrySchema,
@@ -383,6 +384,19 @@ const issues_search = typedHandler(
   },
 );
 
+const issues_list_by_session = typedHandler(
+  IssuesListBySessionSchema,
+  async ({ sessionId }, ctx) => {
+    const issues = await ctx.convex.query(api.issues.listBySession, {
+      sessionId: sessionId as Id<"sessions">,
+    });
+    const summary = issues.map(
+      ({ description: _description, ...rest }) => rest,
+    );
+    return ok(ctx, { issues: summary, count: summary.length });
+  },
+);
+
 const comments_create = typedHandler(
   CommentsCreateSchema,
   async ({ issueId, content, author }, ctx) => {
@@ -604,6 +618,7 @@ export const handlers: Record<string, ToolHandler> = {
   issues_undefer,
   issues_retry,
   issues_search,
+  issues_list_by_session,
   issues_bulk_create,
   issues_bulk_update,
   comments_create,
