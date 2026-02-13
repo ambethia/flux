@@ -18,6 +18,7 @@ import { getConvexClient } from "../convex";
 import {
   autoCommitDirtyTree,
   getCommitLog,
+  getCommitLogBetween,
   getCurrentHead,
   getDiff,
   hasNewCommits,
@@ -1108,6 +1109,69 @@ class ProjectRunner {
       status: i.status,
     }));
 
+    // Fetch previous review sessions for this issue to stack context
+    const allSessions = await convex.query(api.sessions.list, {
+      projectId: this.projectId,
+      limit: undefined,
+    });
+    const previousReviewSessions = allSessions
+      .filter(
+        (s) =>
+          s.issueId === issueId &&
+          s.type === SessionType.Review &&
+          s.status === SessionStatus.Completed,
+      )
+      .sort((a, b) => a.startedAt - b.startedAt);
+
+    // Build previousReviews context if we have prior review sessions
+    const previousReviews =
+      previousReviewSessions.length > 0
+        ? await Promise.all(
+            previousReviewSessions.map(async (session, idx) => {
+              // Fetch issues created during this review session
+              // Use timestamp correlation: issues created between session start and end
+              const createdIssues =
+                session.endedAt !== undefined
+                  ? followUpIssues.filter((i) => {
+                      const issueCreatedAt = i._creationTime;
+                      return (
+                        issueCreatedAt >= session.startedAt &&
+                        issueCreatedAt <= (session.endedAt ?? Date.now())
+                      );
+                    })
+                  : [];
+
+              // Get commit log for this review iteration
+              let reviewCommitLog: string | undefined;
+              if (session.startHead && session.endHead) {
+                try {
+                  reviewCommitLog = await getCommitLogBetween(
+                    cwd,
+                    session.startHead,
+                    session.endHead,
+                  );
+                } catch (err) {
+                  console.warn(
+                    `[ProjectRunner] Failed to get commit log for review session ${session._id}:`,
+                    err,
+                  );
+                }
+              }
+
+              return {
+                iteration: idx + 1,
+                disposition: session.disposition ?? "unknown",
+                note: session.note ?? "No note provided",
+                createdIssues: createdIssues.map((i) => ({
+                  shortId: i.shortId,
+                  title: i.title,
+                })),
+                commitLog: reviewCommitLog,
+              };
+            }),
+          )
+        : undefined;
+
     const reviewPrompt = this.provider.buildReviewPrompt({
       shortId: issue.shortId,
       title: issue.title,
@@ -1117,6 +1181,7 @@ class ProjectRunner {
       relatedIssues,
       reviewIteration: currentIterations + 1,
       maxReviewIterations: this.maxReviewIterations,
+      previousReviews,
     });
 
     const reviewProcess = this.provider.spawn({ cwd, prompt: reviewPrompt });

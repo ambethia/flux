@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { extractDispositionCandidates, parseDisposition } from "./prompts";
+import {
+  buildReviewPrompt,
+  extractDispositionCandidates,
+  parseDisposition,
+} from "./prompts";
 
 // ── extractDispositionCandidates ────────────────────────────────────
 
@@ -377,5 +381,87 @@ describe("parseDisposition", () => {
       const result = parseDisposition(lines);
       expect(result.success).toBe(false);
     });
+  });
+});
+
+// ── buildReviewPrompt ───────────────────────────────────────────────
+
+describe("buildReviewPrompt", () => {
+  test("includes previous review context when provided", () => {
+    const prompt = buildReviewPrompt({
+      shortId: "FLUX-100",
+      title: "Test Issue",
+      description: "Test description",
+      diff: "diff content",
+      commitLog: "commit log",
+      relatedIssues: [],
+      reviewIteration: 3,
+      maxReviewIterations: 10,
+      previousReviews: [
+        {
+          iteration: 1,
+          disposition: "done",
+          note: "Found 3 issues: missing error handling, no validation, console.log left in code",
+          createdIssues: [
+            { shortId: "FLUX-101", title: "Add error handling" },
+            { shortId: "FLUX-102", title: "Add validation" },
+          ],
+          commitLog: "abc123 Fix console.log\ndef456 Update types",
+        },
+        {
+          iteration: 2,
+          disposition: "done",
+          note: "Verified previous fixes, found race condition",
+          createdIssues: [],
+          commitLog: "ghi789 Fix race condition",
+        },
+      ],
+    });
+
+    expect(prompt).toContain("## Previous Review Iterations");
+    expect(prompt).toContain("### Review 1");
+    expect(prompt).toContain("- Disposition: done");
+    expect(prompt).toContain(
+      '- Note: "Found 3 issues: missing error handling, no validation, console.log left in code"',
+    );
+    expect(prompt).toContain(
+      "- Created issues: FLUX-101: Add error handling, FLUX-102: Add validation",
+    );
+    expect(prompt).toContain("abc123 Fix console.log");
+    expect(prompt).toContain("### Review 2");
+    expect(prompt).toContain("- Created issues: (none)");
+    expect(prompt).toContain("ghi789 Fix race condition");
+  });
+
+  test("shows fallback message when reviewIteration > 1 but no previousReviews", () => {
+    const prompt = buildReviewPrompt({
+      shortId: "FLUX-100",
+      title: "Test Issue",
+      diff: "diff content",
+      commitLog: "commit log",
+      relatedIssues: [],
+      reviewIteration: 2,
+      maxReviewIterations: 10,
+    });
+
+    expect(prompt).toContain(
+      "Previous reviews found issues that were fixed inline",
+    );
+    expect(prompt).not.toContain("## Previous Review Iterations");
+  });
+
+  test("no previous review context when reviewIteration is 1", () => {
+    const prompt = buildReviewPrompt({
+      shortId: "FLUX-100",
+      title: "Test Issue",
+      diff: "diff content",
+      commitLog: "commit log",
+      relatedIssues: [],
+      reviewIteration: 1,
+      maxReviewIterations: 10,
+    });
+
+    expect(prompt).not.toContain("Previous reviews");
+    expect(prompt).not.toContain("## Previous Review Iterations");
   });
 });

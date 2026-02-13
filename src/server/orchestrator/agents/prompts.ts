@@ -177,9 +177,42 @@ Make the call on your fixes. Only create deferred issues for genuine architectur
 
 This is review iteration ${ctx.reviewIteration} of ${ctx.maxReviewIterations}.`);
 
-  if (ctx.reviewIteration > 1) {
+  if (ctx.previousReviews && ctx.previousReviews.length > 0) {
+    parts.push("\n## Previous Review Iterations");
     parts.push(
-      "Previous reviews found issues that were fixed inline. Check those fixes AND look for anything new.",
+      "\nThese reviews have already been completed for this issue. Your task is to:",
+    );
+    parts.push("- Verify all previous fixes are correct");
+    parts.push("- Look for anything NEW not covered by previous reviews");
+    parts.push(
+      "- DO NOT re-create issues that were already filed or re-report issues already fixed\n",
+    );
+
+    for (const prevReview of ctx.previousReviews) {
+      parts.push(`### Review ${prevReview.iteration}`);
+      parts.push(`- Disposition: ${prevReview.disposition}`);
+      parts.push(`- Note: "${prevReview.note}"`);
+
+      if (prevReview.createdIssues && prevReview.createdIssues.length > 0) {
+        const issueList = prevReview.createdIssues
+          .map((i) => `${i.shortId}: ${i.title}`)
+          .join(", ");
+        parts.push(`- Created issues: ${issueList}`);
+      } else {
+        parts.push("- Created issues: (none)");
+      }
+
+      if (prevReview.commitLog) {
+        parts.push("- Commits:");
+        parts.push("```");
+        parts.push(prevReview.commitLog);
+        parts.push("```");
+      }
+      parts.push("");
+    }
+  } else if (ctx.reviewIteration > 1) {
+    parts.push(
+      "\nPrevious reviews found issues that were fixed inline. Check those fixes AND look for anything new.",
     );
   }
 

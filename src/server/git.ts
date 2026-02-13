@@ -138,6 +138,18 @@ export async function getCommitLog(
 }
 
 /**
+ * Get one-line commit log between two specific commits.
+ * Throws on git errors — callers must handle failures explicitly.
+ */
+export async function getCommitLogBetween(
+  cwd: string,
+  from: string,
+  to: string,
+): Promise<string> {
+  return (await $`git -C ${cwd} log ${from}..${to} --oneline`.text()).trim();
+}
+
+/**
  * Auto-commit any dirty working tree changes.
  * Returns true if a commit was made, false if tree was clean or commit was suppressed.
  * Non-blocking by design — callers should catch errors and continue.

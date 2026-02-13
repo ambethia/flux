@@ -39,6 +39,14 @@ export interface ReviewPromptContext {
   /** 1-indexed review iteration */
   reviewIteration: number;
   maxReviewIterations: number;
+  /** Previous review session outcomes (only for iteration > 1) */
+  previousReviews?: Array<{
+    iteration: number;
+    disposition: string;
+    note: string;
+    createdIssues?: Array<{ shortId: string; title: string }>;
+    commitLog?: string;
+  }>;
 }
 
 // ── Agent process types ──────────────────────────────────────────────
