@@ -46,9 +46,10 @@ export function summarizeToolInput(
   toolName: string,
   input: Record<string, unknown> | null,
 ): string | null {
+  const canonicalToolName = canonicalizeToolName(toolName);
   if (!input || Object.keys(input).length === 0) return null;
 
-  switch (toolName) {
+  switch (canonicalToolName) {
     case "Read":
     case "Write":
     case "Edit":
@@ -87,6 +88,31 @@ export function summarizeToolInput(
 
 function truncate(s: string, max: number): string {
   return s.length > max ? `${s.slice(0, max)}…` : s;
+}
+
+function canonicalizeToolName(toolName: string): string {
+  switch (toolName.toLowerCase()) {
+    case "bash":
+      return "Bash";
+    case "read":
+      return "Read";
+    case "write":
+      return "Write";
+    case "edit":
+      return "Edit";
+    case "grep":
+      return "Grep";
+    case "glob":
+      return "Glob";
+    case "webfetch":
+      return "WebFetch";
+    case "websearch":
+      return "WebSearch";
+    case "task":
+      return "Task";
+    default:
+      return toolName;
+  }
 }
 
 /** For unknown tools, pick the most informative string field to display. */
@@ -352,7 +378,9 @@ function parseCodexStreamLine(line: string): ParsedLine[] {
       }
 
       const output =
-        typeof item.aggregated_output === "string" ? item.aggregated_output : "";
+        typeof item.aggregated_output === "string"
+          ? item.aggregated_output
+          : "";
       const exitCode =
         typeof item.exit_code === "number" ? `\n[exit ${item.exit_code}]` : "";
       return [
@@ -401,8 +429,9 @@ function parseOpenCodeStreamLine(line: string): ParsedLine[] {
         : typeof part?.id === "string"
           ? part.id
           : "";
-    const toolName =
-      typeof part?.tool === "string" ? String(part.tool) : "unknown";
+    const toolName = canonicalizeToolName(
+      typeof part?.tool === "string" ? String(part.tool) : "unknown",
+    );
     const output =
       typeof metadata?.output === "string"
         ? metadata.output
@@ -414,12 +443,6 @@ function parseOpenCodeStreamLine(line: string): ParsedLine[] {
 
     return [
       {
-        kind: "tool_result",
-        toolUseId: callId || null,
-        toolName,
-        content: `${output}${exitSuffix}`.trim(),
-      },
-      {
         kind: "tool_use",
         toolName,
         toolId: callId,
@@ -428,6 +451,12 @@ function parseOpenCodeStreamLine(line: string): ParsedLine[] {
             ? input
             : null,
         blockIndex: null,
+      },
+      {
+        kind: "tool_result",
+        toolUseId: callId || null,
+        toolName,
+        content: `${output}${exitSuffix}`.trim(),
       },
     ];
   }
@@ -454,7 +483,7 @@ export function extractTextFromLine(
         ? parseCodexStreamLine(line)
         : agent === "opencode"
           ? parseOpenCodeStreamLine(line)
-        : parseGenericStreamLine(line);
+          : parseGenericStreamLine(line);
   const texts: string[] = [];
   for (const p of parsed) {
     if (p.kind === "text") texts.push(p.text);

@@ -1,7 +1,6 @@
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
-import { AgentKind } from "$convex/schema";
-import { IssueStatus, SessionStatus } from "$convex/schema";
+import { AgentKind, IssueStatus, SessionStatus } from "$convex/schema";
 import { OrchestratorState } from "../../shared/orchestrator";
 import { getConvexClient } from "../convex";
 import { isProcessAlive } from "../process";
@@ -62,7 +61,10 @@ class Orchestrator {
       {},
       () => {
         this.syncRunners(this.latestProjects).catch((err) => {
-          console.error("[Orchestrator] syncRunners failed after config update:", err);
+          console.error(
+            "[Orchestrator] syncRunners failed after config update:",
+            err,
+          );
         });
       },
     );

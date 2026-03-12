@@ -2,7 +2,10 @@
 // Single source of truth lives in convex/schema.ts — re-export here for convenience.
 
 import type { AgentKindValue, DispositionValue } from "$convex/schema";
-import { AgentKind as _AgentKind, Disposition as _Disposition } from "$convex/schema";
+import {
+  AgentKind as _AgentKind,
+  Disposition as _Disposition,
+} from "$convex/schema";
 export { _AgentKind as AgentKind };
 export { _Disposition as Disposition };
 export type Disposition = DispositionValue;

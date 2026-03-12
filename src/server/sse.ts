@@ -133,7 +133,10 @@ export function createSSEHandler(getRunner: () => ProjectRunner | undefined) {
           detachRunner();
 
           if (!nextRunner) {
-            sendStatusOnce("disabled", "Project is not enabled or has no runner.");
+            sendStatusOnce(
+              "disabled",
+              "Project is not enabled or has no runner.",
+            );
             return;
           }
 
@@ -150,7 +153,10 @@ export function createSSEHandler(getRunner: () => ProjectRunner | undefined) {
             clearInterval(heartbeat);
           }
         }, HEARTBEAT_INTERVAL_MS);
-        const runnerSync = setInterval(syncRunnerBinding, RUNNER_SYNC_INTERVAL_MS);
+        const runnerSync = setInterval(
+          syncRunnerBinding,
+          RUNNER_SYNC_INTERVAL_MS,
+        );
 
         // ── Clean up when client disconnects ──
         req.signal.addEventListener("abort", () => {

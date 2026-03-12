@@ -70,7 +70,28 @@ export function groupTranscriptEvents(
     );
 
     if (toolResults.length > 0) {
-      const pendingToolUses = pendingOutput.filter(
+      const workingPending = [...pendingOutput];
+      for (const item of items) {
+        if (item.kind !== "tool_use") continue;
+        const existingIdx = workingPending.findIndex(
+          (p) => p.tag === "tool_use" && p.parsed.toolId === item.toolId,
+        );
+        if (existingIdx === -1) {
+          workingPending.push({ tag: "tool_use", parsed: item });
+        } else {
+          const existing = workingPending[existingIdx];
+          if (
+            existing &&
+            existing.tag === "tool_use" &&
+            !existing.parsed.toolInput &&
+            item.toolInput
+          ) {
+            workingPending[existingIdx] = { tag: "tool_use", parsed: item };
+          }
+        }
+      }
+
+      const pendingToolUses = workingPending.filter(
         (p): p is Extract<PendingOutputItem, { tag: "tool_use" }> =>
           p.tag === "tool_use",
       );
@@ -108,7 +129,7 @@ export function groupTranscriptEvents(
         }
 
         // Emit pending output items in chronological order — interleaved
-        flushPendingInterleaved(nodes, pendingOutput, pairedResults);
+        flushPendingInterleaved(nodes, workingPending, pairedResults);
 
         // Show any leftover results that didn't match a pending tool_use
         for (const [id, result] of resultById) {
@@ -149,7 +170,7 @@ export function groupTranscriptEvents(
         }
       } else {
         // Flush any unmatched pending output before orphaned results.
-        flushPendingInterleaved(nodes, pendingOutput, new Map());
+        flushPendingInterleaved(nodes, workingPending, new Map());
 
         for (const result of toolResults) {
           nodes.push({

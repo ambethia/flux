@@ -1,8 +1,8 @@
 import { summarizeToolInput, type ToolCallPair } from "../lib/parseStreamLine";
 import {
   FontAwesomeIcon,
-  faCircleCheck,
   faChevronRight,
+  faCircleCheck,
   faScrewdriverWrench,
   faSpinner,
 } from "./Icon";
@@ -69,7 +69,7 @@ export function ToolCallCard({
       open={expanded}
       className="group rounded-lg border border-neutral-content/10 bg-neutral text-neutral-content text-sm"
     >
-      <summary className="list-none cursor-pointer select-none [&::-webkit-details-marker]:hidden">
+      <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
         {header}
       </summary>
       <div className="max-h-60 overflow-y-auto whitespace-pre-wrap break-words border-neutral-content/10 border-t px-3 pt-2 pb-3 font-mono text-xs">

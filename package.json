@@ -8,6 +8,7 @@
     "build:frontend": "bunx vite build",
     "start": "NODE_ENV=production bun src/index.ts",
     "check": "biome check --write",
+    "smoke:mcp-followup": "bun src/cli.ts mcp smoke-followup",
     "typecheck": "tsc --noEmit",
     "lint:schema": "./scripts/lint-schema-constants.sh",
     "flux": "bun src/cli.ts"

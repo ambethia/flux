@@ -23,6 +23,13 @@ function agentEnv(
   delete env.CONVEX_DEPLOYMENT;
   if (sessionId) env.FLUX_SESSION_ID = sessionId;
   if (agentName) env.FLUX_AGENT_NAME = agentName;
+  // OpenCode controls approvals/sandboxing through config permissions rather
+  // than a single CLI bypass flag. We set an explicit permissive runtime config
+  // instead of relying on tool-default behavior.
+  env.OPENCODE_CONFIG_CONTENT = JSON.stringify({
+    $schema: "https://opencode.ai/config.json",
+    permission: "allow",
+  });
   return env;
 }
 

@@ -22,10 +22,10 @@ export type {
 } from "./types";
 export { AgentKind as AgentKindValues, Disposition } from "./types";
 
-import type { AgentKind, AgentProvider } from "./types";
 import { ClaudeCodeProvider } from "./claude";
 import { CodexProvider } from "./codex";
 import { OpenCodeProvider } from "./opencode";
+import type { AgentKind, AgentProvider } from "./types";
 
 export function createAgentProvider(agent: AgentKind): AgentProvider {
   switch (agent) {

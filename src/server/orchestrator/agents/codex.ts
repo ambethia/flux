@@ -84,10 +84,7 @@ export class CodexProvider implements AgentProvider {
   parseOutputLine(line: string): AgentOutputEvent[] {
     try {
       const obj = JSON.parse(line) as Record<string, unknown>;
-      if (
-        obj.type === "thread.started" &&
-        typeof obj.thread_id === "string"
-      ) {
+      if (obj.type === "thread.started" && typeof obj.thread_id === "string") {
         return [{ type: "session_id", sessionId: obj.thread_id }];
       }
     } catch {
