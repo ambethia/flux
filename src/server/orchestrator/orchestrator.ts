@@ -20,6 +20,13 @@ import { type OrphanRecoveryStats, ProjectRunner } from "./index";
 class Orchestrator {
   private runners = new Map<Id<"projects">, ProjectRunner>();
   private unsubscribeProjects: (() => void) | null = null;
+  private unsubscribeConfigs: (() => void) | null = null;
+  private latestProjects: Array<{
+    _id: Id<"projects">;
+    enabled?: boolean;
+    path?: string;
+    slug: string;
+  }> = [];
 
   /** Start watching projects and auto-managing runners. */
   async start(): Promise<void> {
@@ -29,6 +36,7 @@ class Orchestrator {
     // (including disabled ones) before creating runners. This catches sessions
     // orphaned by unclean shutdowns where destroy() couldn't update Convex.
     const allProjects = await convex.query(api.projects.list, {});
+    this.latestProjects = allProjects;
     await this.recoverGlobalOrphans(convex, allProjects);
 
     // Do an initial eager sync before subscribing so that runners
@@ -41,9 +49,20 @@ class Orchestrator {
       api.projects.list,
       {},
       (projects) => {
+        this.latestProjects = projects;
         // Fire-and-forget — syncRunners is idempotent and handles its own errors.
         this.syncRunners(projects).catch((err) => {
           console.error("[Orchestrator] syncRunners failed:", err);
+        });
+      },
+    );
+
+    this.unsubscribeConfigs = convex.onUpdate(
+      api.orchestratorConfig.list,
+      {},
+      () => {
+        this.syncRunners(this.latestProjects).catch((err) => {
+          console.error("[Orchestrator] syncRunners failed after config update:", err);
         });
       },
     );
@@ -271,6 +290,10 @@ class Orchestrator {
     if (this.unsubscribeProjects) {
       this.unsubscribeProjects();
       this.unsubscribeProjects = null;
+    }
+    if (this.unsubscribeConfigs) {
+      this.unsubscribeConfigs();
+      this.unsubscribeConfigs = null;
     }
 
     // Destroy all runners in parallel

@@ -14,19 +14,55 @@ import type {
   WorkPromptContext,
 } from "./types";
 
+function agentEnv(
+  sessionId?: string,
+  agentName?: string,
+): Record<string, string> {
+  const env = { ...process.env } as Record<string, string>;
+  delete env.CONVEX_URL;
+  delete env.CONVEX_DEPLOYMENT;
+  if (sessionId) env.FLUX_SESSION_ID = sessionId;
+  if (agentName) env.FLUX_AGENT_NAME = agentName;
+  return env;
+}
+
 export class OpenCodeProvider implements AgentProvider {
   name = "opencode" as const;
 
-  spawn(_opts: SpawnOptions): AgentProcess {
-    throw new Error(
-      "[OpenCodeProvider] OpenCode runner is not implemented yet. Configure this project back to Claude until the OpenCode process adapter lands.",
+  spawn(opts: SpawnOptions): AgentProcess {
+    const proc = Bun.spawn(
+      ["opencode", "run", "--format", "json", "--dir", opts.cwd, opts.prompt],
+      {
+        cwd: opts.cwd,
+        env: agentEnv(opts.fluxSessionId, opts.agentName),
+        stdout: "pipe",
+        stderr: "ignore",
+      },
     );
+    return wrapProcess(proc);
   }
 
-  resume(_opts: ResumeOptions): AgentProcess {
-    throw new Error(
-      "[OpenCodeProvider] OpenCode resume is not implemented yet. Configure this project back to Claude until the OpenCode process adapter lands.",
+  resume(opts: ResumeOptions): AgentProcess {
+    const proc = Bun.spawn(
+      [
+        "opencode",
+        "run",
+        "--format",
+        "json",
+        "--dir",
+        opts.cwd,
+        "--session",
+        opts.sessionId,
+        opts.prompt,
+      ],
+      {
+        cwd: opts.cwd,
+        env: agentEnv(opts.fluxSessionId, opts.agentName),
+        stdout: "pipe",
+        stderr: "ignore",
+      },
     );
+    return wrapProcess(proc);
   }
 
   buildWorkPrompt(ctx: WorkPromptContext): string {
@@ -41,7 +77,27 @@ export class OpenCodeProvider implements AgentProvider {
     return buildReviewPrompt(ctx);
   }
 
-  parseOutputLine(_line: string): AgentOutputEvent[] {
+  parseOutputLine(line: string): AgentOutputEvent[] {
+    try {
+      const obj = JSON.parse(line) as Record<string, unknown>;
+      if (typeof obj.sessionID === "string") {
+        return [{ type: "session_id", sessionId: obj.sessionID }];
+      }
+    } catch {
+      // OpenCode emits JSONL here; ignore malformed lines defensively.
+    }
     return [];
   }
+}
+
+function wrapProcess(proc: ReturnType<typeof Bun.spawn>): AgentProcess {
+  return {
+    pid: proc.pid,
+    stdout: proc.stdout as ReadableStream<Uint8Array>,
+    kill: () => proc.kill(),
+    wait: async () => {
+      const exitCode = await proc.exited;
+      return { exitCode };
+    },
+  };
 }

@@ -123,6 +123,9 @@ export function parseStreamLine(
   if (agent === "codex") {
     return parseCodexStreamLine(line);
   }
+  if (agent === "opencode") {
+    return parseOpenCodeStreamLine(line);
+  }
   if (agent !== "claude") {
     return parseGenericStreamLine(line);
   }
@@ -366,6 +369,72 @@ function parseCodexStreamLine(line: string): ParsedLine[] {
   return [{ kind: "skip" }];
 }
 
+function parseOpenCodeStreamLine(line: string): ParsedLine[] {
+  let obj: Record<string, unknown>;
+  try {
+    obj = JSON.parse(line) as Record<string, unknown>;
+  } catch {
+    return line.trim() ? [{ kind: "text", text: line }] : [{ kind: "skip" }];
+  }
+
+  if (obj.type === "step_start" || obj.type === "step_finish") {
+    return [{ kind: "skip" }];
+  }
+
+  if (obj.type === "text") {
+    const part = obj.part as Record<string, unknown> | undefined;
+    if (part && typeof part.text === "string") {
+      return [{ kind: "text", text: part.text, source: "full" }];
+    }
+    return [{ kind: "skip" }];
+  }
+
+  if (obj.type === "tool_use") {
+    const part = obj.part as Record<string, unknown> | undefined;
+    const state = part?.state as Record<string, unknown> | undefined;
+    const input = state?.input as Record<string, unknown> | undefined;
+    const metadata = state?.metadata as Record<string, unknown> | undefined;
+
+    const callId =
+      typeof part?.callID === "string"
+        ? part.callID
+        : typeof part?.id === "string"
+          ? part.id
+          : "";
+    const toolName =
+      typeof part?.tool === "string" ? String(part.tool) : "unknown";
+    const output =
+      typeof metadata?.output === "string"
+        ? metadata.output
+        : typeof state?.output === "string"
+          ? state.output
+          : "";
+    const exitSuffix =
+      typeof metadata?.exit === "number" ? `\n[exit ${metadata.exit}]` : "";
+
+    return [
+      {
+        kind: "tool_result",
+        toolUseId: callId || null,
+        toolName,
+        content: `${output}${exitSuffix}`.trim(),
+      },
+      {
+        kind: "tool_use",
+        toolName,
+        toolId: callId,
+        toolInput:
+          input && typeof input === "object" && !Array.isArray(input)
+            ? input
+            : null,
+        blockIndex: null,
+      },
+    ];
+  }
+
+  return [{ kind: "skip" }];
+}
+
 /**
  * Extract concatenated text content from a single NDJSON line.
  *
@@ -383,6 +452,8 @@ export function extractTextFromLine(
       ? parseClaudeStreamLine(line)
       : agent === "codex"
         ? parseCodexStreamLine(line)
+        : agent === "opencode"
+          ? parseOpenCodeStreamLine(line)
         : parseGenericStreamLine(line);
   const texts: string[] = [];
   for (const p of parsed) {

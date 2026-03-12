@@ -24,6 +24,13 @@ export const get = query({
   },
 });
 
+export const list = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("orchestratorConfig").collect();
+  },
+});
+
 /** Ensure an orchestratorConfig row exists for a project (upsert). */
 export const ensureExists = mutation({
   args: { projectId: v.id("projects") },
