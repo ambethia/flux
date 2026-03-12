@@ -164,12 +164,16 @@ export const IssuesListBySessionSchema = z.object({
 });
 
 export const CommentsListSchema = z.object({
-  issueId: z.string().describe("The issue's document ID."),
+  issueId: z
+    .string()
+    .describe("The issue's document ID or short ID (e.g. FLUX-42)."),
   limit: z.number().optional().describe("Max results. Default 50, max 200."),
 });
 
 export const CommentsCreateSchema = z.object({
-  issueId: z.string().describe("The issue's document ID."),
+  issueId: z
+    .string()
+    .describe("The issue's document ID or short ID (e.g. FLUX-42)."),
   content: z.string().describe("The comment text. Supports markdown."),
   author: commentAuthorEnum
     .optional()
@@ -363,13 +367,14 @@ const issues_list_by_session: ToolDef = {
 
 const comments_list: ToolDef = {
   name: "comments_list",
-  description: "List comments for an issue, ordered by creation time.",
+  description:
+    "List comments for an issue, ordered by creation time. Accepts a document ID or short ID.",
   schema: CommentsListSchema.shape,
 };
 
 const comments_create: ToolDef = {
   name: "comments_create",
-  description: "Add a comment to an issue.",
+  description: "Add a comment to an issue. Accepts a document ID or short ID.",
   schema: CommentsCreateSchema.shape,
 };
 

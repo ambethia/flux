@@ -72,6 +72,8 @@ You have access to the \`flux\` MCP server. Use it to:
 
 **Do NOT close, update status, or modify the assigned issue.** The orchestrator manages the full issue lifecycle (work → retro → review → close) based on your disposition. Report your outcome via the disposition JSON and let the orchestrator handle the rest.`);
 
+  parts.push(SUBAGENT_SAFETY_SECTION);
+
   // Issue (with injection defense)
   parts.push(`
 ## Assigned Issue
@@ -172,6 +174,11 @@ For each finding: fix it now inline OR create a follow-up issue. There is no "no
 
 ### Agency Over Deference
 Make the call on your fixes. Only create deferred issues for genuine architectural ambiguity or breaking changes. Style fixes, bug fixes, missing error handling — just fix them.
+
+### Subagent Safety
+Flux sessions run in the shared project checkout. Do NOT spawn read-only/explorer subagents for repo inspection; they can dirty the same worktree and leak unrelated changes into your review session. Perform read-only investigation yourself with local tools.
+
+If you need delegation, only spawn a write-capable worker for a bounded file set you are prepared to review. Run \`git status --short\` immediately after that worker returns and treat any unexpected path as a failure that must be resolved before continuing.
 
 ## Review Scope
 
@@ -291,6 +298,13 @@ Use the \`flux\` MCP server to:
 }
 
 // ── Response format fragments ────────────────────────────────────────
+
+const SUBAGENT_SAFETY_SECTION = `
+## Subagent Safety
+
+Flux sessions run in the shared project checkout. Do NOT spawn read-only/explorer subagents for codebase inspection. They are not isolated and can dirty the same worktree, which risks leaking unrelated edits into your session and auto-commits.
+
+Perform read-only exploration yourself with the local search/read tools. If you truly need delegation, only spawn a write-capable worker for a bounded file set you intend to inspect and keep. Run \`git status --short\` immediately after that worker returns and treat any unexpected file change as a failure that must be fixed before you continue.`;
 
 const RESPONSE_FORMAT_WORK = `
 ## Response Format

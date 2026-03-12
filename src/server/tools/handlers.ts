@@ -136,6 +136,36 @@ function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+function looksLikeShortIssueId(value: string): boolean {
+  return /^[A-Za-z]+-\d+$/.test(value.trim());
+}
+
+async function resolveIssueId(
+  ctx: ToolContext,
+  issueIdOrShortId: string,
+): Promise<Id<"issues">> {
+  const candidate = issueIdOrShortId.trim();
+  if (!looksLikeShortIssueId(candidate)) {
+    return candidate as Id<"issues">;
+  }
+
+  const normalizedShortId = candidate.toUpperCase();
+  const matches = await ctx.convex.query(api.issues.search, {
+    projectId: ctx.projectId,
+    query: normalizedShortId,
+    limit: 10,
+  });
+  const exactMatch = matches.find(
+    (issue) => issue.shortId.toUpperCase() === normalizedShortId,
+  );
+  if (!exactMatch) {
+    throw new Error(
+      `Issue not found for short ID ${normalizedShortId}. Use issues_search to confirm the issue exists in this project.`,
+    );
+  }
+  return exactMatch._id;
+}
+
 // ── Handlers ──────────────────────────────────────────────────────────
 
 const issues_create = typedHandler(
@@ -400,8 +430,9 @@ const issues_list_by_session = typedHandler(
 const comments_create = typedHandler(
   CommentsCreateSchema,
   async ({ issueId, content, author }, ctx) => {
+    const resolvedIssueId = await resolveIssueId(ctx, issueId);
     const commentId = await ctx.convex.mutation(api.comments.create, {
-      issueId: issueId as Id<"issues">,
+      issueId: resolvedIssueId,
       content,
       author,
     });
@@ -439,8 +470,9 @@ const issues_bulk_update = typedHandler(
 const comments_list = typedHandler(
   CommentsListSchema,
   async ({ issueId, limit }, ctx) => {
+    const resolvedIssueId = await resolveIssueId(ctx, issueId);
     const comments = await ctx.convex.query(api.comments.list, {
-      issueId: issueId as Id<"issues">,
+      issueId: resolvedIssueId,
       limit: Math.min(limit ?? 50, 200),
     });
     return ok(ctx, { comments, count: comments.length });
