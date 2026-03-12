@@ -50,8 +50,13 @@ function makeContext() {
 describe("comment tools short ID resolution", () => {
   test("comments_create resolves a short issue ID before mutation", async () => {
     const { ctx, query, mutation } = makeContext();
+    const commentsCreate = handlers.comments_create;
+    expect(commentsCreate).toBeDefined();
+    if (!commentsCreate) {
+      throw new Error("comments_create handler is not defined");
+    }
 
-    const result = await handlers.comments_create(
+    const result = await commentsCreate(
       {
         issueId: "luckydo-221",
         content: "Resolved through short ID",
@@ -86,8 +91,13 @@ describe("comment tools short ID resolution", () => {
 
   test("comments_list resolves a short issue ID before query", async () => {
     const { ctx, query, mutation } = makeContext();
+    const commentsList = handlers.comments_list;
+    expect(commentsList).toBeDefined();
+    if (!commentsList) {
+      throw new Error("comments_list handler is not defined");
+    }
 
-    const result = await handlers.comments_list(
+    const result = await commentsList(
       {
         issueId: "LUCKYDO-221",
       },
