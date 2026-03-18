@@ -58,7 +58,7 @@ function ProjectShell() {
               onSearchClick={shortcuts.onSearch}
               onCreateClick={shortcuts.onCreateIssue}
             />
-            <main className="min-h-0 grow overflow-auto p-6">
+            <main className="min-h-0 grow overflow-auto">
               <Outlet />
             </main>
           </div>
