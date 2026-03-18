@@ -108,11 +108,11 @@ For work prompts, the subagent safety section is also automatically appended.
 
 ## Best Practices
 
-1. **Keep prompts focused**: Custom prompts should complement the built-in instructions, not replace core functionality
+1. **Keep prompts focused**: Custom prompts should provide project-specific guidance (coding standards, architectural patterns, tools to use), not replace core functionality
 2. **Use placeholders**: Always use placeholder tokens instead of hardcoding issue details
 3. **Test incrementally**: Start with one phase (e.g., work) before customizing all three
 4. **Version control**: Consider storing your custom prompts in a project-specific config file for version control
-5. **Don't include response format**: The JSON disposition format is automatically appended — focus your custom prompt on task-specific instructions
+5. **Don't include response format**: The JSON disposition format is automatically appended — focus your custom prompt on project-specific agent instructions, not individual issue content
 
 ## Example: Project-Specific Code Style
 
