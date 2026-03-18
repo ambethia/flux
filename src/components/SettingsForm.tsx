@@ -116,6 +116,49 @@ export function SettingsForm() {
     showConfigError,
   );
 
+  // ── Custom prompts form state ────────────────────────────────────
+  const [workPrompt, setWorkPrompt] = useState("");
+  const [retroPrompt, setRetroPrompt] = useState("");
+  const [reviewPrompt, setReviewPrompt] = useState("");
+  const [promptsDirty, setPromptsDirty] = useState(false);
+  const [promptsSaved, setPromptsSaved] = useState(false);
+  const {
+    error: promptsError,
+    showError: showPromptsError,
+    clearError: clearPromptsError,
+  } = useDismissableError();
+
+  const [savePrompts, savingPrompts] = useTrackedAction(async () => {
+    await updateProject({
+      projectId,
+      workPrompt: workPrompt || undefined,
+      retroPrompt: retroPrompt || undefined,
+      reviewPrompt: reviewPrompt || undefined,
+    });
+    setPromptsDirty(false);
+    setPromptsSaved(true);
+  }, showPromptsError);
+
+  // Sync prompts form state from server
+  useEffect(() => {
+    if (!project) return;
+    setWorkPrompt(project.workPrompt ?? "");
+    setRetroPrompt(project.retroPrompt ?? "");
+    setReviewPrompt(project.reviewPrompt ?? "");
+    setPromptsDirty(false);
+  }, [project]);
+
+  function markPromptsDirty() {
+    setPromptsDirty(true);
+    setPromptsSaved(false);
+  }
+
+  function handlePromptsSave(e: React.FormEvent) {
+    e.preventDefault();
+    clearPromptsError();
+    savePrompts();
+  }
+
   // Sync config form state from server
   useEffect(() => {
     if (!config) return;
@@ -439,6 +482,99 @@ export function SettingsForm() {
           </section>
         </form>
       )}
+
+      {/* ── Custom Prompts ───────────────────────────────────────── */}
+      <form onSubmit={handlePromptsSave}>
+        <section className="rounded-lg border border-base-300 bg-base-200 p-4">
+          <h2 className="mb-3 font-semibold text-lg">Custom Prompts</h2>
+          <p className="mb-4 text-base-content/70 text-sm">
+            Override the default agent prompts for work, retro, and review
+            phases. Leave empty to use defaults. See{" "}
+            <a
+              href="https://github.com/anthropics/flux/blob/main/docs/custom-prompts.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="link"
+            >
+              docs/custom-prompts.md
+            </a>{" "}
+            for placeholder tokens and examples.
+          </p>
+
+          <div className="flex flex-col gap-4">
+            <fieldset className="fieldset">
+              <legend className="fieldset-legend">Work Prompt</legend>
+              <textarea
+                className="textarea w-full font-mono text-sm"
+                rows={6}
+                value={workPrompt}
+                onChange={(e) => {
+                  setWorkPrompt(e.target.value);
+                  markPromptsDirty();
+                }}
+                placeholder="Custom work phase prompt (supports {{ISSUE}} placeholder)..."
+              />
+              <p className="mt-1 text-base-content/60 text-xs">
+                Instructions for implementing issues. Response format is
+                automatically appended.
+              </p>
+            </fieldset>
+
+            <fieldset className="fieldset">
+              <legend className="fieldset-legend">Retro Prompt</legend>
+              <textarea
+                className="textarea w-full font-mono text-sm"
+                rows={6}
+                value={retroPrompt}
+                onChange={(e) => {
+                  setRetroPrompt(e.target.value);
+                  markPromptsDirty();
+                }}
+                placeholder="Custom retrospective prompt (supports {{SHORT_ID}}, {{WORK_NOTE}} placeholders)..."
+              />
+              <p className="mt-1 text-base-content/60 text-xs">
+                Instructions for retrospectives. Response format is
+                automatically appended.
+              </p>
+            </fieldset>
+
+            <fieldset className="fieldset">
+              <legend className="fieldset-legend">Review Prompt</legend>
+              <textarea
+                className="textarea w-full font-mono text-sm"
+                rows={6}
+                value={reviewPrompt}
+                onChange={(e) => {
+                  setReviewPrompt(e.target.value);
+                  markPromptsDirty();
+                }}
+                placeholder="Custom review prompt (supports {{SHORT_ID}}, {{TITLE}}, {{DIFF}}, etc.)..."
+              />
+              <p className="mt-1 text-base-content/60 text-xs">
+                Instructions for code review. Response format is automatically
+                appended.
+              </p>
+            </fieldset>
+          </div>
+
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              type="submit"
+              className="btn btn-primary btn-sm"
+              disabled={savingPrompts || !promptsDirty}
+            >
+              {savingPrompts && (
+                <span className="loading loading-spinner loading-sm" />
+              )}
+              Save Prompts
+            </button>
+            {promptsSaved && (
+              <span className="text-sm text-success">Saved</span>
+            )}
+          </div>
+          <ErrorBanner error={promptsError} onDismiss={clearPromptsError} />
+        </section>
+      </form>
 
       {/* ── Project Enabled ──────────────────────────────────────── */}
       <section className="rounded-lg border border-base-300 bg-base-200 p-4">
