@@ -854,16 +854,9 @@ class ProjectRunner {
       return false;
     }
 
-    if (disposition === Disposition.Noop) {
-      await convex.mutation(api.issues.close, {
-        issueId,
-        closeType: CloseType.Noop,
-        closeReason: note,
-      });
-      this.finalize();
-      return true;
-    }
-
+    // Check for commits since startHead — needed for both Noop and Done.
+    // A resumed session may report Noop (no new work) but a prior faulted
+    // session already committed changes that still need retro/review.
     let hasCommits: boolean;
     try {
       hasCommits = await hasNewCommits(cwd, startHead);
@@ -880,7 +873,7 @@ class ProjectRunner {
       return false;
     }
 
-    if (!hasCommits) {
+    if (disposition === Disposition.Noop && !hasCommits) {
       await convex.mutation(api.issues.close, {
         issueId,
         closeType: CloseType.Noop,
@@ -889,6 +882,21 @@ class ProjectRunner {
       this.finalize();
       return true;
     }
+
+    if (!hasCommits) {
+      // Done disposition but no commits — close as noop
+      await convex.mutation(api.issues.close, {
+        issueId,
+        closeType: CloseType.Noop,
+        closeReason: note,
+      });
+      this.finalize();
+      return true;
+    }
+
+    // Commits exist — proceed to retro/review regardless of disposition.
+    // This handles the case where a prior session faulted after committing
+    // and the resumed session correctly reported Noop.
 
     try {
       await autoCommitDirtyTree(
