@@ -24,6 +24,8 @@ export interface WorkPromptContext {
   title: string;
   description?: string;
   comments?: Array<{ author: string; content: string }>;
+  /** Optional custom prompt override from project config */
+  customPrompt?: string;
 }
 
 export interface RetroPromptContext {
@@ -31,6 +33,8 @@ export interface RetroPromptContext {
   title: string;
   /** Summary from the work session's disposition note */
   workNote?: string;
+  /** Optional custom prompt override from project config */
+  customPrompt?: string;
 }
 
 export interface ReviewPromptContext {
@@ -55,6 +59,8 @@ export interface ReviewPromptContext {
     commitLog?: string;
     commitLogError?: string;
   }>;
+  /** Optional custom prompt override from project config */
+  customPrompt?: string;
 }
 
 // ── Agent process types ──────────────────────────────────────────────

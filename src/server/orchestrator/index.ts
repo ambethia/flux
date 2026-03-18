@@ -105,6 +105,10 @@ class ProjectRunner {
   private maxReviewIterations = 10;
   private sessionTimeoutMs = 30 * 60 * 1000; // 30 minutes default
   private pidWatchdogTimer: ReturnType<typeof setInterval> | null = null;
+  /** Custom prompts from project config (if any) */
+  private customWorkPrompt?: string;
+  private customRetroPrompt?: string;
+  private customReviewPrompt?: string;
   private lifecycleListeners = new Set<
     (event: OrchestratorLifecycleEvent) => void
   >();
@@ -209,6 +213,16 @@ class ProjectRunner {
     options: { autoSchedule?: boolean } = {},
   ): Promise<OrphanRecoveryStats> {
     const convex = getConvexClient();
+
+    // Fetch project config for custom prompts
+    const project = await convex.query(api.projects.getById, {
+      projectId: this.projectId,
+    });
+    if (project) {
+      this.customWorkPrompt = project.workPrompt;
+      this.customRetroPrompt = project.retroPrompt;
+      this.customReviewPrompt = project.reviewPrompt;
+    }
 
     // Ensure config row exists (upsert)
     await convex.mutation(api.orchestratorConfig.ensureExists, {
@@ -397,6 +411,7 @@ class ProjectRunner {
         comments.length > 0
           ? comments.map((c) => ({ author: c.author, content: c.content }))
           : undefined,
+      customPrompt: this.customWorkPrompt,
     };
     const prompt = this.provider.buildWorkPrompt(issueCtx);
     const agentProcess = this.provider.spawn({
@@ -1059,6 +1074,7 @@ class ProjectRunner {
       shortId: active.issue.shortId,
       title: active.issue.title,
       workNote,
+      customPrompt: this.customRetroPrompt,
     });
 
     if (!active.agentSessionId) {
@@ -1226,6 +1242,7 @@ class ProjectRunner {
       reviewIteration: currentIterations + 1,
       maxReviewIterations: this.maxReviewIterations,
       previousReviews,
+      customPrompt: this.customReviewPrompt,
     });
 
     const reviewSession = await convex.mutation(api.sessions.create, {

@@ -192,6 +192,9 @@ export default defineSchema({
     issueCounter: v.number(),
     path: v.optional(v.string()),
     enabled: v.optional(v.boolean()),
+    workPrompt: v.optional(v.string()),
+    retroPrompt: v.optional(v.string()),
+    reviewPrompt: v.optional(v.string()),
   }).index("by_slug", ["slug"]),
 
   issues: defineTable({

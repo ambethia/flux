@@ -9,7 +9,36 @@ import {
 
 // ── Work Prompt ──────────────────────────────────────────────────────
 
+/**
+ * Inject issue context into a prompt template.
+ * Replaces {{ISSUE}} with the full issue text (title, description, comments).
+ */
+function injectIssueContext(template: string, ctx: WorkPromptContext): string {
+  // Build the issue text block
+  const issueParts: string[] = [];
+  issueParts.push(`### ${ctx.shortId}: ${ctx.title}`);
+  if (ctx.description) {
+    issueParts.push("", ctx.description);
+  }
+  if (ctx.comments && ctx.comments.length > 0) {
+    issueParts.push("", "**Comments:**");
+    for (const c of ctx.comments) {
+      issueParts.push(`[${c.author}]: ${c.content}`);
+    }
+  }
+  const issueText = issueParts.join("\n");
+
+  // Replace {{ISSUE}} placeholder
+  return template.replace(/\{\{ISSUE\}\}/g, issueText);
+}
+
 export function buildWorkPrompt(ctx: WorkPromptContext): string {
+  // If custom prompt is provided, use it with placeholder injection
+  if (ctx.customPrompt) {
+    return injectIssueContext(ctx.customPrompt, ctx);
+  }
+
+  // Default built-in prompt
   const parts: string[] = [];
 
   parts.push(`You are a Flux autonomous agent. You have been assigned an issue to implement.
@@ -107,7 +136,23 @@ You have access to the \`flux\` MCP server. Use it to:
 
 // ── Retro Prompt ─────────────────────────────────────────────────────
 
+/**
+ * Inject retro context into a prompt template.
+ * Replaces {{SHORT_ID}} and {{WORK_NOTE}} placeholders.
+ */
+function injectRetroContext(template: string, ctx: RetroPromptContext): string {
+  return template
+    .replace(/\{\{SHORT_ID\}\}/g, ctx.shortId)
+    .replace(/\{\{WORK_NOTE\}\}/g, ctx.workNote || "(no summary provided)");
+}
+
 export function buildRetroPrompt(ctx: RetroPromptContext): string {
+  // If custom prompt is provided, use it with placeholder injection
+  if (ctx.customPrompt) {
+    return injectRetroContext(ctx.customPrompt, ctx);
+  }
+
+  // Default built-in prompt
   // Retro resumes the same session — agent already has full work context.
   // Keep this lean.
   const parts: string[] = [];
@@ -155,7 +200,41 @@ If you have no findings, that is fine — not every session produces retro items
 
 // ── Review Prompt ────────────────────────────────────────────────────
 
+/**
+ * Inject review context into a prompt template.
+ * Replaces placeholders: {{SHORT_ID}}, {{TITLE}}, {{DESCRIPTION}}, {{DIFF}},
+ * {{COMMIT_LOG}}, {{REVIEW_ITERATION}}, {{MAX_REVIEW_ITERATIONS}}, {{RELATED_ISSUES}}
+ */
+function injectReviewContext(
+  template: string,
+  ctx: ReviewPromptContext,
+): string {
+  // Build related issues list
+  const relatedIssuesList =
+    ctx.relatedIssues.length > 0
+      ? ctx.relatedIssues
+          .map((i) => `- ${i.shortId}: ${i.title} [${i.status}]`)
+          .join("\n")
+      : "(none)";
+
+  return template
+    .replace(/\{\{SHORT_ID\}\}/g, ctx.shortId)
+    .replace(/\{\{TITLE\}\}/g, ctx.title)
+    .replace(/\{\{DESCRIPTION\}\}/g, ctx.description || "(no description)")
+    .replace(/\{\{DIFF\}\}/g, ctx.diff)
+    .replace(/\{\{COMMIT_LOG\}\}/g, ctx.commitLog)
+    .replace(/\{\{REVIEW_ITERATION\}\}/g, String(ctx.reviewIteration))
+    .replace(/\{\{MAX_REVIEW_ITERATIONS\}\}/g, String(ctx.maxReviewIterations))
+    .replace(/\{\{RELATED_ISSUES\}\}/g, relatedIssuesList);
+}
+
 export function buildReviewPrompt(ctx: ReviewPromptContext): string {
+  // If custom prompt is provided, use it with placeholder injection
+  if (ctx.customPrompt) {
+    return injectReviewContext(ctx.customPrompt, ctx);
+  }
+
+  // Default built-in prompt
   // Review is stateless — new session, needs full context.
   const parts: string[] = [];
 

@@ -49,6 +49,9 @@ export const update = mutation({
     slug: v.optional(v.string()),
     path: v.optional(v.string()),
     enabled: v.optional(v.boolean()),
+    workPrompt: v.optional(v.string()),
+    retroPrompt: v.optional(v.string()),
+    reviewPrompt: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.projectId);
@@ -60,6 +63,10 @@ export const update = mutation({
     if (args.name !== undefined) updates.name = args.name;
     if (args.path !== undefined) updates.path = args.path;
     if (args.enabled !== undefined) updates.enabled = args.enabled;
+    if (args.workPrompt !== undefined) updates.workPrompt = args.workPrompt;
+    if (args.retroPrompt !== undefined) updates.retroPrompt = args.retroPrompt;
+    if (args.reviewPrompt !== undefined)
+      updates.reviewPrompt = args.reviewPrompt;
 
     if (args.slug !== undefined) {
       const newSlug = args.slug;
