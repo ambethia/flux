@@ -341,51 +341,43 @@ const ActivityNodeView = memo(function ActivityNodeView({
   switch (node.type) {
     case "session_start":
       return (
-        <div className="relative">
-          <div className="rounded-lg border border-base-300 bg-base-200 px-3 py-2 pr-16 text-base-content/60 text-xs">
+        <div className="flex items-baseline gap-2">
+          <div className="min-w-0 flex-1 rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-base-content/60 text-xs">
             ── Session {node.event.sessionId.slice(0, 8)} │ Issue:{" "}
             {node.event.issueId} │ Agent: {node.event.agent} │ PID:{" "}
             {node.event.pid} ──
           </div>
-          <span className="absolute top-2 right-2">
-            <Timestamp ts={node.timestamp} />
-          </span>
+          <Timestamp ts={node.timestamp} />
         </div>
       );
     case "status":
       return (
-        <div className="relative">
-          <div className="rounded-lg bg-warning/10 px-3 py-2 pr-16 text-sm text-warning italic">
+        <div className="flex items-baseline gap-2">
+          <div className="min-w-0 flex-1 rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning italic">
             [{node.event.state}] {node.event.message}
           </div>
-          <span className="absolute top-2 right-2">
-            <Timestamp ts={node.timestamp} />
-          </span>
+          <Timestamp ts={node.timestamp} />
         </div>
       );
     case "text":
       return (
-        <div className="relative">
-          <div className="pr-16">
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
             <ActivityTextNode text={node.parsed.text} />
           </div>
-          <span className="absolute top-2 right-2">
-            <Timestamp ts={node.timestamp} />
-          </span>
+          <Timestamp ts={node.timestamp} />
         </div>
       );
     case "tool_call":
       return (
-        <div className="relative">
-          <div className="min-w-0">
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
             <ToolCallCard
               pair={node.pair}
               expanded={expandedToolCalls.has(node.key)}
             />
           </div>
-          <span className="absolute top-2 right-2">
-            <Timestamp ts={node.timestamp} />
-          </span>
+          <Timestamp ts={node.timestamp} />
         </div>
       );
     default: {

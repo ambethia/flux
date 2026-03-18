@@ -9,7 +9,7 @@ export function Timestamp({ ts }: { ts: number }) {
     <time
       dateTime={new Date(ts).toISOString()}
       title={formatTime(ts)}
-      className="shrink-0 cursor-default text-[10px] text-base-content/30 tabular-nums"
+      className="shrink-0 cursor-default whitespace-nowrap pt-2 text-[10px] text-base-content/30 tabular-nums"
     >
       {formatTimeShort(ts)}
     </time>

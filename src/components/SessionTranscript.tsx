@@ -111,35 +111,29 @@ export function SessionTranscript({
             switch (node.type) {
               case "input":
                 return (
-                  <div key={node.key} className="relative">
-                    <div className="pr-16">
+                  <div key={node.key} className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
                       <InputNode node={node} />
                     </div>
-                    <span className="absolute top-2 right-2">
-                      <Timestamp ts={node.timestamp} />
-                    </span>
+                    <Timestamp ts={node.timestamp} />
                   </div>
                 );
               case "text":
                 return (
-                  <div key={node.key} className="relative">
-                    <div className="pr-16">
+                  <div key={node.key} className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
                       <TextNode node={node} />
                     </div>
-                    <span className="absolute top-2 right-2">
-                      <Timestamp ts={node.timestamp} />
-                    </span>
+                    <Timestamp ts={node.timestamp} />
                   </div>
                 );
               case "tool_call":
                 return (
-                  <div key={node.key} className="relative">
-                    <div className="min-w-0">
+                  <div key={node.key} className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
                       <ToolCallCard pair={node.pair} />
                     </div>
-                    <span className="absolute top-2 right-2">
-                      <Timestamp ts={node.timestamp} />
-                    </span>
+                    <Timestamp ts={node.timestamp} />
                   </div>
                 );
               default: {
