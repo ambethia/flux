@@ -47,8 +47,7 @@ export class ClaudeCodeProvider implements AgentProvider {
         "--input-format",
         "stream-json",
         "--dangerously-skip-permissions",
-        "--print",
-        opts.prompt,
+        "-p",
       ],
       {
         cwd: opts.cwd,
@@ -59,7 +58,9 @@ export class ClaudeCodeProvider implements AgentProvider {
       },
     );
 
-    return wrapProcess(proc);
+    const wrapped = wrapProcess(proc);
+    sendInitialPrompt(wrapped, opts.prompt);
+    return wrapped;
   }
 
   resume(opts: ResumeOptions): AgentProcess {
@@ -73,8 +74,7 @@ export class ClaudeCodeProvider implements AgentProvider {
         "--dangerously-skip-permissions",
         "--resume",
         opts.sessionId,
-        "--print",
-        opts.prompt,
+        "-p",
       ],
       {
         cwd: opts.cwd,
@@ -85,7 +85,9 @@ export class ClaudeCodeProvider implements AgentProvider {
       },
     );
 
-    return wrapProcess(proc);
+    const wrapped = wrapProcess(proc);
+    sendInitialPrompt(wrapped, opts.prompt);
+    return wrapped;
   }
 
   buildWorkPrompt(ctx: WorkPromptContext): string {
@@ -111,6 +113,25 @@ export class ClaudeCodeProvider implements AgentProvider {
     }
     return [];
   }
+}
+
+/**
+ * Deliver the initial prompt via stdin as a stream-json user message.
+ *
+ * When --input-format stream-json is set, Claude Code ignores the --print
+ * positional prompt and reads from stdin instead. We write the prompt
+ * immediately after spawn — the pipe is available synchronously.
+ */
+function sendInitialPrompt(agent: AgentProcess, prompt: string): void {
+  if (!agent.stdin) {
+    throw new Error("Cannot send initial prompt: agent stdin is null");
+  }
+  const payload = JSON.stringify({
+    type: "user",
+    message: { role: "user", content: prompt },
+  });
+  agent.stdin.write(`${payload}\n`);
+  agent.stdin.flush();
 }
 
 function wrapProcess(proc: ReturnType<typeof Bun.spawn>): AgentProcess {
