@@ -1188,6 +1188,14 @@ class ProjectRunner {
     await getConvexClient().mutation(api.sessions.update, {
       sessionId: active.sessionId,
       phase: SessionPhase.Retro,
+      // Restore Running status — handleWorkExit set it to Completed when the
+      // work process exited, but the session continues into retro with a new
+      // process. Without this, the UI query (getActiveWithIssue) returns null
+      // and the NudgeInput disappears.
+      status: SessionStatus.Running,
+      pid: retroProcess.pid,
+      // Clear endedAt so the UI elapsed timer resumes ticking.
+      endedAt: null,
     });
 
     this.trackProcessExit(retroProcess);

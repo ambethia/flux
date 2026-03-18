@@ -1,6 +1,6 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
-import type { Doc, Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 import type { DatabaseReader } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import {
@@ -67,7 +67,7 @@ export const update = mutation({
   args: {
     sessionId: v.id("sessions"),
     status: v.optional(sessionStatusValidator),
-    endedAt: v.optional(v.number()),
+    endedAt: v.optional(v.union(v.number(), v.null())),
     exitCode: v.optional(v.number()),
     pid: v.optional(v.number()),
     lastHeartbeat: v.optional(v.number()),
@@ -83,9 +83,13 @@ export const update = mutation({
     const session = await ctx.db.get(sessionId);
     if (!session) throw new Error(`Session ${sessionId} not found`);
 
-    const patch: Partial<Doc<"sessions">> = Object.fromEntries(
-      Object.entries(rest).filter(([, v]) => v !== undefined),
-    );
+    // Build patch: filter out undefined args, but convert null → undefined
+    // so Convex removes the field from the document (used for clearing endedAt).
+    const patch: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(rest)) {
+      if (val === undefined) continue;
+      patch[key] = val === null ? undefined : val;
+    }
 
     await ctx.db.patch(sessionId, patch);
 
