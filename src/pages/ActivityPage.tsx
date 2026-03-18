@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { usePaginatedQuery, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "$convex/_generated/api";
-import type { IssuePriorityValue } from "$convex/schema";
 import { SessionStatus } from "$convex/schema";
 import { NudgeInput } from "../components/NudgeInput";
 import { PriorityBadge } from "../components/PriorityBadge";
@@ -12,22 +11,18 @@ import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { useProjectId, useProjectSlug } from "../hooks/useProjectId";
 import { useSSE } from "../hooks/useSSE";
 import { useStickyScrollParent } from "../hooks/useStickyScroll";
-import { phaseLabel, typeLabel } from "../lib/format";
+import { formatDuration, phaseLabel, typeLabel } from "../lib/format";
 import {
   groupTranscriptEvents,
   isDisplayableEvent,
 } from "../lib/groupTranscriptEvents";
 
-/** Format seconds into a compact human-readable string (e.g. "3m 12s"). */
-function formatElapsed(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return `${hours}h ${remainingMinutes}m`;
-}
+/** The non-null return type of the getActiveWithIssue query. */
+type ActiveSession = NonNullable<
+  typeof api.sessions.getActiveWithIssue extends { _returnType: infer R }
+    ? R
+    : never
+>;
 
 /** Live elapsed time counter that ticks every second while the session is running. */
 function ElapsedTime({
@@ -45,39 +40,14 @@ function ElapsedTime({
     return () => clearInterval(timer);
   }, [endedAt]);
 
-  const elapsed = Math.max(
-    0,
-    Math.floor(((endedAt ?? now) - startedAt) / 1000),
-  );
-  return <span>{formatElapsed(elapsed)}</span>;
+  return <span>{formatDuration(startedAt, endedAt ?? now)}</span>;
 }
 
 /**
  * Living dashboard header — summarizes the current session/issue at a glance.
  * Updates in real-time as the runner progresses through issues.
  */
-function DashboardHeader({
-  session,
-}: {
-  session: {
-    issueShortId: string | null;
-    issueTitle: string | null;
-    issuePriority: IssuePriorityValue | null;
-    issueStatus: string | null;
-    issueId: string;
-    agent: string;
-    type: string;
-    phase?: string;
-    status: string;
-    startedAt: number;
-    endedAt?: number;
-    turns?: number;
-    tokens?: number;
-    toolCalls?: number;
-    cost?: number;
-    model?: string;
-  };
-}) {
+function DashboardHeader({ session }: { session: ActiveSession }) {
   const projectSlug = useProjectSlug();
 
   return (
@@ -104,16 +74,10 @@ function DashboardHeader({
       {/* Session stats row */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-base-content/60 text-xs">
         <span className="flex items-center gap-1">
-          <SessionStatusBadge
-            status={session.status as "running" | "completed" | "failed"}
-          />
+          <SessionStatusBadge status={session.status} />
         </span>
-        <span>{typeLabel(session.type as "work" | "review")}</span>
-        {session.phase && (
-          <span>
-            {phaseLabel(session.phase as "work" | "retro" | "review")}
-          </span>
-        )}
+        <span>{typeLabel(session.type)}</span>
+        {session.phase && <span>{phaseLabel(session.phase)}</span>}
         <span>{session.agent}</span>
         {session.model && <span className="font-mono">{session.model}</span>}
         <ElapsedTime startedAt={session.startedAt} endedAt={session.endedAt} />
@@ -178,60 +142,59 @@ export function ActivityPage() {
   const isRunning = activeSession?.status === SessionStatus.Running;
 
   return (
-    <div ref={stickyRef} className="flex h-full flex-col">
-      {/* Header bar */}
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="font-bold text-xl">Activity</h1>
-          <span
-            className={`badge badge-sm ${connected ? "badge-success" : "badge-error"}`}
-          >
-            {connected ? "Connected" : "Disconnected"}
-          </span>
+    <div ref={stickyRef} className="flex flex-col gap-3">
+      {/* Sticky header: stays pinned at top of <main> scroll container */}
+      <div className="sticky top-0 z-10 -mx-6 -mt-3 flex flex-col gap-3 bg-base-100 px-6 pt-3 pb-3 shadow-sm">
+        {/* Header bar */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h1 className="font-bold text-xl">Activity</h1>
+            <span
+              className={`badge badge-sm ${connected ? "badge-success" : "badge-error"}`}
+            >
+              {connected ? "Connected" : "Disconnected"}
+            </span>
+          </div>
+          {activeSession && (
+            <Link
+              to="/p/$projectSlug/sessions/$sessionId"
+              params={{ projectSlug, sessionId: activeSession._id }}
+              className="btn btn-ghost btn-xs"
+            >
+              Session Detail
+            </Link>
+          )}
         </div>
-        {activeSession && (
-          <Link
-            to="/p/$projectSlug/sessions/$sessionId"
-            params={{ projectSlug, sessionId: activeSession._id }}
-            className="btn btn-ghost btn-xs"
-          >
-            Session Detail
-          </Link>
+
+        {/* Living dashboard header */}
+        {activeSession ? (
+          <DashboardHeader session={activeSession} />
+        ) : (
+          <div className="rounded-lg border border-base-300 bg-base-200 px-4 py-6 text-center text-base-content/40">
+            {activeSession === undefined ? (
+              <span className="loading loading-spinner loading-sm" />
+            ) : (
+              <span className="italic">
+                No active session — waiting for the runner to pick up an issue
+              </span>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Living dashboard header */}
-      {activeSession ? (
-        <div className="mb-3">
-          <DashboardHeader session={activeSession} />
-        </div>
-      ) : (
-        <div className="mb-3 rounded-lg border border-base-300 bg-base-200 px-4 py-6 text-center text-base-content/40">
-          {activeSession === undefined ? (
-            <span className="loading loading-spinner loading-sm" />
-          ) : (
-            <span className="italic">
-              No active session — waiting for the runner to pick up an issue
-            </span>
-          )}
-        </div>
-      )}
-
       {/* Transcript */}
-      <div className="min-h-0 grow">
-        {activeSession ? (
-          <SessionTranscript
-            nodes={transcriptNodes}
-            eventCount={displayableEvents.length}
-            paginationStatus={paginationStatus}
-            onLoadMore={handleLoadMore}
-          />
-        ) : activeSession === undefined ? (
-          <div className="flex justify-center p-8">
-            <span className="loading loading-spinner loading-md" />
-          </div>
-        ) : null}
-      </div>
+      {activeSession ? (
+        <SessionTranscript
+          nodes={transcriptNodes}
+          eventCount={displayableEvents.length}
+          paginationStatus={paginationStatus}
+          onLoadMore={handleLoadMore}
+        />
+      ) : activeSession === undefined ? (
+        <div className="flex justify-center p-8">
+          <span className="loading loading-spinner loading-md" />
+        </div>
+      ) : null}
 
       {/* Nudge input — only when a session is active */}
       {isRunning && (
