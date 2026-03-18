@@ -14,6 +14,7 @@ import {
 } from "../lib/groupTranscriptEvents";
 import { DispositionCallout } from "./DispositionCallout";
 import { FontAwesomeIcon, faArrowLeft } from "./Icon";
+import { NudgeInput } from "./NudgeInput";
 import { SessionMetadata } from "./SessionMetadata";
 import { SessionStatusBadge } from "./SessionStatusBadge";
 import { SessionTranscript } from "./SessionTranscript";
@@ -138,6 +139,13 @@ export function SessionDetail({ sessionId }: { sessionId: Id<"sessions"> }) {
         paginationStatus={paginationStatus}
         onLoadMore={handleLoadMore}
       />
+
+      {/* Nudge input — only for running sessions */}
+      {isRunning && (
+        <div className="sticky bottom-0 border-base-300 border-t bg-base-100 px-1 py-3">
+          <NudgeInput />
+        </div>
+      )}
     </div>
   );
 }

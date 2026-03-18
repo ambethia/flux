@@ -7,6 +7,7 @@ import type {
   AgentOutputEvent,
   AgentProcess,
   AgentProvider,
+  AgentStdin,
   ResumeOptions,
   RetroPromptContext,
   ReviewPromptContext,
@@ -43,6 +44,8 @@ export class ClaudeCodeProvider implements AgentProvider {
         "claude",
         "--output-format",
         "stream-json",
+        "--input-format",
+        "stream-json",
         "--dangerously-skip-permissions",
         "--print",
         opts.prompt,
@@ -51,6 +54,7 @@ export class ClaudeCodeProvider implements AgentProvider {
         cwd: opts.cwd,
         env: agentEnv(opts.fluxSessionId, opts.agentName),
         stdout: "pipe",
+        stdin: "pipe",
         stderr: "ignore",
       },
     );
@@ -64,6 +68,8 @@ export class ClaudeCodeProvider implements AgentProvider {
         "claude",
         "--output-format",
         "stream-json",
+        "--input-format",
+        "stream-json",
         "--dangerously-skip-permissions",
         "--resume",
         opts.sessionId,
@@ -74,6 +80,7 @@ export class ClaudeCodeProvider implements AgentProvider {
         cwd: opts.cwd,
         env: agentEnv(opts.fluxSessionId, opts.agentName),
         stdout: "pipe",
+        stdin: "pipe",
         stderr: "ignore",
       },
     );
@@ -110,6 +117,7 @@ function wrapProcess(proc: ReturnType<typeof Bun.spawn>): AgentProcess {
   return {
     pid: proc.pid,
     stdout: proc.stdout as ReadableStream<Uint8Array>,
+    stdin: (proc.stdin as AgentStdin | undefined) ?? null,
     kill: () => proc.kill(),
     wait: async () => {
       const exitCode = await proc.exited;

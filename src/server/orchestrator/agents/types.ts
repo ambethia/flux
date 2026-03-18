@@ -85,9 +85,19 @@ export interface ResumeOptions {
   agentName?: string;
 }
 
+/** Minimal writable interface for agent stdin (Bun's FileSink subset). */
+export interface AgentStdin {
+  write(
+    chunk: string | ArrayBufferView | ArrayBuffer,
+  ): number | Promise<number>;
+  flush(): number | Promise<number>;
+}
+
 export interface AgentProcess {
   pid: number;
   stdout: ReadableStream<Uint8Array>;
+  /** Writable stdin pipe for sending messages to the agent (e.g. nudges). */
+  stdin: AgentStdin | null;
   kill(): void;
   wait(): Promise<{ exitCode: number }>;
 }

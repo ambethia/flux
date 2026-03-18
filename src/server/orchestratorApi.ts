@@ -1,11 +1,12 @@
 import { sanitizeConvexError } from "../lib/sanitizeError";
 import type { ProjectRunner } from "./orchestrator";
 
-type OrchestratorAction = "kill" | "status";
+type OrchestratorAction = "kill" | "status" | "nudge";
 
 const VALID_ACTIONS: ReadonlySet<string> = new Set<OrchestratorAction>([
   "kill",
   "status",
+  "nudge",
 ]);
 
 function isValidAction(value: string): value is OrchestratorAction {
@@ -15,11 +16,11 @@ function isValidAction(value: string): value is OrchestratorAction {
 /**
  * Dedicated API handler for orchestrator actions.
  *
- * Accepts POST requests with JSON body `{ action: "kill" | "status" }`.
+ * Accepts POST requests with JSON body `{ action: "kill" | "status" | "nudge", ... }`.
  * This bypasses the generic MCP tool dispatch layer (`/api/projects/:id/tools`), giving the UI
  * a direct, purpose-built endpoint for orchestrator control.
  *
- * `kill` and `status` are direct runner actions — they don't affect lifecycle state.
+ * `kill`, `status`, and `nudge` are direct runner actions — they don't affect lifecycle state.
  */
 export function createOrchestratorApiHandler(getRunner: () => ProjectRunner) {
   return async function handleOrchestratorApi(req: Request): Promise<Response> {
@@ -30,7 +31,7 @@ export function createOrchestratorApiHandler(getRunner: () => ProjectRunner) {
       );
     }
 
-    const body = (await req.json()) as { action?: string };
+    const body = (await req.json()) as { action?: string; message?: string };
     const { action } = body;
 
     if (!action || !isValidAction(action)) {
@@ -52,6 +53,19 @@ export function createOrchestratorApiHandler(getRunner: () => ProjectRunner) {
 
         case "status":
           return Response.json({ status: getRunner().getStatus() });
+
+        case "nudge": {
+          const { message } = body;
+          if (!message || typeof message !== "string") {
+            return Response.json(
+              { error: "nudge requires a non-empty 'message' string." },
+              { status: 400 },
+            );
+          }
+          const runner = getRunner();
+          await runner.nudge(message);
+          return Response.json({ message: "Nudge sent." });
+        }
 
         default: {
           const _exhaustive: never = action;

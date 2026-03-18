@@ -589,6 +589,41 @@ class ProjectRunner {
   }
 
   /**
+   * Send a nudge message to the running agent's stdin.
+   *
+   * The message is delivered as a stream-json user message, which the agent
+   * processes between turns without interrupting its current work. This enables
+   * use cases like sending hints, corrections, or `/btw` style messages.
+   *
+   * Throws if no active session, agent doesn't support stdin, or write fails.
+   */
+  async nudge(message: string): Promise<void> {
+    if (this.state !== OrchestratorState.Busy || !this.activeSession) {
+      throw new Error("No active session to nudge.");
+    }
+
+    const { process: agentProcess, monitor } = this.activeSession;
+
+    if (!agentProcess.stdin) {
+      throw new Error(
+        `Agent "${this.provider.name}" does not support stdin nudging.`,
+      );
+    }
+
+    // Format as Claude Code stream-json user message
+    const payload = JSON.stringify({
+      type: "user",
+      message: { role: "user", content: message },
+    });
+
+    await agentProcess.stdin.write(`${payload}\n`);
+    await agentProcess.stdin.flush();
+
+    // Record the nudge as an input event in the session monitor
+    monitor.recordInput(payload);
+  }
+
+  /**
    * Kill the running agent immediately.
    * The exit handler will detect the `killed` flag and apply hand-off semantics.
    */
@@ -1495,6 +1530,7 @@ class ProjectRunner {
     const stubProcess: AgentProcess = {
       pid,
       stdout: new ReadableStream<Uint8Array>(),
+      stdin: null,
       kill: () => {
         try {
           process.kill(pid);

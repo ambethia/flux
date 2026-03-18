@@ -1,24 +1,22 @@
 import type { OrchestratorStatusData } from "@/shared/orchestrator";
 
-type OrchestratorAction = "kill" | "status";
+type OrchestratorAction = "kill" | "status" | "nudge";
 
 /**
  * Call the dedicated orchestrator API endpoint for a specific project.
  *
  * Routes to `/api/projects/:projectId/orchestrator` — a purpose-built route
  * that skips the generic MCP tool dispatch layer used by agents.
- *
- * Only `kill` and `status` are exposed — the orchestrator is always on
- * and auto-schedules based on project.enabled.
  */
 async function callOrchestratorApi<T = unknown>(
   projectId: string,
   action: OrchestratorAction,
+  extra?: Record<string, unknown>,
 ): Promise<T> {
   const res = await fetch(`/api/projects/${projectId}/orchestrator`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action }),
+    body: JSON.stringify({ action, ...extra }),
   });
 
   if (!res.ok) {
@@ -44,4 +42,14 @@ export function fetchOrchestratorStatus(
   projectId: string,
 ): Promise<OrchestratorStatusData> {
   return callOrchestratorApi<OrchestratorStatusData>(projectId, "status");
+}
+
+/** Send a nudge message to the active session's agent. */
+export function nudgeSession(
+  projectId: string,
+  message: string,
+): Promise<{ message: string }> {
+  return callOrchestratorApi<{ message: string }>(projectId, "nudge", {
+    message,
+  });
 }
