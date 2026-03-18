@@ -1144,6 +1144,7 @@ class ProjectRunner {
     active.monitorDone = retroMonitorDone;
     active.phase = SessionPhase.Retro;
 
+    this.wireProviderOutput(active, retroMonitor);
     this.emitLifecycle({ type: "monitor_changed", monitor: retroMonitor });
 
     await getConvexClient().mutation(api.sessions.update, {
