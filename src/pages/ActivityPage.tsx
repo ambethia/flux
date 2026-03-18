@@ -144,7 +144,7 @@ export function ActivityPage() {
   return (
     <div ref={stickyRef} className="flex flex-col gap-3">
       {/* Sticky header: stays pinned at top of <main> scroll container */}
-      <div className="sticky top-0 z-10 -mx-6 -mt-3 -mb-3 flex flex-col gap-3 bg-base-100 px-6 pt-3 pb-3 shadow-sm">
+      <div className="sticky top-0 z-10 -mx-6 -mt-6 -mb-3 flex flex-col gap-3 bg-base-100 px-6 pt-3 pb-3 shadow-sm">
         {/* Header bar */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
