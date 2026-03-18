@@ -91,6 +91,7 @@ export interface AgentStdin {
     chunk: string | ArrayBufferView | ArrayBuffer,
   ): number | Promise<number>;
   flush(): number | Promise<number>;
+  end(): void;
 }
 
 export interface AgentProcess {
