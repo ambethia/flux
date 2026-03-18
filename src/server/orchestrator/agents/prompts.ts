@@ -33,13 +33,17 @@ function injectIssueContext(template: string, ctx: WorkPromptContext): string {
 }
 
 export function buildWorkPrompt(ctx: WorkPromptContext): string {
+  const parts: string[] = [];
+
   // If custom prompt is provided, use it with placeholder injection
   if (ctx.customPrompt) {
-    return injectIssueContext(ctx.customPrompt, ctx);
+    parts.push(injectIssueContext(ctx.customPrompt, ctx));
+    parts.push(SUBAGENT_SAFETY_SECTION);
+    parts.push(RESPONSE_FORMAT_WORK);
+    return parts.join("\n");
   }
 
   // Default built-in prompt
-  const parts: string[] = [];
 
   parts.push(`You are a Flux autonomous agent. You have been assigned an issue to implement.
 
@@ -147,15 +151,18 @@ function injectRetroContext(template: string, ctx: RetroPromptContext): string {
 }
 
 export function buildRetroPrompt(ctx: RetroPromptContext): string {
+  const parts: string[] = [];
+
   // If custom prompt is provided, use it with placeholder injection
   if (ctx.customPrompt) {
-    return injectRetroContext(ctx.customPrompt, ctx);
+    parts.push(injectRetroContext(ctx.customPrompt, ctx));
+    parts.push(RESPONSE_FORMAT_RETRO);
+    return parts.join("\n");
   }
 
   // Default built-in prompt
   // Retro resumes the same session — agent already has full work context.
   // Keep this lean.
-  const parts: string[] = [];
 
   parts.push(`## Retrospective: ${ctx.shortId}`);
 
@@ -229,14 +236,17 @@ function injectReviewContext(
 }
 
 export function buildReviewPrompt(ctx: ReviewPromptContext): string {
+  const parts: string[] = [];
+
   // If custom prompt is provided, use it with placeholder injection
   if (ctx.customPrompt) {
-    return injectReviewContext(ctx.customPrompt, ctx);
+    parts.push(injectReviewContext(ctx.customPrompt, ctx));
+    parts.push(RESPONSE_FORMAT_REVIEW);
+    return parts.join("\n");
   }
 
   // Default built-in prompt
   // Review is stateless — new session, needs full context.
-  const parts: string[] = [];
 
   parts.push(`You are a Flux code review agent. You are reviewing changes made for an issue.
 

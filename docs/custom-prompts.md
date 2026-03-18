@@ -100,12 +100,19 @@ bunx convex run projects:update '{
 }'
 ```
 
+## Automatic Response Format
+
+**Important**: Flux automatically appends the required JSON disposition format to all custom prompts. You do NOT need to include instructions about returning `{"disposition": "...", "note": "..."}` in your custom prompts — this is handled automatically to ensure the orchestrator can parse agent responses correctly.
+
+For work prompts, the subagent safety section is also automatically appended.
+
 ## Best Practices
 
 1. **Keep prompts focused**: Custom prompts should complement the built-in instructions, not replace core functionality
 2. **Use placeholders**: Always use placeholder tokens instead of hardcoding issue details
 3. **Test incrementally**: Start with one phase (e.g., work) before customizing all three
 4. **Version control**: Consider storing your custom prompts in a project-specific config file for version control
+5. **Don't include response format**: The JSON disposition format is automatically appended — focus your custom prompt on task-specific instructions
 
 ## Example: Project-Specific Code Style
 
