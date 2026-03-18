@@ -1,6 +1,7 @@
 import type { PaginationStatus } from "convex/react";
 import type { TranscriptNode } from "../lib/groupTranscriptEvents";
 import { Markdown } from "./Markdown";
+import { Timestamp } from "./Timestamp";
 import { ToolCallCard } from "./ToolCallCard";
 
 /** Collapse threshold — input nodes longer than this many lines get auto-collapsed. */
@@ -109,11 +110,32 @@ export function SessionTranscript({
           {nodes.map((node) => {
             switch (node.type) {
               case "input":
-                return <InputNode key={node.key} node={node} />;
+                return (
+                  <div key={node.key} className="flex items-start gap-2">
+                    <div className="flex-1">
+                      <InputNode node={node} />
+                    </div>
+                    <Timestamp ts={node.timestamp} />
+                  </div>
+                );
               case "text":
-                return <TextNode key={node.key} node={node} />;
+                return (
+                  <div key={node.key} className="flex items-start gap-2">
+                    <div className="flex-1">
+                      <TextNode node={node} />
+                    </div>
+                    <Timestamp ts={node.timestamp} />
+                  </div>
+                );
               case "tool_call":
-                return <ToolCallCard key={node.key} pair={node.pair} />;
+                return (
+                  <div key={node.key} className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <ToolCallCard pair={node.pair} />
+                    </div>
+                    <Timestamp ts={node.timestamp} />
+                  </div>
+                );
               default: {
                 const _exhaustive: never = node;
                 throw new Error(

@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useRef } from "react";
 import { Markdown } from "../components/Markdown";
+import { Timestamp } from "../components/Timestamp";
 import { ToolCallCard } from "../components/ToolCallCard";
 import {
   type KeyedStreamEvent,
@@ -142,15 +143,22 @@ type ActivityNode =
   | {
       type: "session_start";
       key: number;
+      timestamp: number;
       event: KeyedStreamEvent & { type: "session_start" };
     }
   | {
       type: "status";
       key: number;
+      timestamp: number;
       event: KeyedStreamEvent & { type: "status" };
     }
-  | { type: "text"; key: string; parsed: Extract<ParsedLine, { kind: "text" }> }
-  | { type: "tool_call"; key: string; pair: ToolCallPair };
+  | {
+      type: "text";
+      key: string;
+      timestamp: number;
+      parsed: Extract<ParsedLine, { kind: "text" }>;
+    }
+  | { type: "tool_call"; key: string; timestamp: number; pair: ToolCallPair };
 
 /**
  * Group flat activity events into display nodes, merging tool_use + tool_result
@@ -177,17 +185,29 @@ function groupActivityNodes(
   >();
   // Insertion order for pending tool_uses (toolId), so we emit them in order
   const pendingOrder: string[] = [];
+  // Timestamps for pending tool_uses, indexed by toolId
+  const pendingTimestamps = new Map<string, number>();
 
   for (const event of events) {
     if (event.type === "session_start") {
       // Flush pending before new session
-      flushPending(nodes, pendingToolUses, pendingOrder);
+      flushPending(nodes, pendingToolUses, pendingOrder, pendingTimestamps);
       currentAgent = event.agent;
-      nodes.push({ type: "session_start", key: event.id, event });
+      nodes.push({
+        type: "session_start",
+        key: event.id,
+        timestamp: event.timestamp,
+        event,
+      });
       continue;
     }
     if (event.type === "status") {
-      nodes.push({ type: "status", key: event.id, event });
+      nodes.push({
+        type: "status",
+        key: event.id,
+        timestamp: event.timestamp,
+        event,
+      });
       continue;
     }
 
@@ -203,6 +223,7 @@ function groupActivityNodes(
         if (!existing) {
           pendingToolUses.set(enriched.toolId, enriched);
           pendingOrder.push(enriched.toolId);
+          pendingTimestamps.set(enriched.toolId, event.timestamp);
         } else if (!existing.toolInput && enriched.toolInput) {
           // Prefer the version with input (full assistant message over content_block_start)
           pendingToolUses.set(enriched.toolId, enriched);
@@ -215,9 +236,11 @@ function groupActivityNodes(
           nodes.push({
             type: "tool_call",
             key: `tool_call:${matched.toolId}`,
+            timestamp: pendingTimestamps.get(matched.toolId) ?? event.timestamp,
             pair: { toolUse: matched, toolResult: item },
           });
           pendingToolUses.delete(matched.toolId);
+          pendingTimestamps.delete(matched.toolId);
           const orderIdx = pendingOrder.indexOf(matched.toolId);
           if (orderIdx !== -1) pendingOrder.splice(orderIdx, 1);
         } else {
@@ -225,6 +248,7 @@ function groupActivityNodes(
           nodes.push({
             type: "tool_call",
             key: `orphan_result:${item.toolUseId ?? nodes.length}`,
+            timestamp: event.timestamp,
             pair: {
               toolUse: {
                 kind: "tool_use",
@@ -241,6 +265,7 @@ function groupActivityNodes(
         nodes.push({
           type: "text",
           key: `text:${event.id}:${nodes.length}`,
+          timestamp: event.timestamp,
           parsed: item,
         });
       }
@@ -248,7 +273,7 @@ function groupActivityNodes(
   }
 
   // Flush remaining pending tool_uses (still in-flight or session ended)
-  flushPending(nodes, pendingToolUses, pendingOrder);
+  flushPending(nodes, pendingToolUses, pendingOrder, pendingTimestamps);
 
   return nodes;
 }
@@ -258,6 +283,7 @@ function flushPending(
   nodes: ActivityNode[],
   pending: Map<string, Extract<ParsedLine, { kind: "tool_use" }>>,
   order: string[],
+  timestamps: Map<string, number>,
 ) {
   for (const toolId of order) {
     const toolUse = pending.get(toolId);
@@ -265,11 +291,13 @@ function flushPending(
     nodes.push({
       type: "tool_call",
       key: `tool_call:${toolUse.toolId}`,
+      timestamp: timestamps.get(toolId) ?? Date.now(),
       pair: { toolUse, toolResult: null },
     });
   }
   pending.clear();
   order.length = 0;
+  timestamps.clear();
 }
 
 // -- Rendering ----------------------------------------------------------------
@@ -313,26 +341,44 @@ const ActivityNodeView = memo(function ActivityNodeView({
   switch (node.type) {
     case "session_start":
       return (
-        <div className="rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-base-content/60 text-xs">
-          ── Session {node.event.sessionId.slice(0, 8)} │ Issue:{" "}
-          {node.event.issueId} │ Agent: {node.event.agent} │ PID:{" "}
-          {node.event.pid} ──
+        <div className="flex items-start gap-2">
+          <div className="flex-1 rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-base-content/60 text-xs">
+            ── Session {node.event.sessionId.slice(0, 8)} │ Issue:{" "}
+            {node.event.issueId} │ Agent: {node.event.agent} │ PID:{" "}
+            {node.event.pid} ──
+          </div>
+          <Timestamp ts={node.timestamp} />
         </div>
       );
     case "status":
       return (
-        <div className="rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning italic">
-          [{node.event.state}] {node.event.message}
+        <div className="flex items-start gap-2">
+          <div className="flex-1 rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning italic">
+            [{node.event.state}] {node.event.message}
+          </div>
+          <Timestamp ts={node.timestamp} />
         </div>
       );
     case "text":
-      return <ActivityTextNode text={node.parsed.text} />;
+      return (
+        <div className="flex items-start gap-2">
+          <div className="flex-1">
+            <ActivityTextNode text={node.parsed.text} />
+          </div>
+          <Timestamp ts={node.timestamp} />
+        </div>
+      );
     case "tool_call":
       return (
-        <ToolCallCard
-          pair={node.pair}
-          expanded={expandedToolCalls.has(node.key)}
-        />
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <ToolCallCard
+              pair={node.pair}
+              expanded={expandedToolCalls.has(node.key)}
+            />
+          </div>
+          <Timestamp ts={node.timestamp} />
+        </div>
       );
     default: {
       const _exhaustive: never = node;

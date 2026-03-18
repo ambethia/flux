@@ -67,3 +67,8 @@ export function formatRelativeTime(ts: number): string {
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
 }
+
+/** Format a timestamp as HH:MM:SS for compact display. */
+export function formatTimeShort(ts: number): string {
+  return new Date(ts).toLocaleTimeString();
+}

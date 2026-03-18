@@ -24,8 +24,8 @@ export interface StatusEvent {
 
 export type StreamEvent = SessionStartEvent | ActivityEvent | StatusEvent;
 
-/** StreamEvent with a unique monotonic id for stable React keys. */
-export type KeyedStreamEvent = StreamEvent & { id: number };
+/** StreamEvent with a unique monotonic id for stable React keys and a receive timestamp. */
+export type KeyedStreamEvent = StreamEvent & { id: number; timestamp: number };
 
 export interface ActivityStreamState {
   events: KeyedStreamEvent[];
@@ -49,6 +49,7 @@ function parseSSE<T>(
       type: "activity",
       content: `[ERROR] Malformed ${eventName} payload: ${e.data}`,
       id: nextEventId++,
+      timestamp: Date.now(),
     });
     return null;
   }
@@ -96,7 +97,11 @@ export function useActivityStream(): ActivityStreamState & {
   /** Push an event into the buffer and schedule a flush. */
   const enqueue = useCallback(
     (event: StreamEvent) => {
-      bufferRef.current.push({ ...event, id: nextEventId++ });
+      bufferRef.current.push({
+        ...event,
+        id: nextEventId++,
+        timestamp: Date.now(),
+      });
       scheduleFlush();
     },
     [scheduleFlush],

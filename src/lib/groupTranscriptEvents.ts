@@ -16,9 +16,14 @@ import {
  * - "tool_call": a tool_use header + collapsible result body
  */
 export type TranscriptNode =
-  | { type: "input"; key: string; content: string }
-  | { type: "text"; key: string; parsed: Extract<ParsedLine, { kind: "text" }> }
-  | { type: "tool_call"; key: string; pair: ToolCallPair };
+  | { type: "input"; key: string; timestamp: number; content: string }
+  | {
+      type: "text";
+      key: string;
+      timestamp: number;
+      parsed: Extract<ParsedLine, { kind: "text" }>;
+    }
+  | { type: "tool_call"; key: string; timestamp: number; pair: ToolCallPair };
 
 // -- Grouping logic -----------------------------------------------------------
 
@@ -43,9 +48,14 @@ type PendingOutputItem =
   | {
       tag: "text";
       eventId: string;
+      timestamp: number;
       parsed: Extract<ParsedLine, { kind: "text" }>;
     }
-  | { tag: "tool_use"; parsed: Extract<ParsedLine, { kind: "tool_use" }> };
+  | {
+      tag: "tool_use";
+      timestamp: number;
+      parsed: Extract<ParsedLine, { kind: "tool_use" }>;
+    };
 
 export function groupTranscriptEvents(
   events: Array<{
@@ -53,6 +63,7 @@ export function groupTranscriptEvents(
     direction: string;
     content: string;
     sequence: number;
+    timestamp: number;
   }>,
   agent: AgentKindValue | string = "claude",
 ): TranscriptNode[] {
@@ -77,7 +88,11 @@ export function groupTranscriptEvents(
           (p) => p.tag === "tool_use" && p.parsed.toolId === item.toolId,
         );
         if (existingIdx === -1) {
-          workingPending.push({ tag: "tool_use", parsed: item });
+          workingPending.push({
+            tag: "tool_use",
+            timestamp: event.timestamp,
+            parsed: item,
+          });
         } else {
           const existing = workingPending[existingIdx];
           if (
@@ -86,7 +101,11 @@ export function groupTranscriptEvents(
             !existing.parsed.toolInput &&
             item.toolInput
           ) {
-            workingPending[existingIdx] = { tag: "tool_use", parsed: item };
+            workingPending[existingIdx] = {
+              tag: "tool_use",
+              timestamp: existing.timestamp,
+              parsed: item,
+            };
           }
         }
       }
@@ -137,6 +156,7 @@ export function groupTranscriptEvents(
             nodes.push({
               type: "tool_call",
               key: `orphan_result:${id}`,
+              timestamp: event.timestamp,
               pair: {
                 toolUse: {
                   kind: "tool_use",
@@ -156,6 +176,7 @@ export function groupTranscriptEvents(
           nodes.push({
             type: "tool_call",
             key: `orphan_result:${event._id}:${nodes.length}`,
+            timestamp: event.timestamp,
             pair: {
               toolUse: {
                 kind: "tool_use",
@@ -176,6 +197,7 @@ export function groupTranscriptEvents(
           nodes.push({
             type: "tool_call",
             key: `orphan_result:${event._id}:${result.toolUseId ?? nodes.length}`,
+            timestamp: event.timestamp,
             pair: {
               toolUse: {
                 kind: "tool_use",
@@ -202,6 +224,7 @@ export function groupTranscriptEvents(
       nodes.push({
         type: "input",
         key: `input:${event._id}`,
+        timestamp: event.timestamp,
         content: event.content,
       });
     } else {
@@ -216,7 +239,11 @@ export function groupTranscriptEvents(
             (p) => p.tag === "tool_use" && p.parsed.toolId === item.toolId,
           );
           if (existingIdx === -1) {
-            pendingOutput.push({ tag: "tool_use", parsed: item });
+            pendingOutput.push({
+              tag: "tool_use",
+              timestamp: event.timestamp,
+              parsed: item,
+            });
           } else {
             const existing = pendingOutput[existingIdx];
             if (
@@ -225,7 +252,11 @@ export function groupTranscriptEvents(
               !existing.parsed.toolInput &&
               item.toolInput
             ) {
-              pendingOutput[existingIdx] = { tag: "tool_use", parsed: item };
+              pendingOutput[existingIdx] = {
+                tag: "tool_use",
+                timestamp: existing.timestamp,
+                parsed: item,
+              };
             }
           }
         } else if (item.kind === "text") {
@@ -247,6 +278,7 @@ export function groupTranscriptEvents(
           pendingOutput.push({
             tag: "text",
             eventId: event._id,
+            timestamp: event.timestamp,
             parsed: item,
           });
         }
@@ -275,6 +307,7 @@ function flushPendingInterleaved(
       nodes.push({
         type: "text",
         key: `text:${item.eventId}:${nodes.length}`,
+        timestamp: item.timestamp,
         parsed: item.parsed,
       });
     } else {
@@ -282,6 +315,7 @@ function flushPendingInterleaved(
       nodes.push({
         type: "tool_call",
         key: `tool_call:${item.parsed.toolId}`,
+        timestamp: item.timestamp,
         pair: { toolUse: item.parsed, toolResult },
       });
     }
