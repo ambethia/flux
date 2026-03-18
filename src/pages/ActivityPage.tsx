@@ -462,7 +462,7 @@ export function ActivityPage() {
   }, [lastEventId]);
 
   return (
-    <div className="flex h-[calc(100vh-5rem)] flex-col">
+    <div className="flex h-full flex-col">
       {/* Header bar */}
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">

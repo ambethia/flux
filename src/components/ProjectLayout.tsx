@@ -51,14 +51,14 @@ function ProjectShell() {
     <NotificationProvider>
       <SSEProvider projectId={projectId}>
         <IssueNotificationWatcher />
-        <div className="drawer lg:drawer-open">
+        <div className="drawer lg:drawer-open h-screen">
           <input id="app-drawer" type="checkbox" className="drawer-toggle" />
-          <div className="drawer-content flex flex-col">
+          <div className="drawer-content flex flex-col overflow-hidden">
             <Navbar
               onSearchClick={shortcuts.onSearch}
               onCreateClick={shortcuts.onCreateIssue}
             />
-            <main className="grow p-6">
+            <main className="min-h-0 grow overflow-auto p-6">
               <Outlet />
             </main>
           </div>
