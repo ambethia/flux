@@ -237,6 +237,36 @@ export async function countSessionsByStatus(
   );
 }
 
+/**
+ * Get the most recently started running session for a project, enriched with
+ * issue shortId/title/priority/status. Returns null when no session is running.
+ *
+ * Used by the Activity page to track the active session in real-time.
+ */
+export const getActiveWithIssue = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    const session = await ctx.db
+      .query("sessions")
+      .withIndex("by_project_status_startedAt", (q) =>
+        q.eq("projectId", args.projectId).eq("status", SessionStatus.Running),
+      )
+      .order("desc")
+      .first();
+
+    if (!session) return null;
+
+    const issue = await ctx.db.get(session.issueId);
+    return {
+      ...session,
+      issueShortId: issue?.shortId ?? null,
+      issueTitle: issue?.title ?? null,
+      issuePriority: issue?.priority ?? null,
+      issueStatus: issue?.status ?? null,
+    };
+  },
+});
+
 export const counts = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {

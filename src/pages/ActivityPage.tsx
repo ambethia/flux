@@ -1,454 +1,184 @@
-import { memo, useMemo, useRef } from "react";
-import { Markdown } from "../components/Markdown";
+import { Link } from "@tanstack/react-router";
+import { usePaginatedQuery, useQuery } from "convex/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api } from "$convex/_generated/api";
+import type { IssuePriorityValue } from "$convex/schema";
+import { SessionStatus } from "$convex/schema";
 import { NudgeInput } from "../components/NudgeInput";
-import { Timestamp } from "../components/Timestamp";
-import { ToolCallCard } from "../components/ToolCallCard";
-import {
-  type KeyedStreamEvent,
-  useActivityStream,
-} from "../hooks/useActivityStream";
+import { PriorityBadge } from "../components/PriorityBadge";
+import { SessionStatusBadge } from "../components/SessionStatusBadge";
+import { SessionTranscript } from "../components/SessionTranscript";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
-import { useStickyScroll } from "../hooks/useStickyScroll";
+import { useProjectId, useProjectSlug } from "../hooks/useProjectId";
+import { useSSE } from "../hooks/useSSE";
+import { useStickyScrollParent } from "../hooks/useStickyScroll";
+import { phaseLabel, typeLabel } from "../lib/format";
 import {
-  isDisplayableParsedLine,
-  type ParsedLine,
-  parseStreamLine,
-  type ToolCallPair,
-} from "../lib/parseStreamLine";
+  groupTranscriptEvents,
+  isDisplayableEvent,
+} from "../lib/groupTranscriptEvents";
 
-/**
- * Accumulator state for streaming tool input.
- *
- * Streaming sends tool input in three phases:
- * 1. `content_block_start` → tool_use with empty input, gives blockIndex + toolId
- * 2. `content_block_delta` → input_json_delta chunks, keyed by blockIndex
- * 3. `assistant` → full message with complete input (arrives later)
- *
- * We incrementally process new events, track blockIndex→toolId from (1),
- * accumulate JSON strings from (2), and parse the result to produce
- * toolId→input entries. This lets tool_use lines from content_block_start
- * display enriched input summaries before the full assistant message arrives.
- */
-interface ToolInputAccumulator {
-  /** blockIndex → toolId (from content_block_start) */
-  blockToTool: Map<number, string>;
-  /** blockIndex → accumulated JSON string fragments */
-  blockJsonChunks: Map<number, string[]>;
-  /** Resolved toolId → parsed input (updated incrementally) */
-  resolved: Map<string, Record<string, unknown>>;
-  /** Number of events already processed (for incremental updates) */
-  processed: number;
+/** Format seconds into a compact human-readable string (e.g. "3m 12s"). */
+function formatElapsed(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours}h ${remainingMinutes}m`;
 }
 
-function createAccumulator(): ToolInputAccumulator {
-  return {
-    blockToTool: new Map(),
-    blockJsonChunks: new Map(),
-    resolved: new Map(),
-    processed: 0,
-  };
-}
-
-/** Process new events into the accumulator, returning the (mutated) resolved map. */
-function updateAccumulator(
-  acc: ToolInputAccumulator,
-  events: KeyedStreamEvent[],
-): Map<string, Record<string, unknown>> {
-  // If events were truncated (MAX_EVENTS cap) or cleared, reset
-  if (events.length < acc.processed) {
-    acc.blockToTool.clear();
-    acc.blockJsonChunks.clear();
-    acc.resolved.clear();
-    acc.processed = 0;
-  }
-
-  const dirtyBlocks = new Set<number>();
-  let currentAgent = "claude";
-  for (let i = 0; i < acc.processed; i++) {
-    const previous = events[i];
-    if (previous?.type === "session_start") {
-      currentAgent = previous.agent;
-    }
-  }
-
-  for (let i = acc.processed; i < events.length; i++) {
-    const event = events[i];
-    if (!event) continue;
-
-    // New session — clear accumulated state so block indexes don't collide
-    if (event.type === "session_start") {
-      acc.blockToTool.clear();
-      acc.blockJsonChunks.clear();
-      acc.resolved.clear();
-      currentAgent = event.agent;
-      continue;
-    }
-    if (event.type !== "activity") continue;
-
-    const items = parseStreamLine(event.content, currentAgent);
-    for (const item of items) {
-      if (item.kind === "tool_use" && item.blockIndex !== null) {
-        acc.blockToTool.set(item.blockIndex, item.toolId);
-        // Clear stale chunks — block indexes reset each turn, so a new
-        // tool_use at the same index means a different tool call.
-        acc.blockJsonChunks.delete(item.blockIndex);
-        dirtyBlocks.add(item.blockIndex);
-      } else if (item.kind === "tool_input_delta") {
-        let chunks = acc.blockJsonChunks.get(item.blockIndex);
-        if (!chunks) {
-          chunks = [];
-          acc.blockJsonChunks.set(item.blockIndex, chunks);
-        }
-        chunks.push(item.jsonDelta);
-        dirtyBlocks.add(item.blockIndex);
-      }
-    }
-  }
-  acc.processed = events.length;
-
-  // Re-resolve only dirty blocks
-  for (const blockIndex of dirtyBlocks) {
-    const toolId = acc.blockToTool.get(blockIndex);
-    const chunks = acc.blockJsonChunks.get(blockIndex);
-    if (!toolId || !chunks || chunks.length === 0) continue;
-    const json = chunks.join("");
-    try {
-      const parsed = JSON.parse(json) as unknown;
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        const obj = parsed as Record<string, unknown>;
-        if (Object.keys(obj).length > 0) {
-          acc.resolved.set(toolId, obj);
-        }
-      }
-    } catch {
-      // Incomplete JSON — not enough deltas yet, ignore
-    }
-  }
-
-  return acc.resolved;
-}
-
-/** Enrich a tool_use ParsedLine with accumulated streaming input if its own input is empty. */
-function enrichToolUse(
-  item: Extract<ParsedLine, { kind: "tool_use" }>,
-  toolInputMap: Map<string, Record<string, unknown>>,
-): Extract<ParsedLine, { kind: "tool_use" }> {
-  if (item.toolInput) return item;
-  const accumulated = toolInputMap.get(item.toolId);
-  if (!accumulated) return item;
-  return { ...item, toolInput: accumulated };
-}
-
-// -- Display node types for the grouped activity feed -------------------------
-
-type ActivityNode =
-  | {
-      type: "session_start";
-      key: number;
-      timestamp: number;
-      event: KeyedStreamEvent & { type: "session_start" };
-    }
-  | {
-      type: "status";
-      key: number;
-      timestamp: number;
-      event: KeyedStreamEvent & { type: "status" };
-    }
-  | {
-      type: "text";
-      key: string;
-      timestamp: number;
-      parsed: Extract<ParsedLine, { kind: "text" }>;
-    }
-  | { type: "tool_call"; key: string; timestamp: number; pair: ToolCallPair };
-
-/**
- * Group flat activity events into display nodes, merging tool_use + tool_result
- * pairs into single ToolCallPair entries.
- *
- * Streaming events arrive one at a time:
- *   content_block_start (tool_use) → input_json_deltas → assistant (tool_use with input)
- *   → user (tool_result)
- *
- * We accumulate pending tool_use items and pair them with subsequent tool_results
- * by toolUseId. Unmatched tool_use items are emitted as pending (no result).
- * De-duplication by toolId handles the content_block_start + assistant overlap.
- */
-function groupActivityNodes(
-  events: KeyedStreamEvent[],
-  toolInputMap: Map<string, Record<string, unknown>>,
-): ActivityNode[] {
-  const nodes: ActivityNode[] = [];
-  let currentAgent = "claude";
-  // Pending tool_use items awaiting their results, indexed by toolId for dedup
-  const pendingToolUses = new Map<
-    string,
-    Extract<ParsedLine, { kind: "tool_use" }>
-  >();
-  // Insertion order for pending tool_uses (toolId), so we emit them in order
-  const pendingOrder: string[] = [];
-  // Timestamps for pending tool_uses, indexed by toolId
-  const pendingTimestamps = new Map<string, number>();
-
-  for (const event of events) {
-    if (event.type === "session_start") {
-      // Flush pending before new session
-      flushPending(nodes, pendingToolUses, pendingOrder, pendingTimestamps);
-      currentAgent = event.agent;
-      nodes.push({
-        type: "session_start",
-        key: event.id,
-        timestamp: event.timestamp,
-        event,
-      });
-      continue;
-    }
-    if (event.type === "status") {
-      nodes.push({
-        type: "status",
-        key: event.id,
-        timestamp: event.timestamp,
-        event,
-      });
-      continue;
-    }
-
-    // Activity event — parse and group
-    const items = parseStreamLine(event.content, currentAgent).filter(
-      isDisplayableParsedLine,
-    );
-
-    for (const item of items) {
-      if (item.kind === "tool_use") {
-        const enriched = enrichToolUse(item, toolInputMap);
-        const existing = pendingToolUses.get(enriched.toolId);
-        if (!existing) {
-          pendingToolUses.set(enriched.toolId, enriched);
-          pendingOrder.push(enriched.toolId);
-          pendingTimestamps.set(enriched.toolId, event.timestamp);
-        } else if (!existing.toolInput && enriched.toolInput) {
-          // Prefer the version with input (full assistant message over content_block_start)
-          pendingToolUses.set(enriched.toolId, enriched);
-        }
-      } else if (item.kind === "tool_result") {
-        // Try to match with a pending tool_use
-        const matchId = item.toolUseId;
-        const matched = matchId ? pendingToolUses.get(matchId) : null;
-        if (matched) {
-          nodes.push({
-            type: "tool_call",
-            key: `tool_call:${matched.toolId}`,
-            timestamp: pendingTimestamps.get(matched.toolId) ?? event.timestamp,
-            pair: { toolUse: matched, toolResult: item },
-          });
-          pendingToolUses.delete(matched.toolId);
-          pendingTimestamps.delete(matched.toolId);
-          const orderIdx = pendingOrder.indexOf(matched.toolId);
-          if (orderIdx !== -1) pendingOrder.splice(orderIdx, 1);
-        } else {
-          // Orphaned result — synthesize a tool_use for it
-          nodes.push({
-            type: "tool_call",
-            key: `orphan_result:${item.toolUseId ?? nodes.length}`,
-            timestamp: event.timestamp,
-            pair: {
-              toolUse: {
-                kind: "tool_use",
-                toolName: item.toolName ?? "unknown",
-                toolId: item.toolUseId ?? "",
-                toolInput: null,
-                blockIndex: null,
-              },
-              toolResult: item,
-            },
-          });
-        }
-      } else if (item.kind === "text") {
-        nodes.push({
-          type: "text",
-          key: `text:${event.id}:${nodes.length}`,
-          timestamp: event.timestamp,
-          parsed: item,
-        });
-      }
-    }
-  }
-
-  // Flush remaining pending tool_uses (still in-flight or session ended)
-  flushPending(nodes, pendingToolUses, pendingOrder, pendingTimestamps);
-
-  return nodes;
-}
-
-/** Emit pending tool_use items as tool_call nodes without results. */
-function flushPending(
-  nodes: ActivityNode[],
-  pending: Map<string, Extract<ParsedLine, { kind: "tool_use" }>>,
-  order: string[],
-  timestamps: Map<string, number>,
-) {
-  for (const toolId of order) {
-    const toolUse = pending.get(toolId);
-    if (!toolUse) continue;
-    nodes.push({
-      type: "tool_call",
-      key: `tool_call:${toolUse.toolId}`,
-      timestamp: timestamps.get(toolId) ?? Date.now(),
-      pair: { toolUse, toolResult: null },
-    });
-  }
-  pending.clear();
-  order.length = 0;
-  timestamps.clear();
-}
-
-// -- Rendering ----------------------------------------------------------------
-
-/**
- * Custom comparator for memo(). `groupActivityNodes` returns fresh objects on
- * every call, so the default shallow comparison always re-renders. We compare
- * by stable key, and for tool_call nodes also check whether the result or
- * input has changed — the only fields that mutate for a given key.
- */
-function activityNodeEqual(
-  prev: { node: ActivityNode; expandedToolCalls: ReadonlySet<string> },
-  next: { node: ActivityNode; expandedToolCalls: ReadonlySet<string> },
-): boolean {
-  if (prev.node.key !== next.node.key) return false;
-  if (prev.node.type !== next.node.type) return false;
-  if (prev.node.type === "tool_call" && next.node.type === "tool_call") {
-    // groupActivityNodes creates fresh objects on every call, so reference
-    // comparison always fails. Both fields transition exactly once from null
-    // to non-null (result arrives / input enriched), so nullness is sufficient.
-    if (!prev.node.pair.toolResult !== !next.node.pair.toolResult) return false;
-    if (!prev.node.pair.toolUse.toolInput !== !next.node.pair.toolUse.toolInput)
-      return false;
-    if (
-      prev.expandedToolCalls.has(prev.node.key) !==
-      next.expandedToolCalls.has(next.node.key)
-    ) {
-      return false;
-    }
-  }
-  return true;
-}
-
-const ActivityNodeView = memo(function ActivityNodeView({
-  node,
-  expandedToolCalls,
+/** Live elapsed time counter that ticks every second while the session is running. */
+function ElapsedTime({
+  startedAt,
+  endedAt,
 }: {
-  node: ActivityNode;
-  expandedToolCalls: ReadonlySet<string>;
+  startedAt: number;
+  endedAt?: number;
 }) {
-  switch (node.type) {
-    case "session_start":
-      return (
-        <div className="flex items-baseline gap-2">
-          <div className="min-w-0 flex-1 rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-base-content/60 text-xs">
-            ── Session {node.event.sessionId.slice(0, 8)} │ Issue:{" "}
-            {node.event.issueId} │ Agent: {node.event.agent} │ PID:{" "}
-            {node.event.pid} ──
-          </div>
-          <Timestamp ts={node.timestamp} />
-        </div>
-      );
-    case "status":
-      return (
-        <div className="flex items-baseline gap-2">
-          <div className="min-w-0 flex-1 rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning italic">
-            [{node.event.state}] {node.event.message}
-          </div>
-          <Timestamp ts={node.timestamp} />
-        </div>
-      );
-    case "text":
-      return (
-        <div className="flex items-start gap-2">
-          <div className="min-w-0 flex-1">
-            <ActivityTextNode text={node.parsed.text} />
-          </div>
-          <Timestamp ts={node.timestamp} />
-        </div>
-      );
-    case "tool_call":
-      return (
-        <div className="flex items-start gap-2">
-          <div className="min-w-0 flex-1">
-            <ToolCallCard
-              pair={node.pair}
-              expanded={expandedToolCalls.has(node.key)}
-            />
-          </div>
-          <Timestamp ts={node.timestamp} />
-        </div>
-      );
-    default: {
-      const _exhaustive: never = node;
-      throw new Error(
-        `Unhandled node type: ${(_exhaustive as ActivityNode).type}`,
-      );
-    }
-  }
-}, activityNodeEqual);
+  const [now, setNow] = useState(Date.now());
 
-function ActivityTextNode({ text }: { text: string }) {
-  const isShort = text.split("\n").length <= 2 && text.length < 120;
+  useEffect(() => {
+    if (endedAt) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [endedAt]);
 
-  if (isShort) {
-    return (
-      <div className="rounded-lg bg-base-200 px-3 py-2 text-base-content/80 text-sm">
-        <Markdown content={text} />
-      </div>
-    );
-  }
+  const elapsed = Math.max(
+    0,
+    Math.floor(((endedAt ?? now) - startedAt) / 1000),
+  );
+  return <span>{formatElapsed(elapsed)}</span>;
+}
+
+/**
+ * Living dashboard header — summarizes the current session/issue at a glance.
+ * Updates in real-time as the runner progresses through issues.
+ */
+function DashboardHeader({
+  session,
+}: {
+  session: {
+    issueShortId: string | null;
+    issueTitle: string | null;
+    issuePriority: IssuePriorityValue | null;
+    issueStatus: string | null;
+    issueId: string;
+    agent: string;
+    type: string;
+    phase?: string;
+    status: string;
+    startedAt: number;
+    endedAt?: number;
+    turns?: number;
+    tokens?: number;
+    toolCalls?: number;
+    cost?: number;
+    model?: string;
+  };
+}) {
+  const projectSlug = useProjectSlug();
 
   return (
-    <div className="rounded-lg bg-base-200 p-3 text-sm">
-      <Markdown content={text} />
+    <div className="rounded-lg border border-base-300 bg-base-200 p-4">
+      {/* Issue row */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        {session.issueShortId && (
+          <Link
+            to="/p/$projectSlug/issues/$issueId"
+            params={{ projectSlug, issueId: session.issueId }}
+            className="link link-hover font-mono font-semibold text-sm"
+          >
+            {session.issueShortId}
+          </Link>
+        )}
+        {session.issueTitle && (
+          <span className="min-w-0 truncate text-sm">{session.issueTitle}</span>
+        )}
+        {session.issuePriority && (
+          <PriorityBadge priority={session.issuePriority} />
+        )}
+      </div>
+
+      {/* Session stats row */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-base-content/60 text-xs">
+        <span className="flex items-center gap-1">
+          <SessionStatusBadge
+            status={session.status as "running" | "completed" | "failed"}
+          />
+        </span>
+        <span>{typeLabel(session.type as "work" | "review")}</span>
+        {session.phase && (
+          <span>
+            {phaseLabel(session.phase as "work" | "retro" | "review")}
+          </span>
+        )}
+        <span>{session.agent}</span>
+        {session.model && <span className="font-mono">{session.model}</span>}
+        <ElapsedTime startedAt={session.startedAt} endedAt={session.endedAt} />
+        {session.turns !== undefined && <span>{session.turns} turns</span>}
+        {session.tokens !== undefined && (
+          <span>{session.tokens.toLocaleString()} tokens</span>
+        )}
+        {session.toolCalls !== undefined && (
+          <span>{session.toolCalls} tools</span>
+        )}
+        {session.cost !== undefined && <span>${session.cost.toFixed(4)}</span>}
+      </div>
     </div>
   );
 }
 
-const MAX_EXPANDED_TOOL_CALLS = 3;
-
 export function ActivityPage() {
   useDocumentTitle("Activity");
-  const { events, connected, clear, currentSession } = useActivityStream();
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const projectId = useProjectId();
+  const projectSlug = useProjectSlug();
+  const { connected } = useSSE();
 
-  // Incrementally accumulate streaming tool input from input_json_delta chunks.
-  // The ref holds mutable accumulator state; useMemo triggers re-resolution
-  // when events change, returning the (stable-identity) resolved map.
-  const accRef = useRef<ToolInputAccumulator>(createAccumulator());
-  const toolInputMap = useMemo(
-    () => updateAccumulator(accRef.current, events),
-    [events],
+  // Query for the active running session (reactive — updates in real-time)
+  const activeSession = useQuery(api.sessions.getActiveWithIssue, {
+    projectId,
+  });
+
+  // Query session events when we have an active session
+  const {
+    results: events,
+    status: paginationStatus,
+    loadMore,
+  } = usePaginatedQuery(
+    api.sessionEvents.listPaginated,
+    activeSession ? { sessionId: activeSession._id } : "skip",
+    { initialNumItems: 200 },
   );
 
-  // Group events into display nodes with tool_use + tool_result pairing
-  const displayNodes = useMemo(
-    () => groupActivityNodes(events, toolInputMap),
-    [events, toolInputMap],
+  const displayableEvents = useMemo(
+    () =>
+      events.filter((event) =>
+        isDisplayableEvent(
+          event.direction,
+          event.content,
+          activeSession?.agent,
+        ),
+      ),
+    [events, activeSession?.agent],
   );
-  const expandedToolCalls = useMemo(() => {
-    const toolCallKeys = displayNodes
-      .filter(
-        (node): node is Extract<ActivityNode, { type: "tool_call" }> =>
-          node.type === "tool_call" && node.pair.toolResult !== null,
-      )
-      .map((node) => node.key);
-    return new Set(toolCallKeys.slice(-MAX_EXPANDED_TOOL_CALLS));
-  }, [displayNodes]);
 
-  // Sticky auto-scroll: stays pinned to bottom when new events arrive,
-  // but disengages when the user scrolls up. Use last event id (not
-  // events.length) so this fires even when the array is capped at MAX_EVENTS.
-  const lastEvent = events[events.length - 1];
-  const lastEventId = lastEvent !== undefined ? lastEvent.id : -1;
-  useStickyScroll(scrollRef, lastEventId);
+  const transcriptNodes = useMemo(
+    () => groupTranscriptEvents(displayableEvents, activeSession?.agent),
+    [displayableEvents, activeSession?.agent],
+  );
+
+  const handleLoadMore = useCallback(() => loadMore(200), [loadMore]);
+
+  // Sticky auto-scroll: pin the parent <main> scroll container to the bottom
+  // as new transcript events arrive.
+  const stickyRef = useStickyScrollParent(events.length);
+
+  const isRunning = activeSession?.status === SessionStatus.Running;
 
   return (
-    <div className="flex h-full flex-col">
+    <div ref={stickyRef} className="flex h-full flex-col">
       {/* Header bar */}
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -458,48 +188,54 @@ export function ActivityPage() {
           >
             {connected ? "Connected" : "Disconnected"}
           </span>
-          <span className="text-base-content/50 text-sm">
-            {events.length} events
-          </span>
         </div>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={clear}>
-          Clear
-        </button>
-      </div>
-
-      {/* Sticky session banner */}
-      {currentSession && (
-        <div className="rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-base-content/60 text-xs">
-          ── Session {currentSession.sessionId.slice(0, 8)} │ Issue:{" "}
-          {currentSession.issueId} │ Agent: {currentSession.agent} │ PID:{" "}
-          {currentSession.pid} ──
-        </div>
-      )}
-
-      {/* Live output */}
-      <div ref={scrollRef} className="min-h-0 grow overflow-y-auto p-1">
-        {events.length === 0 ? (
-          <div className="py-8 text-center text-base-content/40 italic">
-            {connected
-              ? "Waiting for activity..."
-              : "Connecting to activity stream..."}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {displayNodes.map((node) => (
-              <ActivityNodeView
-                key={node.key}
-                node={node}
-                expandedToolCalls={expandedToolCalls}
-              />
-            ))}
-          </div>
+        {activeSession && (
+          <Link
+            to="/p/$projectSlug/sessions/$sessionId"
+            params={{ projectSlug, sessionId: activeSession._id }}
+            className="btn btn-ghost btn-xs"
+          >
+            Session Detail
+          </Link>
         )}
       </div>
 
+      {/* Living dashboard header */}
+      {activeSession ? (
+        <div className="mb-3">
+          <DashboardHeader session={activeSession} />
+        </div>
+      ) : (
+        <div className="mb-3 rounded-lg border border-base-300 bg-base-200 px-4 py-6 text-center text-base-content/40">
+          {activeSession === undefined ? (
+            <span className="loading loading-spinner loading-sm" />
+          ) : (
+            <span className="italic">
+              No active session — waiting for the runner to pick up an issue
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Transcript */}
+      <div className="min-h-0 grow">
+        {activeSession ? (
+          <SessionTranscript
+            nodes={transcriptNodes}
+            eventCount={displayableEvents.length}
+            paginationStatus={paginationStatus}
+            onLoadMore={handleLoadMore}
+          />
+        ) : activeSession === undefined ? (
+          <div className="flex justify-center p-8">
+            <span className="loading loading-spinner loading-md" />
+          </div>
+        ) : null}
+      </div>
+
       {/* Nudge input — only when a session is active */}
-      {currentSession && (
-        <div className="border-base-300 border-t px-1 py-3">
+      {isRunning && (
+        <div className="sticky bottom-0 border-base-300 border-t bg-base-100 px-1 py-3">
           <NudgeInput />
         </div>
       )}
