@@ -13,6 +13,8 @@ import {
   type IssueStatusValue,
   SessionStatus,
   type SessionStatusValue,
+  SessionType,
+  type SessionTypeValue,
 } from "$convex/schema";
 
 export type {
@@ -51,6 +53,10 @@ const closeTypeEnum = z.enum(
 
 const sessionStatusEnum = z.enum(
   Object.values(SessionStatus) as [SessionStatusValue, ...SessionStatusValue[]],
+);
+
+const sessionTypeEnum = z.enum(
+  Object.values(SessionType) as [SessionTypeValue, ...SessionTypeValue[]],
 );
 
 export interface ToolDef {
@@ -274,6 +280,16 @@ export const SessionsListSchema = z.object({
     .positive()
     .default(50)
     .describe("Maximum number of sessions to return. Default 50."),
+});
+
+export const SessionsListByIssueSchema = z.object({
+  issueId: z.string().describe("The issue's document ID."),
+  type: sessionTypeEnum
+    .optional()
+    .describe("Filter by session type (work, review). Omit for all."),
+  status: sessionStatusEnum
+    .optional()
+    .describe("Filter by session status. Omit for all."),
 });
 
 export const SessionsShowSchema = z.object({
@@ -514,6 +530,13 @@ const sessions_list: ToolDef = {
   schema: SessionsListSchema.shape,
 };
 
+const sessions_list_by_issue: ToolDef = {
+  name: "sessions_list_by_issue",
+  description:
+    "List all sessions for a specific issue, sorted by start time. Useful for reviewing prior attempts at an issue.",
+  schema: SessionsListByIssueSchema.shape,
+};
+
 const sessions_show: ToolDef = {
   name: "sessions_show",
   description:
@@ -628,6 +651,7 @@ export const allTools: ToolDef[] = [
 
   // Sessions
   sessions_list,
+  sessions_list_by_issue,
   sessions_show,
 
   // Orchestrator

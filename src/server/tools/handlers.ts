@@ -36,6 +36,7 @@ import {
   PromptsSetRetroSchema,
   PromptsSetReviewSchema,
   PromptsSetWorkSchema,
+  SessionsListByIssueSchema,
   SessionsListSchema,
   SessionsShowSchema,
 } from "./schema";
@@ -296,6 +297,18 @@ const sessions_list = typedHandler(
       projectId: ctx.projectId,
       status,
       limit,
+    });
+    return ok(ctx, { sessions, count: sessions.length });
+  },
+);
+
+const sessions_list_by_issue = typedHandler(
+  SessionsListByIssueSchema,
+  async ({ issueId, type, status }, ctx) => {
+    const sessions = await ctx.convex.query(api.sessions.listByIssue, {
+      issueId: issueId as Id<"issues">,
+      type,
+      status,
     });
     return ok(ctx, { sessions, count: sessions.length });
   },
@@ -812,6 +825,7 @@ export const handlers: Record<string, ToolHandler> = {
   orchestrator_kill,
   orchestrator_status,
   sessions_list,
+  sessions_list_by_issue,
   sessions_show,
   prompts_set_work,
   prompts_set_retro,

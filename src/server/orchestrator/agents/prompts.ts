@@ -144,6 +144,7 @@ This issue has been attempted before. Review the prior attempts to avoid repeati
       if (!prev) continue;
       parts.push(`
 ### Attempt ${i + 1} (${prev.phase})
+- Session ID: \`${prev.sessionId}\`
 - Disposition: ${prev.disposition}
 - Note: "${prev.note}"`);
 
@@ -163,7 +164,8 @@ This issue has been attempted before. Review the prior attempts to avoid repeati
 **Guidance:**
 - Check the git log for any commits from prior attempts — they may contain partial progress you can build on.
 - If the previous attempt failed due to an error, investigate the root cause before attempting the same approach.
-- Use \`sessions_list\` and \`sessions_show\` MCP tools to inspect full session details if you need more context.`);
+- Use \`sessions_show\` with the session IDs above to inspect the last 100 lines of a session's transcript. This shows the tail of the agent's output, which often contains the final error or disposition.
+- Use \`sessions_list_by_issue\` to find all sessions (work, retro, review) for this issue if you need broader context.`);
   }
 
   // Response format

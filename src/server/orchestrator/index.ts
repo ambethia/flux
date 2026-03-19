@@ -449,6 +449,7 @@ class ProjectRunner {
                 }
               }
               return {
+                sessionId: s._id,
                 phase: s.phase ?? "work",
                 disposition: s.disposition ?? "unknown",
                 note: s.note ?? "No note provided",

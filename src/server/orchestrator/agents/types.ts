@@ -35,6 +35,7 @@ export interface WorkPromptContext {
   comments?: Array<{ author: string; content: string }>;
   /** Previous work sessions for this issue (failed/completed attempts) */
   previousSessions?: Array<{
+    sessionId: string;
     phase: string;
     disposition: string;
     note: string;
