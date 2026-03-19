@@ -64,6 +64,10 @@ interface ActiveSession {
   timeoutTimer: ReturnType<typeof setTimeout> | null;
   /** Structured disposition from --json-schema (Claude provider only) */
   structuredOutput: DispositionResult | null;
+  /** Whether commits were made during the work phase (set by handleWorkExit) */
+  hasCommits: boolean | null;
+  /** The work disposition (Noop/Done) — carried forward so handleRetroExit can close correctly */
+  workDisposition: Disposition | null;
 }
 
 /**
@@ -456,6 +460,8 @@ class ProjectRunner {
       phase: SessionPhase.Work,
       timeoutTimer: null,
       structuredOutput: null,
+      hasCommits: null,
+      workDisposition: null,
     };
     this.activeSession = active;
 
@@ -854,9 +860,9 @@ class ProjectRunner {
       return false;
     }
 
-    // Check for commits since startHead — needed for both Noop and Done.
-    // A resumed session may report Noop (no new work) but a prior faulted
-    // session already committed changes that still need retro/review.
+    // Check for commits since startHead — determines whether we need
+    // code review after retro. Retro always runs (even without commits)
+    // so we capture friction and tooling issues from research tasks.
     let hasCommits: boolean;
     try {
       hasCommits = await hasNewCommits(cwd, startHead);
@@ -873,30 +879,10 @@ class ProjectRunner {
       return false;
     }
 
-    if (disposition === Disposition.Noop && !hasCommits) {
-      await convex.mutation(api.issues.close, {
-        issueId,
-        closeType: CloseType.Noop,
-        closeReason: note,
-      });
-      this.finalize();
-      return true;
-    }
-
-    if (!hasCommits) {
-      // Done disposition but no commits — close as noop
-      await convex.mutation(api.issues.close, {
-        issueId,
-        closeType: CloseType.Noop,
-        closeReason: note,
-      });
-      this.finalize();
-      return true;
-    }
-
-    // Commits exist — proceed to retro/review regardless of disposition.
-    // This handles the case where a prior session faulted after committing
-    // and the resumed session correctly reported Noop.
+    // Carry forward commit status and disposition so handleRetroExit
+    // can decide whether to proceed to review or close directly.
+    active.hasCommits = hasCommits;
+    active.workDisposition = disposition;
 
     try {
       await autoCommitDirtyTree(
@@ -938,7 +924,26 @@ class ProjectRunner {
       } catch {
         // Non-fatal
       }
-      await this.startReviewLoop();
+
+      if (!hasCommits) {
+        // No agentSessionId (can't resume for retro) and no commits —
+        // close directly since there's nothing to review.
+        const closeType =
+          disposition === Disposition.Noop
+            ? CloseType.Noop
+            : CloseType.Completed;
+        await convex.mutation(api.issues.close, {
+          issueId,
+          closeType,
+          closeReason:
+            disposition === Disposition.Noop
+              ? note
+              : "Work completed without code changes — no review needed.",
+        });
+        this.finalize();
+      } else {
+        await this.startReviewLoop();
+      }
     }
     return true;
   }
@@ -997,6 +1002,26 @@ class ProjectRunner {
     } catch {
       // Non-fatal
     }
+
+    // No commits → skip code review and close the issue directly.
+    // Retro still ran (above) to capture friction/tooling insights.
+    if (!active.hasCommits) {
+      const closeType =
+        active.workDisposition === Disposition.Noop
+          ? CloseType.Noop
+          : CloseType.Completed;
+      await getConvexClient().mutation(api.issues.close, {
+        issueId: active.issueId,
+        closeType,
+        closeReason:
+          active.workDisposition === Disposition.Noop
+            ? "No work performed and no commits to review."
+            : "Work completed without code changes — no review needed.",
+      });
+      this.finalize();
+      return true;
+    }
+
     await this.startReviewLoop();
     return true;
   }
@@ -1621,6 +1646,8 @@ class ProjectRunner {
       phase,
       timeoutTimer: null,
       structuredOutput: null,
+      hasCommits: null,
+      workDisposition: null,
     };
 
     this.emitLifecycle({
