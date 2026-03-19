@@ -764,6 +764,32 @@ class ProjectRunner {
     if (this.activeSession.killed) {
       const convex = getConvexClient();
       const { sessionId, issueId, timedOut, issue } = this.activeSession;
+      const cwd = this.projectPath;
+
+      // Capture any uncommitted agent work before recording the session end.
+      try {
+        await autoCommitDirtyTree(
+          cwd,
+          issue.shortId,
+          String(sessionId),
+          this.activeSession.phase,
+        );
+      } catch (err) {
+        console.warn(
+          `[ProjectRunner] Auto-commit after killed session failed for ${issue.shortId}:`,
+          err,
+        );
+      }
+
+      let endHead: string | undefined;
+      try {
+        endHead = await getCurrentHead(cwd);
+      } catch (err) {
+        console.warn(
+          `[ProjectRunner] Failed to capture endHead for killed session ${issue.shortId}:`,
+          err,
+        );
+      }
 
       try {
         await convex.mutation(api.sessions.update, {
@@ -775,6 +801,7 @@ class ProjectRunner {
           note: timedOut
             ? `Session timed out after ${this.sessionTimeoutMs}ms (phase: ${this.activeSession.phase})`
             : undefined,
+          ...(endHead !== undefined && { endHead }),
         });
 
         if (timedOut) {
@@ -824,18 +851,41 @@ class ProjectRunner {
       );
       // Best-effort: mark the current session as Failed so it doesn't stay "running" forever.
       // If this also fails (e.g. Convex still down), orphan recovery on next restart will catch it.
-      const crashedSessionId = this.activeSession?.sessionId;
-      if (crashedSessionId) {
+      const crashedSession = this.activeSession;
+      if (crashedSession) {
+        const cwd = this.projectPath;
+
+        // Best-effort auto-commit and endHead capture so retry sessions
+        // can see the commit log from this failed attempt.
+        try {
+          await autoCommitDirtyTree(
+            cwd,
+            crashedSession.issue.shortId,
+            String(crashedSession.sessionId),
+            crashedSession.phase,
+          );
+        } catch {
+          // Auto-commit failure is non-fatal here — we're already in a crash path.
+        }
+
+        let endHead: string | undefined;
+        try {
+          endHead = await getCurrentHead(cwd);
+        } catch {
+          // endHead capture failure is non-fatal here.
+        }
+
         try {
           await getConvexClient().mutation(api.sessions.update, {
-            sessionId: crashedSessionId,
+            sessionId: crashedSession.sessionId,
             status: SessionStatus.Failed,
             endedAt: Date.now(),
             exitCode,
+            ...(endHead !== undefined && { endHead }),
           });
         } catch (updateErr) {
           console.error(
-            `[ProjectRunner] Failed to mark crashed session ${crashedSessionId} as Failed — ` +
+            `[ProjectRunner] Failed to mark crashed session ${crashedSession.sessionId} as Failed — ` +
               "will require orphan recovery on next restart:",
             updateErr,
           );
