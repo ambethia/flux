@@ -1319,15 +1319,42 @@ class ProjectRunner {
       return;
     }
 
-    // Fetch follow-up issues created from this issue to avoid duplicates in review
-    const followUpIssues = await convex.query(api.issues.listFollowUps, {
-      issueId,
-    });
-    const relatedIssues = followUpIssues.map((i) => ({
-      shortId: i.shortId,
-      title: i.title,
-      status: i.status,
-    }));
+    // Collect follow-up issues from two sources:
+    // 1. sourceIssueId linkage (issues explicitly parented to this issue)
+    // 2. createdInSessionId linkage (issues created during work/retro sessions)
+    // Source (1) requires env var propagation through the MCP stdio bridge, which
+    // is unreliable — Claude Code's MCP client may not inherit FLUX_ISSUE_ID.
+    // Source (2) is the reliable path since createdInSessionId is set server-side.
+    const [followUpBySource, workRetroSessions] = await Promise.all([
+      convex.query(api.issues.listFollowUps, { issueId }),
+      convex.query(api.sessions.listByIssue, { issueId }),
+    ]);
+
+    // Fetch issues created during each work/retro session
+    const sessionIssues = (
+      await Promise.all(
+        workRetroSessions.map((s) =>
+          convex.query(api.issues.listBySession, { sessionId: s._id }),
+        ),
+      )
+    ).flat();
+
+    // Merge and deduplicate by issue ID
+    const seen = new Set<string>();
+    const relatedIssues: Array<{
+      shortId: string;
+      title: string;
+      status: string;
+    }> = [];
+    for (const i of [...followUpBySource, ...sessionIssues]) {
+      if (seen.has(i._id)) continue;
+      seen.add(i._id);
+      relatedIssues.push({
+        shortId: i.shortId,
+        title: i.title,
+        status: i.status,
+      });
+    }
 
     // Fetch previous review sessions for this issue to stack context
     const previousReviewSessions = await convex.query(
