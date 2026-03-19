@@ -1,4 +1,5 @@
 import type { PaginationStatus } from "convex/react";
+import { useMemo } from "react";
 import type { TranscriptNode } from "../lib/groupTranscriptEvents";
 import { Markdown } from "./Markdown";
 import { Timestamp } from "./Timestamp";
@@ -118,6 +119,15 @@ export function SessionTranscript({
   paginationStatus,
   onLoadMore,
 }: SessionTranscriptProps) {
+  /** Keys of the most recent 3 tool_call nodes — rendered expanded for readability. */
+  const recentToolCallKeys = useMemo(() => {
+    const toolCallKeys: string[] = [];
+    for (const node of nodes) {
+      if (node.type === "tool_call") toolCallKeys.push(node.key);
+    }
+    return new Set(toolCallKeys.slice(-3));
+  }, [nodes]);
+
   return (
     <div>
       <h3 className="mb-3 font-medium text-base-content/60 text-sm">
@@ -165,7 +175,10 @@ export function SessionTranscript({
                 return (
                   <div key={node.key} className="flex items-start gap-2">
                     <div className="min-w-0 flex-1">
-                      <ToolCallCard pair={node.pair} />
+                      <ToolCallCard
+                        pair={node.pair}
+                        expanded={recentToolCallKeys.has(node.key)}
+                      />
                     </div>
                     <Timestamp ts={node.timestamp} />
                   </div>
