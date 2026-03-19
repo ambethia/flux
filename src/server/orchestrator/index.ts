@@ -66,7 +66,7 @@ interface ActiveSession {
   structuredOutput: DispositionResult | null;
   /** Whether commits were made during the work phase (set by handleWorkExit) */
   hasCommits: boolean | null;
-  /** The work disposition (Noop/Done) — carried forward so handleRetroExit can close correctly */
+  /** The work disposition — carried forward so handleRetroExit can decide review/close/finalize */
   workDisposition: Disposition | null;
 }
 
