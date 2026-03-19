@@ -33,6 +33,14 @@ export interface WorkPromptContext {
   title: string;
   description?: string;
   comments?: Array<{ author: string; content: string }>;
+  /** Previous work sessions for this issue (failed/completed attempts) */
+  previousSessions?: Array<{
+    phase: string;
+    disposition: string;
+    note: string;
+    commitLog?: string;
+    commitLogError?: string;
+  }>;
   /** Optional custom prompt override from project config */
   customPrompt?: string;
 }

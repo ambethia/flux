@@ -132,6 +132,40 @@ You have access to the \`flux\` MCP server. Use it to:
     parts.push("=== END COMMENTS ===");
   }
 
+  // Previous sessions (retry awareness)
+  if (ctx.previousSessions && ctx.previousSessions.length > 0) {
+    parts.push(`
+## Previous Sessions
+
+This issue has been attempted before. Review the prior attempts to avoid repeating mistakes and to recover any useful progress.`);
+
+    for (let i = 0; i < ctx.previousSessions.length; i++) {
+      const prev = ctx.previousSessions[i];
+      if (!prev) continue;
+      parts.push(`
+### Attempt ${i + 1} (${prev.phase})
+- Disposition: ${prev.disposition}
+- Note: "${prev.note}"`);
+
+      if (prev.commitLog?.trim()) {
+        parts.push("- Commits:");
+        parts.push("```");
+        parts.push(prev.commitLog);
+        parts.push("```");
+      } else if (prev.commitLogError) {
+        parts.push(`- Commits: (${prev.commitLogError})`);
+      } else {
+        parts.push("- Commits: (none)");
+      }
+    }
+
+    parts.push(`
+**Guidance:**
+- Check the git log for any commits from prior attempts — they may contain partial progress you can build on.
+- If the previous attempt failed due to an error, investigate the root cause before attempting the same approach.
+- Use \`sessions_list\` and \`sessions_show\` MCP tools to inspect full session details if you need more context.`);
+  }
+
   // Response format
   parts.push(DISPOSITION_SECTION);
 

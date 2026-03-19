@@ -414,6 +414,51 @@ class ProjectRunner {
     const comments = await convex.query(api.comments.list, {
       issueId,
     });
+
+    // Fetch previous work sessions to give the agent retry awareness
+    const allPriorSessions = await convex.query(api.sessions.listByIssue, {
+      issueId,
+      type: SessionType.Work,
+    });
+    // Exclude the session we just created; keep only completed/failed
+    const priorSessions = allPriorSessions.filter(
+      (s) =>
+        s._id !== session._id &&
+        (s.status === SessionStatus.Completed ||
+          s.status === SessionStatus.Failed),
+    );
+
+    const previousSessions =
+      priorSessions.length > 0
+        ? await Promise.all(
+            priorSessions.map(async (s) => {
+              let commitLog: string | undefined;
+              let commitLogError: string | undefined;
+              if (!s.startHead || !s.endHead) {
+                commitLogError =
+                  "Git commit refs not recorded for this session";
+              } else {
+                try {
+                  commitLog = await getCommitLogBetween(
+                    cwd,
+                    s.startHead,
+                    s.endHead,
+                  );
+                } catch (err) {
+                  commitLogError = `Failed to retrieve commit log: ${err instanceof Error ? err.message : String(err)}`;
+                }
+              }
+              return {
+                phase: s.phase ?? "work",
+                disposition: s.disposition ?? "unknown",
+                note: s.note ?? "No note provided",
+                commitLog,
+                commitLogError,
+              };
+            }),
+          )
+        : undefined;
+
     const issueCtx: WorkPromptContext = {
       shortId: issue.shortId,
       title: issue.title,
@@ -422,6 +467,7 @@ class ProjectRunner {
         comments.length > 0
           ? comments.map((c) => ({ author: c.author, content: c.content }))
           : undefined,
+      previousSessions,
       customPrompt: this.customWorkPrompt,
     };
     const prompt = this.provider.buildWorkPrompt(issueCtx);
