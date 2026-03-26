@@ -987,13 +987,20 @@ class ProjectRunner {
     }
 
     try {
-      await autoCommitDirtyTree(
+      const autoCommitted = await autoCommitDirtyTree(
         cwd,
         issue.shortId,
         String(sessionId),
         SessionPhase.Work,
         active.process.pid,
       );
+      // If the auto-commit captured uncommitted work, the session DID produce
+      // code changes — even though the agent failed to commit them itself.
+      // Update hasCommits so downstream (retro → review) treats this as real
+      // work rather than closing as noop and spawning a duplicate issue.
+      if (autoCommitted && !active.hasCommits) {
+        active.hasCommits = true;
+      }
     } catch (err) {
       console.warn(
         `[ProjectRunner] Auto-commit after work failed for ${issue.shortId} — ` +
