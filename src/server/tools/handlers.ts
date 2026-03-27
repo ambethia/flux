@@ -223,8 +223,9 @@ const issues_get = typedHandler(IssuesGetSchema, async ({ issueId }, ctx) => {
 const issues_update = typedHandler(
   IssuesUpdateSchema,
   async ({ issueId, ...updates }, ctx) => {
+    const resolvedIssueId = await resolveIssueId(ctx, issueId);
     const updated = await ctx.convex.mutation(api.issues.update, {
-      issueId: issueId as Id<"issues">,
+      issueId: resolvedIssueId,
       ...updates,
     });
     return ok(ctx, { issue: updated });
@@ -363,8 +364,9 @@ const sessions_show = typedHandler(
 const issues_close = typedHandler(
   IssuesCloseSchema,
   async ({ issueId, closeType, reason }, ctx) => {
+    const resolvedIssueId = await resolveIssueId(ctx, issueId);
     const updated = await ctx.convex.mutation(api.issues.close, {
-      issueId: issueId as Id<"issues">,
+      issueId: resolvedIssueId,
       closeType,
       closeReason: reason,
     });
@@ -375,8 +377,9 @@ const issues_close = typedHandler(
 const issues_retry = typedHandler(
   IssuesRetrySchema,
   async ({ issueId }, ctx) => {
+    const resolvedIssueId = await resolveIssueId(ctx, issueId);
     const updated = await ctx.convex.mutation(api.issues.retry, {
-      issueId: issueId as Id<"issues">,
+      issueId: resolvedIssueId,
     });
     return ok(ctx, { issue: updated });
   },
@@ -385,8 +388,9 @@ const issues_retry = typedHandler(
 const issues_defer = typedHandler(
   IssuesDeferSchema,
   async ({ issueId, note }, ctx) => {
+    const resolvedIssueId = await resolveIssueId(ctx, issueId);
     const updated = await ctx.convex.mutation(api.issues.defer, {
-      issueId: issueId as Id<"issues">,
+      issueId: resolvedIssueId,
       note,
     });
     return ok(ctx, { issue: updated });
@@ -396,8 +400,9 @@ const issues_defer = typedHandler(
 const issues_undefer = typedHandler(
   IssuesUndeferSchema,
   async ({ issueId, note }, ctx) => {
+    const resolvedIssueId = await resolveIssueId(ctx, issueId);
     const updated = await ctx.convex.mutation(api.issues.undefer, {
-      issueId: issueId as Id<"issues">,
+      issueId: resolvedIssueId,
       note,
     });
     return ok(ctx, { issue: updated });
