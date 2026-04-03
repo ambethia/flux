@@ -1,10 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import type { IssueStatusValue } from "$convex/schema";
-import { IssueStatus } from "$convex/schema";
+import { IssueStatus, PRIORITY_ORDER } from "$convex/schema";
 import { useDismissableError } from "../hooks/useDismissableError";
 import { useProjectId, useProjectSlug } from "../hooks/useProjectId";
 import { DeferModal, type DeferModalHandle } from "./DeferModal";
@@ -12,6 +12,7 @@ import { ErrorBanner } from "./ErrorBanner";
 import { FontAwesomeIcon, faCirclePause, faCirclePlay } from "./Icon";
 import { LabelBadge } from "./LabelBadge";
 import { PriorityBadge } from "./PriorityBadge";
+import { SortableHeader, useSortableTable, useSorted } from "./SortableHeader";
 import { StatusBadge } from "./StatusBadge";
 
 type StatusFilter = IssueStatusValue | null;
@@ -26,6 +27,14 @@ const TABS: { label: string; value: StatusFilter }[] = [
 ];
 
 const PAGE_SIZE = 50;
+
+const ISSUE_STATUS_ORDER: Record<string, number> = {
+  [IssueStatus.InProgress]: 0,
+  [IssueStatus.Open]: 1,
+  [IssueStatus.Stuck]: 2,
+  [IssueStatus.Deferred]: 3,
+  [IssueStatus.Closed]: 4,
+};
 
 export function IssueList() {
   const projectId = useProjectId();
@@ -77,6 +86,25 @@ export function IssueList() {
       ? undefined
       : Object.values(issueCounts).reduce((a, b) => a + b, 0);
 
+  type IssueItem = (typeof issues)[number];
+  type IssueSortKey = "id" | "title" | "status" | "priority";
+
+  const { sort, toggle } = useSortableTable<IssueSortKey>();
+  const comparators = useMemo(
+    () => ({
+      id: (a: IssueItem, b: IssueItem) =>
+        a.shortId.localeCompare(b.shortId, undefined, { numeric: true }),
+      title: (a: IssueItem, b: IssueItem) => a.title.localeCompare(b.title),
+      status: (a: IssueItem, b: IssueItem) =>
+        (ISSUE_STATUS_ORDER[a.status] ?? 99) -
+        (ISSUE_STATUS_ORDER[b.status] ?? 99),
+      priority: (a: IssueItem, b: IssueItem) =>
+        (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99),
+    }),
+    [],
+  );
+  const sortedIssues = useSorted(issues, sort, comparators);
+
   return (
     <div className="flex flex-col gap-4 p-6">
       <h2 className="font-bold text-xl">Issues</h2>
@@ -121,16 +149,36 @@ export function IssueList() {
           <table className="table-zebra table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Title</th>
+                <SortableHeader
+                  label="ID"
+                  sortKey="id"
+                  sort={sort}
+                  onToggle={toggle}
+                />
+                <SortableHeader
+                  label="Title"
+                  sortKey="title"
+                  sort={sort}
+                  onToggle={toggle}
+                />
                 <th>Labels</th>
-                <th>Status</th>
-                <th>Priority</th>
+                <SortableHeader
+                  label="Status"
+                  sortKey="status"
+                  sort={sort}
+                  onToggle={toggle}
+                />
+                <SortableHeader
+                  label="Priority"
+                  sortKey="priority"
+                  sort={sort}
+                  onToggle={toggle}
+                />
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {issues.map((issue) => (
+              {sortedIssues.map((issue) => (
                 <tr key={issue._id} className="hover:bg-base-200">
                   <td className="p-0">
                     <Link
