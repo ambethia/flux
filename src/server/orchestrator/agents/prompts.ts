@@ -32,14 +32,21 @@ function injectIssueContext(template: string, ctx: WorkPromptContext): string {
   return template.replace(/\{\{ISSUE\}\}/g, issueText);
 }
 
-export function buildWorkPrompt(ctx: WorkPromptContext): string {
+export function buildWorkPrompt(
+  ctx: WorkPromptContext,
+  provider = "claude",
+): string {
   const parts: string[] = [];
+  const dispositionSection =
+    provider === "opencode"
+      ? DISPOSITION_SECTION_OPENCODE
+      : DISPOSITION_SECTION_CLAUDE;
 
   // If custom prompt is provided, use it with placeholder injection
   if (ctx.customPrompt) {
     parts.push(injectIssueContext(ctx.customPrompt, ctx));
     parts.push(SUBAGENT_SAFETY_SECTION);
-    parts.push(DISPOSITION_SECTION);
+    parts.push(dispositionSection);
     return parts.join("\n");
   }
 
@@ -169,7 +176,7 @@ This issue has been attempted before. Review the prior attempts to avoid repeati
   }
 
   // Response format
-  parts.push(DISPOSITION_SECTION);
+  parts.push(dispositionSection);
 
   return parts.join("\n");
 }
@@ -186,13 +193,20 @@ function injectRetroContext(template: string, ctx: RetroPromptContext): string {
     .replace(/\{\{WORK_NOTE\}\}/g, ctx.workNote || "(no summary provided)");
 }
 
-export function buildRetroPrompt(ctx: RetroPromptContext): string {
+export function buildRetroPrompt(
+  ctx: RetroPromptContext,
+  provider = "claude",
+): string {
   const parts: string[] = [];
+  const dispositionSection =
+    provider === "opencode"
+      ? DISPOSITION_SECTION_OPENCODE
+      : DISPOSITION_SECTION_CLAUDE;
 
   // If custom prompt is provided, use it with placeholder injection
   if (ctx.customPrompt) {
     parts.push(injectRetroContext(ctx.customPrompt, ctx));
-    parts.push(DISPOSITION_SECTION);
+    parts.push(dispositionSection);
     return parts.join("\n");
   }
 
@@ -236,7 +250,7 @@ Priority guidance:
 If you have no findings, that is fine — not every session produces retro items.`);
 
   // Response format
-  parts.push(DISPOSITION_SECTION);
+  parts.push(dispositionSection);
 
   return parts.join("\n");
 }
@@ -278,13 +292,20 @@ function injectReviewContext(
     .replace(/\{\{RELATED_ISSUES\}\}/g, relatedIssuesList);
 }
 
-export function buildReviewPrompt(ctx: ReviewPromptContext): string {
+export function buildReviewPrompt(
+  ctx: ReviewPromptContext,
+  provider = "claude",
+): string {
   const parts: string[] = [];
+  const dispositionSection =
+    provider === "opencode"
+      ? DISPOSITION_SECTION_OPENCODE
+      : DISPOSITION_SECTION_CLAUDE;
 
   // If custom prompt is provided, use it with placeholder injection
   if (ctx.customPrompt) {
     parts.push(injectReviewContext(ctx.customPrompt, ctx));
-    parts.push(DISPOSITION_SECTION);
+    parts.push(dispositionSection);
     return parts.join("\n");
   }
 
@@ -436,7 +457,7 @@ Use the \`flux\` MCP server to:
 - Add review comments: \`comments_create\``);
 
   // Response format
-  parts.push(DISPOSITION_SECTION);
+  parts.push(dispositionSection);
 
   return parts.join("\n");
 }
@@ -453,10 +474,28 @@ Perform read-only exploration yourself with the local search/read tools. If you 
 // The StructuredOutput tool (injected by --json-schema) has full descriptions
 // for each disposition value and the note field. The prompt only needs to tell
 // the agent to call it — the schema carries the semantics.
-const DISPOSITION_SECTION = `
+const DISPOSITION_SECTION_CLAUDE = `
 ## Disposition
 
 When you are finished, use the StructuredOutput tool to report your disposition.`;
+
+// OpenCode does not support --json-schema structured output. It must output a
+// plain JSON block that Flux scans for disposition.
+const DISPOSITION_SECTION_OPENCODE = `
+## Disposition
+
+When you are finished, output a JSON block as the LAST thing you write — after all commits and tool calls are complete:
+
+\`\`\`json
+{"disposition": "done", "note": "brief summary of what was done"}
+\`\`\`
+
+Valid disposition values:
+- \`"done"\` — task completed successfully
+- \`"noop"\` — no changes needed (task was already done or not applicable)
+- \`"fault"\` — task failed or could not be completed (explain in note)
+
+The note should be 1-2 sentences. Do not output anything after the JSON block.`;
 
 // ── Disposition Parser ───────────────────────────────────────────────
 

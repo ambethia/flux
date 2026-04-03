@@ -680,25 +680,47 @@ class ProjectRunner {
   }
 
   /**
-   * Send a nudge message to the running agent's stdin.
+   * Send a nudge message to the running agent.
    *
-   * The message is delivered as a stream-json user message, which the agent
-   * processes between turns without interrupting its current work. This enables
-   * use cases like sending hints, corrections, or `/btw` style messages.
+   * For agents with stdin support (Claude): delivered as a stream-json user
+   * message between turns without interrupting current work.
    *
-   * Throws if no active session, agent doesn't support stdin, or write fails.
+   * For agents without stdin (OpenCode, Codex): posted as a Convex comment on
+   * the active issue. The agent will see it when it next reads issue context.
+   *
+   * Throws if no active session or write fails.
    */
   async nudge(message: string): Promise<void> {
     if (this.state !== OrchestratorState.Busy || !this.activeSession) {
       throw new Error("No active session to nudge.");
     }
 
-    const { process: agentProcess, monitor } = this.activeSession;
+    const { process: agentProcess, monitor, issueId } = this.activeSession;
 
     if (!agentProcess.stdin) {
-      throw new Error(
-        `Agent "${this.provider.name}" does not support stdin nudging.`,
+      // Use HTTP API if the agent supports it (e.g. OpenCode's prompt_async).
+      if (agentProcess.httpNudge && this.activeSession.agentSessionId) {
+        await agentProcess.httpNudge(
+          this.activeSession.agentSessionId,
+          message,
+        );
+        monitor.recordInput(message);
+        console.log(
+          `[ProjectRunner] Nudge delivered via HTTP to OpenCode session ${this.activeSession.agentSessionId}`,
+        );
+        return;
+      }
+
+      // Last resort: post as a Convex comment so the agent sees it next session.
+      await getConvexClient().mutation(api.comments.create, {
+        issueId,
+        content: message,
+        author: CommentAuthor.User,
+      });
+      console.log(
+        `[ProjectRunner] Nudge delivered as comment (agent "${this.provider.name}" has no stdin and no active session ID yet)`,
       );
+      return;
     }
 
     // Format as Claude Code stream-json user message
@@ -1793,6 +1815,7 @@ class ProjectRunner {
       pid,
       stdout: new ReadableStream<Uint8Array>(),
       stdin: null,
+      httpNudge: null,
       kill: () => {
         try {
           process.kill(pid);
