@@ -1,18 +1,40 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { readFluxConfig } from "../src/server/fluxConfig";
 import { callFluxTool } from "../src/server/fluxToolHttp";
 import { allTools } from "../src/server/tools/schema";
 
 const FLUX_URL = process.env.FLUX_URL ?? "http://localhost:8042";
 
 /**
- * Resolve the project ID — explicit env var takes precedence, otherwise
- * auto-discover by listing projects from the Flux API. If there is exactly
- * one project, use it automatically (zero-config for single-project setups).
+ * Find the git repo root by walking up from cwd.
+ */
+async function gitRepoRoot(): Promise<string | null> {
+  const proc = Bun.spawn(["git", "rev-parse", "--show-toplevel"], {
+    stdout: "pipe",
+    stderr: "ignore",
+  });
+  const text = await new Response(proc.stdout).text();
+  const code = await proc.exited;
+  return code === 0 ? text.trim() : null;
+}
+
+/**
+ * Resolve the project ID:
+ * 1. FLUX_PROJECT_ID env var (explicit wins)
+ * 2. .flux file at git repo root
+ * 3. Auto-discover from API (single project only)
  */
 async function resolveProjectId(): Promise<string> {
   const explicit = process.env.FLUX_PROJECT_ID;
   if (explicit) return explicit;
+
+  // Read .flux file from git repo root (supports bare ID and TOML)
+  const repoRoot = await gitRepoRoot();
+  if (repoRoot) {
+    const config = await readFluxConfig(repoRoot);
+    if (config) return config.projectId;
+  }
 
   const res = await fetch(`${FLUX_URL}/api/projects`);
   if (!res.ok) {
