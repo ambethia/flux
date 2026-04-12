@@ -2,74 +2,226 @@
 
 An autonomous agent orchestrator with built-in issue tracking, realtime UI, and its own MCP server.
 
+## Prerequisites
+
+- [Bun](https://bun.sh) runtime
+- [Convex](https://convex.dev) account (free tier works)
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI (default agent provider)
+
 ## Quick Start
 
 ```bash
 # Install dependencies
 bun install
 
-# Start Convex dev server (in another terminal)
-bun convex
+# Authenticate with Convex (creates .env.local)
+bunx convex auth
 
-# Run Flux
+# Start everything: Bun server + Convex sync + Vite frontend
 bun dev
 ```
+
+Open **http://localhost:8042** in your browser.
+
+`bun dev` starts three processes:
+
+| Process | Port | Role |
+|---------|------|------|
+| Bun | `:8042` | API server + reverse proxy (single entry point) |
+| Convex | — | Backend sync |
+| Vite | `:8043` | React frontend with HMR (proxied through Bun) |
 
 ## Bootstrap Flow
 
 When you run Flux for the first time in a git repository:
 
-1. **Project Detection**: Flux detects the project slug from your git remote
-2. **Creation**: If the project doesn't exist in Convex, you'll be prompted to create it
-3. **Seeding**: An animated progress bar shows real-time seeding of:
-   - LLM Costs (global) - Claude 4.5 pricing
-   - Labels (project-specific) - bug, feature, chore, friction
-   - Orchestrator Config - defaults to **disabled**
-4. **Splash Screen**: Shows project status with keyboard shortcuts:
-   - `q` - Quit Flux
-   - `o` - Open browser to dashboard
-   - `e` - Enable orchestrator
+1. **Project Detection** — Flux detects the project slug from your git remote
+2. **Creation** — if the project doesn't exist in Convex, you'll be prompted to create it
+3. **Seeding** — animated progress bar shows real-time seeding of LLM costs, labels (bug, feature, chore, friction), and orchestrator config
+4. **Splash Screen** — project status with keyboard shortcuts (`q` quit, `o` open browser, `e` enable orchestrator)
+
+The orchestrator starts **disabled** by default. Enable it via `e` in the terminal or the web UI.
+
+## Core Concepts
+
+| Concept | Description |
+|---------|-------------|
+| **Issue** | A unit of work, like a GitHub issue — has status, priority, labels |
+| **Session** | One agent run against an issue (work, review, or planner phase) |
+| **Disposition** | Agent's self-reported outcome: `done`, `noop`, or `fault` |
+| **ProjectRunner** | Watches a project's ready queue, picks issues, spawns agents |
+| **Review loop** | After work, a reviewer agent checks commits and may create follow-ups |
+| **Dependency** | Issues can block other issues — the orchestrator respects ordering |
+
+### Issue Lifecycle
+
+```
+open → in_progress → closed (completed | noop | duplicate | wontfix)
+  ↓                    ↑
+  ├── deferred ────────┘  (manually postponed)
+  └── stuck                (exceeded failure/review limits)
+```
+
+When an agent finishes work:
+1. If `fault` — issue reopens, retry (circuit breaker at 3 failures → `stuck`)
+2. If `noop` — closed as noop
+3. If `done` with commits — enters review loop; reviewer may fix inline or create follow-up issues
+
+## Usage
+
+### CLI
+
+The `flux` CLI manages issues, sessions, and the orchestrator via the daemon's HTTP API.
+
+```bash
+flux <group> <action> [--arg value ...]
+```
+
+**Managing issues:**
+
+```bash
+flux issues create --title "Fix auth bug" --priority high --body "Details..."
+flux issues list
+flux issues get FLUX-42
+flux issues search "login"
+flux issues close FLUX-42
+flux issues defer FLUX-42
+```
+
+**Running the orchestrator:**
+
+```bash
+# Auto-mode: enable the orchestrator, it picks up ready issues
+# (via 'e' key in TUI or the web UI)
+
+# Manual: run a specific issue
+flux orchestrator run FLUX-42
+
+# Check status
+flux orchestrator status
+```
+
+**Sessions and history:**
+
+```bash
+flux sessions list
+flux sessions show <sessionId>
+```
+
+### PRD-to-Issues Workflow
+
+If you use an agent to write a PRD, you can submit the broken-down issues directly to Flux in bulk rather than creating them one at a time:
+
+```bash
+flux issues bulk_create --issues '[
+  {"title": "Add auth middleware", "priority": "high", "body": "..."},
+  {"title": "Create user model", "priority": "high", "body": "..."},
+  {"title": "Build settings page", "priority": "medium", "body": "..."}
+]'
+```
+
+Then wire up dependencies so the orchestrator works them in the right order:
+
+```bash
+flux deps add --from FLUX-3 --to FLUX-1   # settings page waits for auth
+flux deps add --from FLUX-3 --to FLUX-2   # settings page waits for user model
+```
+
+The orchestrator's ready queue only surfaces issues whose dependencies are all closed, so sequencing is automatic.
+
+**Full workflow:**
+1. Agent writes PRD
+2. Agent breaks PRD into issues with priorities
+3. Submit via `bulk_create`
+4. Add dependency edges via `deps add`
+5. Enable orchestrator — it works through them in dependency order
+
+This also works via MCP (`mcp__flux__issues_bulk_create`, `mcp__flux__deps_add`) if your agent has MCP access.
+
+### MCP Integration
+
+Flux exposes an MCP server so AI tools can create and manage issues programmatically. All CLI commands have MCP equivalents (`mcp__flux__issues_create`, `mcp__flux__orchestrator_run`, etc.).
+
+Configure in your agent's MCP settings or use the stdio transport:
+
+```bash
+bun run bin/flux-mcp-stdio.ts
+```
+
+## Running as a Daemon
+
+Instead of keeping a terminal open with `bun dev`, you can install Flux as a background daemon that starts automatically on login.
+
+### macOS (LaunchAgent)
+
+```bash
+flux daemon install    # Installs plist, starts immediately
+```
+
+This creates `~/Library/LaunchAgents/dev.flux.daemon.plist` with `KeepAlive` and `RunAtLoad` enabled — the daemon auto-restarts on crash and starts on login.
+
+```bash
+flux daemon status     # PID, uptime, active sessions, memory usage
+flux daemon stop       # Stop (auto-restarts due to KeepAlive)
+flux daemon uninstall  # Stop, unload, and remove plist
+```
+
+To restart (e.g., after code changes aren't picked up by `bun --watch`):
+
+```bash
+launchctl stop dev.flux.daemon   # launchd auto-restarts it
+```
+
+### Linux (systemd)
+
+```bash
+flux daemon install    # Creates user service, enables, starts
+```
+
+This creates `~/.config/systemd/user/dev.flux.daemon.service` with `Restart=always`.
+
+```bash
+flux daemon status
+flux daemon stop
+flux daemon uninstall
+
+# Live logs via journald
+journalctl --user -u dev.flux.daemon -f
+```
+
+### Verifying
+
+```bash
+curl http://localhost:8042/health    # JSON: version, uptime, projects, sessions
+tail -20 ~/.flux/logs/daemon.stdout.log
+```
+
+Logs go to `~/.flux/logs/daemon.stdout.log` and `daemon.stderr.log` on both platforms.
+
+## Architecture
+
+- **Stack**: React + Bun + Tailwind + DaisyUI
+- **Backend**: Convex (realtime persistence)
+- **CLI**: OpenTUI for terminal interface
+- **MCP**: Port 8042 (exposed at `/mcp/projects/:projectId`)
+
+See [docs/design.md](docs/design.md) for detailed architecture documentation.
 
 ## Development
 
 ### Testing Bootstrap Flow
-
-To test the full bootstrap experience repeatedly:
 
 ```bash
 # Nuke all data and restart
 bunx convex run nuke:all && bun run src/index.ts
 ```
 
-This will:
-1. Wipe all Convex data
-2. Run the interactive bootstrap TUI
-3. Create project with animated progress bar
-4. Start the Flux server
+### Production
 
-### Project Configuration
-
-The orchestrator starts **disabled** by default. You must explicitly enable it via:
-- Press `e` in the splash screen
-- Or via the web UI
-
-## Architecture
-
-- **Stack**: React + Bun + Tailwind + DaisyUI
-- **Backend**: Convex (realtime persistence)
-- **CLI**: OpenTUI for slick terminal interface
-- **MCP**: Port 8042 (exposed at `/mcp/projects/:projectId`)
-
-## Keyboard Shortcuts
-
-### Splash Screen
-- `q` - Quit Flux
-- `o` - Open browser to dashboard  
-- `e` - Enable orchestrator
-
-### Create Form
-- `↑/↓` or `Tab` - Navigate fields
-- `Enter` - Submit
+```bash
+bun run build:frontend   # Build frontend to dist/
+bun run start            # Serve from Bun at :8042
+```
 
 ---
 
