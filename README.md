@@ -23,6 +23,36 @@ bun dev
 
 Open **http://localhost:8042** in your browser.
 
+## Install `flux` Globally
+
+Flux already ships with a CLI wrapper at `bin/flux`. The current install model is to keep this repo checked out somewhere permanent and place that wrapper on your `PATH`.
+
+```bash
+# From this repo
+bun install
+
+# Symlink the CLI into a directory on your PATH
+mkdir -p ~/bin
+ln -sf /absolute/path/to/flux/bin/flux ~/bin/flux
+
+# If ~/bin is not already on PATH
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+After that, install the daemon from the Flux repo:
+
+```bash
+cd /absolute/path/to/flux
+flux daemon install
+```
+
+Notes:
+
+- `flux` requires Bun to be installed, because `bin/flux` executes `src/cli.ts` with Bun.
+- The daemon should be installed from the Flux repo, since it resolves the source tree and local environment from that checkout.
+- Flux is not packaged for `npm -g` / `bun add -g` yet. The supported path today is the checked-out repo plus a symlink on `PATH`.
+
 `bun dev` starts three processes:
 
 | Process | Port | Role |
@@ -76,6 +106,24 @@ The `flux` CLI manages issues, sessions, and the orchestrator via the daemon's H
 ```bash
 flux <group> <action> [--arg value ...]
 ```
+
+### Using Flux From Other Projects
+
+You can run `flux` from any git repository once the global `flux` command and daemon are installed:
+
+```bash
+cd ~/dev/some-other-project
+flux issues list
+```
+
+Project selection works in this order:
+
+1. `FLUX_PROJECT_ID` environment variable
+2. `.flux` file at the git repo root
+3. Auto-discover the only known project
+4. Interactive picker/creator, which then writes `.flux`
+
+That means the first `flux` command you run in another repo will either bind to its existing `.flux` file or prompt to select/create a Flux project for that repo.
 
 **Managing issues:**
 
