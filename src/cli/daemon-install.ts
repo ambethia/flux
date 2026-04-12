@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import {
   plistPath as getPlistPath,
   IS_LINUX,
@@ -78,6 +78,40 @@ function resolveBunPath(): string {
   }
 }
 
+/** Resolve a binary's absolute path, or null if not found. */
+function whichOrNull(name: string): string | null {
+  try {
+    return execSync(`which ${name}`, {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+/** Build a minimal PATH for the plist from the binaries the daemon actually needs.
+ *
+ * `concurrently` spawns children via `/bin/sh` which doesn't inherit the
+ * login shell's PATH. We resolve each required binary at install time and
+ * collect their unique parent directories.
+ */
+function resolvePathForPlist(bunPath: string): string {
+  // Binaries spawned by the daemon and orchestrator agents
+  const required = [bunPath];
+  const optional = ["claude", "codex", "opencode", "git"].map(whichOrNull);
+
+  const dirs = new Set<string>();
+  for (const p of [...required, ...optional.filter(Boolean)]) {
+    dirs.add(dirname(p as string));
+  }
+  // Always include system basics for sh, env, etc.
+  dirs.add("/usr/bin");
+  dirs.add("/bin");
+
+  return [...dirs].join(":");
+}
+
 /** Generate the plist XML content. */
 function generatePlist(opts: {
   /** The shell command to exec (e.g. "/path/to/bun run dev") */
@@ -85,6 +119,7 @@ function generatePlist(opts: {
   workingDirectory: string;
   logDir: string;
   envVars: { CONVEX_URL: string; FLUX_PORT: string };
+  path: string;
 }): string {
   const e = {
     label: escapeXml(LABEL),
@@ -93,11 +128,9 @@ function generatePlist(opts: {
     convexUrl: escapeXml(opts.envVars.CONVEX_URL),
     fluxPort: escapeXml(opts.envVars.FLUX_PORT),
     logDir: escapeXml(opts.logDir),
+    path: escapeXml(opts.path),
   };
 
-  // Launch through a login shell (`zsh -l -c`) so the user's full PATH from
-  // .zshrc/.zprofile is available on every start — no need to snapshot PATH
-  // at install time. Agents inherit this PATH and can find all user tools.
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -118,6 +151,8 @@ function generatePlist(opts: {
 
 	<key>EnvironmentVariables</key>
 	<dict>
+		<key>PATH</key>
+		<string>${e.path}</string>
 		<key>CONVEX_URL</key>
 		<string>${e.convexUrl}</string>
 		<key>FLUX_PORT</key>
@@ -156,8 +191,10 @@ export async function daemonInstall(): Promise<void> {
   const bunPath = resolveBunPath();
   const envVars = resolveEnvVars();
   const shellCommand = `${bunPath} run dev`;
+  const path = resolvePathForPlist(bunPath);
 
   console.log(`Bun:        ${bunPath}`);
+  console.log(`PATH:       ${path}`);
   console.log(`Shell:      /bin/zsh -l -c "exec ${shellCommand}"`);
   console.log(`CONVEX_URL: ${envVars.CONVEX_URL}`);
   console.log(`FLUX_PORT:  ${envVars.FLUX_PORT}`);
@@ -178,6 +215,7 @@ export async function daemonInstall(): Promise<void> {
     workingDirectory: root,
     logDir,
     envVars,
+    path,
   });
   writeFileSync(plist, plistContent);
   console.log(`Wrote ${plist}`);
