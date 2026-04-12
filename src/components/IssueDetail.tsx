@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import type { CloseTypeValue, IssuePriorityValue } from "$convex/schema";
-import { IssueStatus } from "$convex/schema";
+import { IssueStatus, SessionStatus } from "$convex/schema";
 import { useDismissableError } from "../hooks/useDismissableError";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { useProjectId, useProjectSlug } from "../hooks/useProjectId";
@@ -28,6 +28,10 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
   const projectId = useProjectId();
   const projectSlug = useProjectSlug();
   const issue = useQuery(api.issues.get, { issueId });
+  const runningSessions = useQuery(api.sessions.listByIssue, {
+    issueId,
+    status: SessionStatus.Running,
+  });
   const allLabels = useQuery(api.labels.list, { projectId });
   const updateIssue = useMutation(api.issues.update);
   const retryIssue = useMutation(api.issues.retry);
@@ -125,6 +129,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
 
   // Captured after null checks — safe to use in JSX without non-null assertions
   const currentIssue = issue;
+  const activeSession = runningSessions?.at(-1) ?? null;
   const isClosed = currentIssue.status === IssueStatus.Closed;
   const isDeferred = currentIssue.status === IssueStatus.Deferred;
   const isInProgress = currentIssue.status === IssueStatus.InProgress;
@@ -180,7 +185,18 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
 
       {/* Status + Priority row */}
       <div className="flex flex-wrap items-center gap-3">
-        <StatusBadge status={currentIssue.status} />
+        {activeSession ? (
+          <Link
+            to="/p/$projectSlug/sessions/$sessionId"
+            params={{ projectSlug, sessionId: activeSession._id }}
+            className="inline-flex"
+            title="Open active session"
+          >
+            <StatusBadge status={currentIssue.status} />
+          </Link>
+        ) : (
+          <StatusBadge status={currentIssue.status} />
+        )}
         <select
           className="select select-sm"
           value={currentIssue.priority}
