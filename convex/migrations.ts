@@ -11,6 +11,7 @@
  */
 import type { Id } from "./_generated/dataModel";
 import { internalMutation } from "./_generated/server";
+import { slugify } from "./epics";
 import type { AgentKindValue } from "./schema";
 import {
   CounterEntity,
@@ -329,10 +330,7 @@ export const backfillWorktreeSlug = internalMutation({
         continue;
       }
 
-      const slug = epic.title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "");
+      const slug = slugify(epic.title);
 
       if (!slug) {
         throw new Error(
