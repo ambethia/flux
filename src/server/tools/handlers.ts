@@ -4,6 +4,7 @@ import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import {
   looksLikeShortId,
+  optionalIssueFields,
   SessionEventDirection,
   SessionStatus,
   SessionType,
@@ -147,22 +148,6 @@ function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-const OPTIONAL_ISSUE_FIELDS = [
-  "description",
-  "assignee",
-  "closedAt",
-  "updatedAt",
-  "sourceIssueId",
-  "reviewIterations",
-  "closeType",
-  "closeReason",
-  "deferNote",
-  "epicId",
-  "deletedAt",
-  "createdInSessionId",
-  "createdByAgent",
-] as const;
-
 /**
  * Converts undefined optional fields to null so JSON.stringify preserves them.
  * Without this, agents cannot distinguish "field not stored" from "stored as undefined"
@@ -170,9 +155,9 @@ const OPTIONAL_ISSUE_FIELDS = [
  */
 function normalizeIssue<T extends Record<string, unknown>>(issue: T): T {
   const normalized = { ...issue };
-  for (const field of OPTIONAL_ISSUE_FIELDS) {
-    if (normalized[field] === undefined) {
-      (normalized as Record<string, unknown>)[field] = null;
+  for (const field of optionalIssueFields) {
+    if (normalized[field as string] === undefined) {
+      (normalized as Record<string, unknown>)[field as string] = null;
     }
   }
   return normalized;

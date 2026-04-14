@@ -195,6 +195,34 @@ export function looksLikeShortId(value: string): boolean {
   return SHORT_ID_PATTERN.test(value.trim());
 }
 
+export const issueFields = {
+  projectId: v.id("projects"),
+  shortId: v.string(),
+  title: v.string(),
+  description: v.optional(v.string()),
+  status: issueStatusValidator,
+  priority: issuePriorityValidator,
+  priorityOrder: v.number(),
+  assignee: v.optional(v.string()),
+  failureCount: v.number(),
+  closedAt: v.optional(v.number()),
+  updatedAt: v.optional(v.number()),
+  sourceIssueId: v.optional(v.id("issues")),
+  reviewIterations: v.optional(v.number()),
+  closeType: v.optional(closeTypeValidator),
+  closeReason: v.optional(v.string()),
+  deferNote: v.optional(v.string()),
+  epicId: v.optional(v.id("epics")),
+  deletedAt: v.optional(v.number()),
+  createdInSessionId: v.optional(v.id("sessions")),
+  createdByAgent: v.optional(v.string()),
+};
+
+export const optionalIssueFields = Object.keys(issueFields).filter(
+  (key) =>
+    issueFields[key as keyof typeof issueFields].isOptional === "optional",
+) as Array<keyof typeof issueFields>;
+
 export default defineSchema({
   projects: defineTable({
     slug: v.string(),
@@ -209,28 +237,7 @@ export default defineSchema({
     worktreeBase: v.optional(v.string()),
   }).index("by_slug", ["slug"]),
 
-  issues: defineTable({
-    projectId: v.id("projects"),
-    shortId: v.string(),
-    title: v.string(),
-    description: v.optional(v.string()),
-    status: issueStatusValidator,
-    priority: issuePriorityValidator,
-    priorityOrder: v.number(),
-    assignee: v.optional(v.string()),
-    failureCount: v.number(),
-    closedAt: v.optional(v.number()),
-    updatedAt: v.optional(v.number()),
-    sourceIssueId: v.optional(v.id("issues")),
-    reviewIterations: v.optional(v.number()),
-    closeType: v.optional(closeTypeValidator),
-    closeReason: v.optional(v.string()),
-    deferNote: v.optional(v.string()),
-    epicId: v.optional(v.id("epics")),
-    deletedAt: v.optional(v.number()),
-    createdInSessionId: v.optional(v.id("sessions")),
-    createdByAgent: v.optional(v.string()),
-  })
+  issues: defineTable(issueFields)
     .index("by_project_deletedAt_status", ["projectId", "deletedAt", "status"])
     .index("by_project_priority", ["projectId", "deletedAt", "priorityOrder"])
     .index("by_project_status_priority", [
