@@ -71,8 +71,14 @@ export const update = mutation({
       updates.reviewPrompt = args.reviewPrompt;
     if (args.plannerPrompt !== undefined)
       updates.plannerPrompt = args.plannerPrompt;
-    if (args.worktreeBase !== undefined)
+    if (args.worktreeBase !== undefined) {
+      if (args.worktreeBase && !args.worktreeBase.startsWith("/")) {
+        throw new Error(
+          "worktreeBase must be an absolute path (starting with /)",
+        );
+      }
       updates.worktreeBase = args.worktreeBase;
+    }
 
     if (args.slug !== undefined) {
       const newSlug = args.slug;
