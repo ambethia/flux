@@ -147,7 +147,7 @@ function errMsg(err: unknown): string {
 }
 
 function looksLikeShortIssueId(value: string): boolean {
-  return /^[A-Za-z]+-\d+$/.test(value.trim());
+  return /^[A-Za-z]+(-[A-Za-z]+)*-\d+$/.test(value.trim());
 }
 
 async function resolveIssueId(
@@ -160,20 +160,18 @@ async function resolveIssueId(
   }
 
   const normalizedShortId = candidate.toUpperCase();
-  const matches = await ctx.convex.query(api.issues.search, {
-    projectId: ctx.projectId,
-    query: normalizedShortId,
-    limit: 10,
+
+  // Try global shortId lookup first (handles cross-project IDs like DENTAL-AI-42)
+  const globalMatch = await ctx.convex.query(api.issues.getByShortId, {
+    shortId: normalizedShortId,
   });
-  const exactMatch = matches.find(
-    (issue) => issue.shortId.toUpperCase() === normalizedShortId,
-  );
-  if (!exactMatch) {
-    throw new Error(
-      `Issue not found for short ID ${normalizedShortId}. Use issues_search to confirm the issue exists in this project.`,
-    );
+  if (globalMatch) {
+    return globalMatch._id;
   }
-  return exactMatch._id;
+
+  throw new Error(
+    `Issue not found for short ID ${normalizedShortId}. Use issues_search to confirm the issue exists.`,
+  );
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────

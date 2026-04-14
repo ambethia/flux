@@ -257,6 +257,18 @@ export const get = query({
   },
 });
 
+export const getByShortId = query({
+  args: { shortId: v.string() },
+  handler: async (ctx, { shortId }) => {
+    const issue = await ctx.db
+      .query("issues")
+      .withIndex("by_shortId", (q) => q.eq("shortId", shortId.toUpperCase()))
+      .first();
+    if (!issue || issue.deletedAt !== undefined) return null;
+    return issue;
+  },
+});
+
 export const claim = mutation({
   args: {
     issueId: v.id("issues"),
@@ -592,8 +604,8 @@ export const search = query({
   handler: async (ctx, args) => {
     const cap = Math.min(args.limit ?? 20, 100);
 
-    // If the query looks like a shortId (e.g. "FLUX-42"), do a direct index lookup first
-    const shortIdMatch = /^[A-Za-z]+-\d+$/.test(args.query.trim())
+    // If the query looks like a shortId (e.g. "FLUX-42" or "DENTAL-AI-42"), do a direct index lookup first
+    const shortIdMatch = /^[A-Za-z]+(-[A-Za-z]+)*-\d+$/.test(args.query.trim())
       ? await ctx.db
           .query("issues")
           .withIndex("by_project_shortId", (q) =>
