@@ -227,6 +227,68 @@ class ProjectRunner {
   }
 
   /**
+   * Resolve the effective checkout path for an issue.
+   * Issues in epics with worktrees enabled run from that worktree; everything
+   * else runs from the main project checkout.
+   */
+  private async getWorkingPathForIssue(issueId: Id<"issues">): Promise<string> {
+    const convex = getConvexClient();
+    const issue = await convex.query(api.issues.get, { issueId });
+    if (!issue) {
+      throw new Error(
+        `[ProjectRunner] getWorkingPathForIssue: issue ${issueId} not found.`,
+      );
+    }
+
+    if (!issue.epicId) {
+      return this.projectPath;
+    }
+
+    const epic = await convex.query(api.epics.get, {
+      epicId: issue.epicId,
+    });
+    if (!epic) {
+      throw new Error(
+        `[ProjectRunner] getWorkingPathForIssue: epic ${issue.epicId} not found for ${issue.shortId}.`,
+      );
+    }
+
+    if (!epic.useWorktree) {
+      return this.projectPath;
+    }
+
+    const project = await convex.query(api.projects.getById, {
+      projectId: this.projectId,
+    });
+    if (!project?.worktreeBase) {
+      throw new Error(
+        `[ProjectRunner] Epic ${issue.epicId} has useWorktree=true but project has no worktreeBase configured.`,
+      );
+    }
+
+    const epicSlug = epic.worktreeSlug;
+    if (!epicSlug) {
+      throw new Error(
+        `[ProjectRunner] Epic ${epic._id} has useWorktree=true but no worktreeSlug — run migrations:backfillWorktreeSlug`,
+      );
+    }
+
+    const worktreePath = `${project.worktreeBase}/${epicSlug}`;
+    const branchName = `epic/${epicSlug}`;
+    await ensureWorktree(this.projectPath, worktreePath, branchName);
+    return worktreePath;
+  }
+
+  private async getWorkingPathForSession(
+    active: ActiveSession,
+  ): Promise<string> {
+    if (!active.issueId) {
+      return this.projectPath;
+    }
+    return this.getWorkingPathForIssue(active.issueId);
+  }
+
+  /**
    * Assert that activeSession is set, returning the narrowed type.
    * Throws immediately if null — fail fast per 'No Silent Fallbacks'.
    */
@@ -471,33 +533,8 @@ class ProjectRunner {
     let session: Doc<"sessions">;
     let startHead: string | undefined;
     try {
-      // 2. Resolve cwd — use a worktree if the issue's epic has useWorktree enabled
-      cwd = this.projectPath;
-      if (issue.epicId) {
-        const epic = await convex.query(api.epics.get, {
-          epicId: issue.epicId,
-        });
-        if (epic?.useWorktree) {
-          const project = await convex.query(api.projects.getById, {
-            projectId: this.projectId,
-          });
-          if (!project?.worktreeBase) {
-            throw new Error(
-              `[ProjectRunner] Epic ${issue.epicId} has useWorktree=true but project has no worktreeBase configured.`,
-            );
-          }
-          const epicSlug = epic.worktreeSlug;
-          if (!epicSlug) {
-            throw new Error(
-              `[ProjectRunner] Epic ${epic._id} has useWorktree=true but no worktreeSlug — run migrations:backfillWorktreeSlug`,
-            );
-          }
-          const worktreePath = `${project.worktreeBase}/${epicSlug}`;
-          const branchName = `epic/${epicSlug}`;
-          await ensureWorktree(this.projectPath, worktreePath, branchName);
-          cwd = worktreePath;
-        }
-      }
+      // 2. Resolve cwd — epics with worktrees run from their worktree checkout.
+      cwd = await this.getWorkingPathForIssue(issueId);
 
       // 3. Record startHead before spawning
       startHead = await getCurrentHead(cwd);
@@ -928,7 +965,7 @@ class ProjectRunner {
     if (this.activeSession.killed) {
       const convex = getConvexClient();
       const { sessionId, issueId, timedOut, issue } = this.activeSession;
-      const cwd = this.projectPath;
+      const cwd = await this.getWorkingPathForSession(this.activeSession);
       const label = issue?.shortId ?? `session-${sessionId}`;
 
       // Capture any uncommitted agent work before recording the session end.
@@ -1022,7 +1059,7 @@ class ProjectRunner {
       // If this also fails (e.g. Convex still down), orphan recovery on next restart will catch it.
       const crashedSession = this.activeSession;
       if (crashedSession) {
-        const cwd = this.projectPath;
+        const cwd = await this.getWorkingPathForSession(crashedSession);
 
         // Best-effort auto-commit and endHead capture so retry sessions
         // can see the commit log from this failed attempt.
@@ -1070,7 +1107,7 @@ class ProjectRunner {
     const active = this.requireIssueSession("handleWorkExit");
     const { sessionId, issueId, startHead, issue } = active;
     const convex = getConvexClient();
-    const cwd = this.projectPath;
+    const cwd = await this.getWorkingPathForIssue(issueId);
 
     let endHead: string | undefined;
     try {
@@ -1236,7 +1273,7 @@ class ProjectRunner {
     const active = this.requireIssueSession("handleRetroExit");
     const { sessionId, issue } = active;
     const convex = getConvexClient();
-    const cwd = this.projectPath;
+    const cwd = await this.getWorkingPathForIssue(active.issueId);
 
     try {
       await autoCommitDirtyTree(
@@ -1339,7 +1376,7 @@ class ProjectRunner {
     const active = this.requireIssueSession("handleReviewExit");
     const { sessionId, issueId, startHead, issue } = active;
     const convex = getConvexClient();
-    const cwd = this.projectPath;
+    const cwd = await this.getWorkingPathForIssue(issueId);
 
     let endHead: string | undefined;
     try {
@@ -1487,7 +1524,7 @@ class ProjectRunner {
 
   private async startRetro(workNote: string): Promise<void> {
     const active = this.requireIssueSession("startRetro");
-    const cwd = this.projectPath;
+    const cwd = await this.getWorkingPathForIssue(active.issueId);
 
     const retroPrompt = this.provider.buildRetroPrompt({
       shortId: active.issue.shortId,
@@ -1551,7 +1588,7 @@ class ProjectRunner {
     const active = this.requireIssueSession("startReviewLoop");
     const { issueId, startHead, issue } = active;
     const convex = getConvexClient();
-    const cwd = this.projectPath;
+    const cwd = await this.getWorkingPathForIssue(issueId);
 
     const currentIssue = await convex.query(api.issues.get, { issueId });
     const currentIterations = currentIssue?.reviewIterations ?? 0;
