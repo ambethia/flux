@@ -156,8 +156,8 @@ function errMsg(err: unknown): string {
 function normalizeIssue<T extends Record<string, unknown>>(issue: T): T {
   const normalized = { ...issue };
   for (const field of optionalIssueFields) {
-    if (normalized[field as string] === undefined) {
-      (normalized as Record<string, unknown>)[field as string] = null;
+    if (normalized[field] === undefined) {
+      (normalized as Record<string, unknown>)[field] = null;
     }
   }
   return normalized;
