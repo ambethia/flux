@@ -36,7 +36,9 @@ function statusConfig(status: SessionStatusValue): {
 export function SessionStatusBadge({ status }: { status: SessionStatusValue }) {
   const config = statusConfig(status);
   return (
-    <span className={`badge badge-sm gap-1 ${config.className}`}>
+    <span
+      className={`badge gap-1 whitespace-nowrap px-2 py-1 text-xs leading-none ${config.className}`}
+    >
       <Icon name={config.icon} />
       {config.label}
     </span>

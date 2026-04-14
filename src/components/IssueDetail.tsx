@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import type { CloseTypeValue, IssuePriorityValue } from "$convex/schema";
-import { IssueStatus } from "$convex/schema";
+import { IssueStatus, SessionStatus } from "$convex/schema";
 import { useDismissableError } from "../hooks/useDismissableError";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { useProjectId, useProjectSlug } from "../hooks/useProjectId";
@@ -19,6 +19,8 @@ import { IssueDescriptionEditor } from "./IssueDescriptionEditor";
 import { IssueMetadata } from "./IssueMetadata";
 import { IssueSessionsList } from "./IssueSessionsList";
 import { IssueTitleEditor } from "./IssueTitleEditor";
+import { LabelBadge } from "./LabelBadge";
+import { LabelPicker } from "./LabelPicker";
 import { Markdown } from "./Markdown";
 import { StatusBadge } from "./StatusBadge";
 
@@ -27,6 +29,11 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
   const projectSlug = useProjectSlug();
   const issue = useQuery(api.issues.get, { issueId });
   const allEpics = useQuery(api.epics.list, { projectId });
+  const runningSessions = useQuery(api.sessions.listByIssue, {
+    issueId,
+    status: SessionStatus.Running,
+  });
+  const allLabels = useQuery(api.labels.list, { projectId });
   const updateIssue = useMutation(api.issues.update);
   const retryIssue = useMutation(api.issues.retry);
   const closeIssue = useMutation(api.issues.close);
@@ -38,6 +45,13 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
   // Each tracked action manages its own pending boolean.
   // Actions that use `rethrow` propagate failures to child forms so they can
   // keep their UI open on error.
+
+  const [handleLabelsChange, labelsChanging] = useTrackedAction(
+    async (labelIds: Id<"labels">[]) => {
+      await updateIssue({ issueId, labelIds });
+    },
+    showError,
+  );
 
   const [handleSaveTitle, titleSaving] = useTrackedAction(
     async (newTitle: string) => {
@@ -126,6 +140,7 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
 
   // Captured after null checks — safe to use in JSX without non-null assertions
   const currentIssue = issue;
+  const activeSession = runningSessions?.at(-1) ?? null;
   const isClosed = currentIssue.status === IssueStatus.Closed;
   const isDeferred = currentIssue.status === IssueStatus.Deferred;
   const isInProgress = currentIssue.status === IssueStatus.InProgress;
@@ -136,12 +151,19 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
 
   // Any mutation in flight — disables interactive controls
   const saving =
+    labelsChanging ||
     titleSaving ||
     descriptionSaving ||
     prioritySaving ||
     epicSaving ||
     closeSaving;
   const busy = saving || deferring || undeferring || resetting;
+
+  // Build a lookup map for label data
+  const labelMap = new Map((allLabels ?? []).map((l) => [l._id, l]));
+  const assignedLabels = (currentIssue.labelIds ?? [])
+    .map((id) => labelMap.get(id))
+    .filter((l): l is NonNullable<typeof l> => l !== undefined);
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -175,7 +197,18 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
 
       {/* Status + Priority row */}
       <div className="flex flex-wrap items-center gap-3">
-        <StatusBadge status={currentIssue.status} />
+        {activeSession ? (
+          <Link
+            to="/p/$projectSlug/sessions/$sessionId"
+            params={{ projectSlug, sessionId: activeSession._id }}
+            className="inline-flex"
+            title="Open active session"
+          >
+            <StatusBadge status={currentIssue.status} />
+          </Link>
+        ) : (
+          <StatusBadge status={currentIssue.status} />
+        )}
         <select
           className="select select-sm"
           value={currentIssue.priority}
@@ -192,6 +225,33 @@ export function IssueDetail({ issueId }: { issueId: Id<"issues"> }) {
           <span className="badge badge-sm badge-outline">
             {CLOSE_TYPE_LABELS[currentIssue.closeType as CloseTypeValue]}
           </span>
+        )}
+      </div>
+
+      {/* Labels */}
+      <div>
+        <div className="flex items-center gap-2">
+          <h3 className="font-medium text-base-content/60 text-sm">Labels</h3>
+          {!isClosed && (
+            <LabelPicker
+              selectedIds={currentIssue.labelIds ?? []}
+              onChange={handleLabelsChange}
+              disabled={busy}
+            />
+          )}
+        </div>
+        {assignedLabels.length > 0 ? (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {assignedLabels.map((label) => (
+              <LabelBadge
+                key={label._id}
+                name={label.name}
+                color={label.color}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="mt-1 text-base-content/40 text-sm">No labels</p>
         )}
       </div>
 
