@@ -189,6 +189,12 @@ export function toPriorityOrder(priority: IssuePriorityValue): number {
   return order;
 }
 
+const SHORT_ID_PATTERN = /^[A-Za-z]+(-[A-Za-z]+)*-\d+$/;
+
+export function looksLikeShortId(value: string): boolean {
+  return SHORT_ID_PATTERN.test(value.trim());
+}
+
 export default defineSchema({
   projects: defineTable({
     slug: v.string(),

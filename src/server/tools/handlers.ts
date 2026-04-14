@@ -3,6 +3,7 @@ import type { z } from "zod";
 import { api } from "$convex/_generated/api";
 import type { Id } from "$convex/_generated/dataModel";
 import {
+  looksLikeShortId,
   SessionEventDirection,
   SessionStatus,
   SessionType,
@@ -146,16 +147,12 @@ function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-function looksLikeShortIssueId(value: string): boolean {
-  return /^[A-Za-z]+(-[A-Za-z]+)*-\d+$/.test(value.trim());
-}
-
 async function resolveIssueId(
   ctx: ToolContext,
   issueIdOrShortId: string,
 ): Promise<Id<"issues">> {
   const candidate = issueIdOrShortId.trim();
-  if (!looksLikeShortIssueId(candidate)) {
+  if (!looksLikeShortId(candidate)) {
     return candidate as Id<"issues">;
   }
 

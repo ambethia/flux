@@ -12,6 +12,7 @@ import {
   type IssueStatusValue,
   issuePriorityValidator,
   issueStatusValidator,
+  looksLikeShortId,
   toPriorityOrder,
 } from "./schema";
 import {
@@ -605,7 +606,7 @@ export const search = query({
     const cap = Math.min(args.limit ?? 20, 100);
 
     // If the query looks like a shortId (e.g. "FLUX-42" or "DENTAL-AI-42"), do a direct index lookup first
-    const shortIdMatch = /^[A-Za-z]+(-[A-Za-z]+)*-\d+$/.test(args.query.trim())
+    const shortIdMatch = looksLikeShortId(args.query)
       ? await ctx.db
           .query("issues")
           .withIndex("by_project_shortId", (q) =>
