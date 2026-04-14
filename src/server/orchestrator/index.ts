@@ -539,11 +539,18 @@ class ProjectRunner {
         `[ProjectRunner] Failed after claiming ${issue.shortId}, unclaiming:`,
         err,
       );
-      await convex.mutation(api.issues.update, {
-        issueId,
-        status: IssueStatus.Open,
-        assignee: null,
-      });
+      try {
+        await convex.mutation(api.issues.update, {
+          issueId,
+          status: IssueStatus.Open,
+          assignee: null,
+        });
+      } catch (unclaimErr) {
+        console.error(
+          `[ProjectRunner] Failed to unclaim ${issue.shortId} — issue may be stuck InProgress:`,
+          unclaimErr,
+        );
+      }
       throw err;
     }
 
