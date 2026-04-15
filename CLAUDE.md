@@ -290,12 +290,12 @@ Available categories: `component-examples`, `components`, `layouts`, `templates`
 
 Headless browser automation for UI validation. Available to all agents via `.mcp.json`.
 
-**Use for**: Verifying UI behavior after building/modifying frontend components. Navigate to `http://localhost:8042`, interact with elements, and confirm expected behavior.
+**Use for**: Verifying UI behavior after building/modifying frontend components.
 
 **Key tools**: `browser_navigate`, `browser_click`, `browser_snapshot` (accessibility tree), `browser_type`
 
 **Validation pattern**:
-1. `browser_navigate` to the relevant page (e.g., `http://localhost:8042/issues`)
+1. `browser_navigate` to the relevant page
 2. `browser_snapshot` to get the accessibility tree
 3. Verify expected elements exist (buttons, text, badges, etc.)
 4. `browser_click` / `browser_type` to test interactions
@@ -303,11 +303,28 @@ Headless browser automation for UI validation. Available to all agents via `.mcp
 
 The accessibility tree approach means you identify elements by their role and name (e.g., "button 'Defer'") rather than CSS selectors — robust even as styles change.
 
+#### Frontend verification in agent checkouts
+
+The daemon serves the frontend from its own checkout, not yours. To verify UI changes in a worktree or active-development checkout, start a standalone Vite preview server:
+
+```bash
+scripts/dev-preview.sh        # starts Vite on port 5555
+scripts/dev-preview.sh stop   # stop when done
+```
+
+This serves the frontend from the current checkout and proxies API requests to the running daemon. Use `http://localhost:5555` (not the daemon port) for all Playwright navigation:
+
+```
+browser_navigate → http://localhost:5555/p/<slug>/issues
+```
+
+**Always stop the preview server when verification is complete** — it holds a port open.
+
 **Verification after code changes:**
-`bun --watch` restarts the server process when `src/` files change. After making a change:
+Vite HMR picks up changes instantly. If something is stale:
 1. Confirm compilation: `bun run typecheck`
 2. Verify behavior: Use Playwright to navigate, snapshot, and interact
-3. If the restart didn't fire: `launchctl stop dev.flux.daemon` and retry
+3. If the daemon itself needs restarting: `launchctl stop dev.flux.daemon`
 
 For API changes, verify with `curl` or the Convex MCP `run` tool before declaring done.
 
