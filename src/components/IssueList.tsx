@@ -7,6 +7,7 @@ import type { IssueStatusValue } from "$convex/schema";
 import { IssueStatus, PRIORITY_ORDER } from "$convex/schema";
 import { useDismissableError } from "../hooks/useDismissableError";
 import { useProjectId, useProjectSlug } from "../hooks/useProjectId";
+import { useSessionState } from "../hooks/useSessionState";
 import { DeferModal, type DeferModalHandle } from "./DeferModal";
 import { ErrorBanner } from "./ErrorBanner";
 import {
@@ -43,7 +44,8 @@ const ISSUE_STATUS_ORDER: Record<string, number> = {
 export function IssueList() {
   const projectId = useProjectId();
   const projectSlug = useProjectSlug();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
+  const [statusFilter, setStatusFilter] = useSessionState<StatusFilter>(
+    `flux:${projectId}:issueTab`,
     IssueStatus.Open,
   );
 
