@@ -15,7 +15,7 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PID_FILE="$PROJECT_DIR/.dev-preview.pid"
 
 # Read daemon port from persisted config
-DAEMON_PORT=$(cat ~/.flux/daemon.json 2>/dev/null | grep fluxPort | head -1 | tr -dc '0-9')
+DAEMON_PORT=$(cat ~/.flux/daemon.json 2>/dev/null | grep '"fluxPort"' | tr -dc '0-9')
 DAEMON_PORT="${DAEMON_PORT:-9000}"
 
 stop_preview() {
