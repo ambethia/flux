@@ -118,10 +118,8 @@ export async function daemonStatus(): Promise<void> {
     if (!installed) {
       console.log(`\nThe daemon is not installed. Run: flux daemon install`);
     } else {
-      console.log(
-        `\nThe plist exists but the daemon is not loaded in launchd.`,
-      );
-      console.log(`Load it with: launchctl load "${plist}"`);
+      console.log(`\nThe daemon is installed but stopped.`);
+      console.log(`Start it with: flux daemon start`);
     }
     return;
   }

@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import {
+  type DaemonInstallOpts,
   plistPath as getPlistPath,
   IS_LINUX,
   isDaemonLoaded,
@@ -143,8 +144,10 @@ function generatePlist(opts: {
 `;
 }
 
-export async function daemonInstall(): Promise<void> {
-  if (IS_LINUX) return daemonInstallLinux();
+export async function daemonInstall(
+  opts: DaemonInstallOpts = {},
+): Promise<void> {
+  if (IS_LINUX) return daemonInstallLinux(opts);
 
   const root = projectRoot();
   const home = homedir();
@@ -155,12 +158,25 @@ export async function daemonInstall(): Promise<void> {
   // 1. Resolve dependencies
   const bunPath = resolveBunPath();
   const envVars = resolveEnvVars();
-  const shellCommand = `${bunPath} run dev`;
+  const mode = opts.mode ?? "dev";
+  const shellCommand =
+    mode === "prod" ? `${bunPath} run start` : `${bunPath} run dev`;
 
+  console.log(`Mode:       ${mode}`);
   console.log(`Bun:        ${bunPath}`);
   console.log(`Shell:      /bin/zsh -l -c "exec ${shellCommand}"`);
   console.log(`CONVEX_URL: ${envVars.CONVEX_URL}`);
   console.log(`FLUX_PORT:  ${envVars.FLUX_PORT}`);
+
+  if (mode === "prod") {
+    const distIndex = join(root, "dist/index.html");
+    if (!existsSync(distIndex)) {
+      throw new Error(
+        `Prod mode requires a built frontend at ${distIndex}. ` +
+          `Run: bun run build`,
+      );
+    }
+  }
 
   // 2. Ensure directories exist
   mkdirSync(logDir, { recursive: true });

@@ -9,6 +9,7 @@ import {
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import {
+  type DaemonInstallOpts,
   isDaemonActiveLinux,
   isServiceInstalledLinux,
   LABEL,
@@ -78,6 +79,7 @@ function generateServiceFile(opts: {
   bunPath: string;
   workingDirectory: string;
   logDir: string;
+  mode: "dev" | "prod";
   envVars: { CONVEX_URL: string; FLUX_PORT: string };
 }): string {
   // Prepend the directory containing bun to PATH so that concurrently's
@@ -86,6 +88,11 @@ function generateServiceFile(opts: {
   const existingPath = process.env.PATH ?? "/usr/local/bin:/usr/bin:/bin";
   const path = `${bunDir}:${existingPath}`;
 
+  const execCommand =
+    opts.mode === "prod"
+      ? `${opts.bunPath} run start`
+      : `${opts.bunPath} run dev`;
+
   return `[Unit]
 Description=Flux daemon
 After=network.target
@@ -93,7 +100,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=${opts.workingDirectory}
-ExecStart=${opts.bunPath} run dev
+ExecStart=${execCommand}
 Environment=PATH=${path}
 Environment=CONVEX_URL=${opts.envVars.CONVEX_URL}
 Environment=FLUX_PORT=${opts.envVars.FLUX_PORT}
@@ -111,7 +118,9 @@ WantedBy=default.target
 // Exported commands
 // ---------------------------------------------------------------------------
 
-export async function daemonInstallLinux(): Promise<void> {
+export async function daemonInstallLinux(
+  opts: DaemonInstallOpts = {},
+): Promise<void> {
   const root = projectRoot();
   const home = homedir();
   const service = servicePath();
@@ -120,10 +129,22 @@ export async function daemonInstallLinux(): Promise<void> {
 
   const bunPath = resolveBunPath();
   const envVars = resolveEnvVars();
+  const mode = opts.mode ?? "dev";
 
+  console.log(`Mode:       ${mode}`);
   console.log(`Bun:        ${bunPath}`);
   console.log(`CONVEX_URL: ${envVars.CONVEX_URL}`);
   console.log(`FLUX_PORT:  ${envVars.FLUX_PORT}`);
+
+  if (mode === "prod") {
+    const distIndex = join(root, "dist/index.html");
+    if (!existsSync(distIndex)) {
+      throw new Error(
+        `Prod mode requires a built frontend at ${distIndex}. ` +
+          `Run: bun run build`,
+      );
+    }
+  }
 
   // Ensure directories exist
   mkdirSync(logDir, { recursive: true });
@@ -145,6 +166,7 @@ export async function daemonInstallLinux(): Promise<void> {
     bunPath,
     workingDirectory: root,
     logDir,
+    mode,
     envVars,
   });
   writeFileSync(service, serviceContent);
