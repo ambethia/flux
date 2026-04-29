@@ -200,6 +200,7 @@ export default defineSchema({
     retroPrompt: v.optional(v.string()),
     reviewPrompt: v.optional(v.string()),
     plannerPrompt: v.optional(v.string()),
+    worktreeBase: v.optional(v.string()),
   }).index("by_slug", ["slug"]),
 
   issues: defineTable({
@@ -255,6 +256,8 @@ export default defineSchema({
     status: epicStatusValidator,
     closedAt: v.optional(v.number()),
     closeReason: v.optional(v.string()),
+    useWorktree: v.optional(v.boolean()),
+    worktreeSlug: v.optional(v.string()),
   })
     .index("by_project", ["projectId"])
     .index("by_project_status", ["projectId", "status"]),

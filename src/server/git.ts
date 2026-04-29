@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 import { $ } from "bun";
 import type { SessionPhaseValue } from "$convex/schema";
 import { isProcessAlive } from "./process";
@@ -190,5 +191,42 @@ export async function autoCommitDirtyTree(
   const phaseTag = phase ? ` (${phase})` : "";
   const message = `[${shortId}] chore(flux): auto-commit uncommitted agent changes${phaseTag}\n\nSession: ${sessionId}`;
   await $`git -C ${cwd} commit -m ${message}`;
+  return true;
+}
+
+/**
+ * Ensure a git worktree exists at the given path, creating it if necessary.
+ * Uses the current branch's HEAD as the starting point for a new branch.
+ *
+ * @param repoPath - The main repository path
+ * @param worktreePath - Absolute path where the worktree should live
+ * @param branchName - Branch name for the worktree
+ * @returns true if a new worktree was created, false if it already existed
+ */
+export async function ensureWorktree(
+  repoPath: string,
+  worktreePath: string,
+  branchName: string,
+): Promise<boolean> {
+  const gitFileOrDir =
+    (await Bun.file(`${worktreePath}/.git/HEAD`).exists()) ||
+    (await Bun.file(`${worktreePath}/.git`).exists());
+
+  if (gitFileOrDir) return false;
+
+  // Prune stale worktree entries (e.g., directory was manually deleted)
+  await $`git -C ${repoPath} worktree prune`;
+
+  await fs.mkdir(path.dirname(worktreePath), { recursive: true });
+
+  const branchExists =
+    (await $`git -C ${repoPath} branch --list ${branchName}`.text()).trim()
+      .length > 0;
+
+  if (branchExists) {
+    await $`git -C ${repoPath} worktree add ${worktreePath} ${branchName}`;
+  } else {
+    await $`git -C ${repoPath} worktree add ${worktreePath} -b ${branchName}`;
+  }
   return true;
 }

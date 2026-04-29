@@ -71,6 +71,7 @@ async function handleList(convex: ConvexClient): Promise<Response> {
           name: project.name,
           path: project.path ?? null,
           enabled: project.enabled ?? false,
+          worktreeBase: project.worktreeBase ?? null,
           issueCounts: counts,
         };
       }),
@@ -102,6 +103,7 @@ async function handleGet(convex: ConvexClient, id: string): Promise<Response> {
       name: project.name,
       path: project.path ?? null,
       enabled: project.enabled ?? false,
+      worktreeBase: project.worktreeBase ?? null,
       issueCounts: counts,
     });
   } catch (err) {
@@ -158,6 +160,7 @@ async function handleCreate(
         name: project.name,
         path: project.path ?? null,
         enabled: project.enabled ?? false,
+        worktreeBase: project.worktreeBase ?? null,
       },
       { status: 201 },
     );
@@ -196,6 +199,7 @@ async function handleUpdate(
     slug?: string;
     path?: string;
     enabled?: boolean;
+    worktreeBase?: string;
   } = { projectId: id as Id<"projects"> };
 
   if (typeof body.name === "string") updates.name = body.name;
@@ -210,12 +214,16 @@ async function handleUpdate(
   if (typeof body.enabled === "boolean") {
     updates.enabled = body.enabled;
   }
+  if (typeof body.worktreeBase === "string") {
+    updates.worktreeBase = body.worktreeBase;
+  }
 
   // Check that at least one field is being updated (beyond projectId)
   if (Object.keys(updates).length <= 1) {
     return Response.json(
       {
-        error: "No valid fields to update. Accepted: name, slug, path, enabled",
+        error:
+          "No valid fields to update. Accepted: name, slug, path, enabled, worktreeBase",
       },
       { status: 400 },
     );
@@ -238,6 +246,7 @@ async function handleUpdate(
       name: project.name,
       path: project.path ?? null,
       enabled: project.enabled ?? false,
+      worktreeBase: project.worktreeBase ?? null,
     });
   } catch (err) {
     const message = sanitizeConvexError(err);

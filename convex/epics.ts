@@ -3,21 +3,45 @@ import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { EpicStatus, epicStatusValidator } from "./schema";
 
+export function slugify(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 export const create = mutation({
   args: {
     projectId: v.id("projects"),
     title: v.string(),
     description: v.optional(v.string()),
+    useWorktree: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.projectId);
     if (!project) throw new Error(`Project ${args.projectId} not found`);
+
+    if (args.useWorktree && !project.worktreeBase) {
+      throw new Error(
+        "Cannot enable worktree on epic: project has no worktreeBase configured. " +
+          "Set worktreeBase on the project first.",
+      );
+    }
+
+    const worktreeSlug = args.useWorktree ? slugify(args.title) : undefined;
+    if (args.useWorktree && !worktreeSlug) {
+      throw new Error(
+        `Epic title "${args.title}" produces an empty slug — cannot use as worktree name.`,
+      );
+    }
 
     return await ctx.db.insert("epics", {
       projectId: args.projectId,
       title: args.title,
       description: args.description,
       status: EpicStatus.Open,
+      useWorktree: args.useWorktree,
+      worktreeSlug,
     });
   },
 });
@@ -84,15 +108,37 @@ export const update = mutation({
     epicId: v.id("epics"),
     title: v.optional(v.string()),
     description: v.optional(v.string()),
+    useWorktree: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const { epicId, ...rest } = args;
     const epic = await ctx.db.get(epicId);
     if (!epic) throw new Error(`Epic ${epicId} not found`);
 
+    if (rest.useWorktree) {
+      const project = await ctx.db.get(epic.projectId);
+      if (!project?.worktreeBase) {
+        throw new Error(
+          "Cannot enable worktree on epic: project has no worktreeBase configured. " +
+            "Set worktreeBase on the project first.",
+        );
+      }
+    }
+
     const patch: Partial<Doc<"epics">> = Object.fromEntries(
       Object.entries(rest).filter(([, v]) => v !== undefined),
     );
+
+    if (rest.useWorktree && !epic.worktreeSlug) {
+      const title = rest.title ?? epic.title;
+      const slug = slugify(title);
+      if (!slug) {
+        throw new Error(
+          `Epic title "${title}" produces an empty slug — cannot use as worktree name.`,
+        );
+      }
+      patch.worktreeSlug = slug;
+    }
 
     if (Object.keys(patch).length === 0) return epic;
 
