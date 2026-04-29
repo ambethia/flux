@@ -208,7 +208,7 @@ async function fetchProjects(): Promise<Project[]> {
   if (!res || !res.ok) {
     die(
       `Cannot reach Flux at ${FLUX_URL}. Is the daemon running?\n` +
-        "  Start it: launchctl start dev.flux.daemon",
+        "  Start it: flux daemon start",
     );
   }
   return res.json();
@@ -528,7 +528,7 @@ export async function runToolCommand(argv: string[]): Promise<void> {
   }).catch((err: Error) => {
     die(
       `Cannot reach Flux at ${FLUX_URL}: ${err.message}\n` +
-        "Is the daemon running? Start it: launchctl start dev.flux.daemon",
+        "Is the daemon running? Start it: flux daemon start",
     );
   });
 

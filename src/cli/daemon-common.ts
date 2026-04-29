@@ -5,6 +5,13 @@ import { join } from "node:path";
 
 export const LABEL = "dev.flux.daemon";
 
+export type DaemonMode = "dev" | "prod";
+
+export type DaemonInstallOpts = {
+  /** Run mode. "dev" starts `bun run dev`; "prod" starts `bun run start`. */
+  mode?: DaemonMode;
+};
+
 // ---------------------------------------------------------------------------
 // Platform detection
 // ---------------------------------------------------------------------------
