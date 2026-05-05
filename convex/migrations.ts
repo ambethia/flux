@@ -11,6 +11,7 @@
  */
 import type { Id } from "./_generated/dataModel";
 import { internalMutation } from "./_generated/server";
+import { slugify } from "./epics";
 import type { AgentKindValue } from "./schema";
 import {
   CounterEntity,
@@ -304,5 +305,118 @@ export const shiftTimestamps = internalMutation({
       issuesPatched,
       sessionsPatched,
     };
+  },
+});
+
+/**
+ * Backfill `worktreeSlug` on epics that have `useWorktree=true` but no slug.
+ *
+ * Added for FLUX-53 (worktree slug derived from mutable title). Computes
+ * the slug from the current title and persists it so future title changes
+ * don't orphan the worktree.
+ *
+ * Safe to re-run: skips epics that already have a worktreeSlug.
+ */
+export const backfillWorktreeSlug = internalMutation({
+  handler: async (ctx) => {
+    const allEpics = await ctx.db.query("epics").collect();
+
+    let patched = 0;
+    let skipped = 0;
+
+    for (const epic of allEpics) {
+      if (epic.worktreeSlug || !epic.useWorktree) {
+        skipped++;
+        continue;
+      }
+
+      const slug = slugify(epic.title);
+
+      if (!slug) {
+        throw new Error(
+          `Epic ${epic._id} title "${epic.title}" produces an empty slug — fix title before migrating.`,
+        );
+      }
+
+      await ctx.db.patch(epic._id, { worktreeSlug: slug });
+      patched++;
+    }
+
+    return { patched, skipped, total: allEpics.length };
+  },
+});
+
+/**
+ * Fix sessions with invalid type/phase="workshop" and extra fields like epicId.
+ *
+ * The document k9720fmqq0pa92rz6x8nbb4fpd84rxk9 has type: "workshop",
+ * phase: "workshop", and an extra epicId field — all blocking schema deployment.
+ * Uses db.replace to strip extra fields; patches type/phase to "work".
+ *
+ * Safe to re-run: skips sessions that already have valid values and no extra fields.
+ */
+export const fixWorkshopPhase = internalMutation({
+  handler: async (ctx) => {
+    const VALID_TYPES = new Set(["work", "review", "planner"]);
+    const VALID_PHASES = new Set(["work", "retro", "review", "planner"]);
+    const KNOWN_FIELDS = new Set([
+      "_id",
+      "_creationTime",
+      "projectId",
+      "issueId",
+      "type",
+      "agent",
+      "status",
+      "phase",
+      "startedAt",
+      "endedAt",
+      "exitCode",
+      "pid",
+      "lastHeartbeat",
+      "disposition",
+      "note",
+      "agentSessionId",
+      "startHead",
+      "endHead",
+      "turns",
+      "tokens",
+      "cost",
+      "toolCalls",
+      "model",
+    ]);
+
+    const allSessions = await ctx.db.query("sessions").collect();
+
+    let patched = 0;
+    let skipped = 0;
+
+    for (const session of allSessions) {
+      const raw = session as Record<string, unknown>;
+      const type = raw.type as string;
+      const phase = raw.phase as string | undefined;
+
+      const badType = !VALID_TYPES.has(type);
+      const badPhase = phase !== undefined && !VALID_PHASES.has(phase);
+      const extraFields = Object.keys(raw).filter((k) => !KNOWN_FIELDS.has(k));
+
+      if (!badType && !badPhase && extraFields.length === 0) {
+        skipped++;
+        continue;
+      }
+
+      // Build a clean document with only known fields
+      const clean: Record<string, unknown> = {};
+      for (const key of KNOWN_FIELDS) {
+        if (key === "_id" || key === "_creationTime") continue;
+        if (key in raw) clean[key] = raw[key];
+      }
+      if (badType) clean.type = "work";
+      if (badPhase) clean.phase = "work";
+
+      await ctx.db.replace(session._id, clean as never);
+      patched++;
+    }
+
+    return { patched, skipped, total: allSessions.length };
   },
 });

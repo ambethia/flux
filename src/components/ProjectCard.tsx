@@ -14,6 +14,7 @@ interface ProjectWithStats {
   name: string;
   slug: string;
   path?: string;
+  worktreeBase?: string;
   enabled?: boolean;
   openIssueCount: number;
   activeSessionCount: number;
@@ -28,6 +29,9 @@ export function ProjectCard({ project }: { project: ProjectWithStats }) {
   const [nameDraft, setNameDraft] = useState(project.name);
   const [slugDraft, setSlugDraft] = useState(project.slug);
   const [pathDraft, setPathDraft] = useState(project.path ?? "");
+  const [worktreeBaseDraft, setWorktreeBaseDraft] = useState(
+    project.worktreeBase ?? "",
+  );
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { error, showError, clearError } = useDismissableError();
 
@@ -43,6 +47,7 @@ export function ProjectCard({ project }: { project: ProjectWithStats }) {
     setNameDraft(project.name);
     setSlugDraft(project.slug);
     setPathDraft(project.path ?? "");
+    setWorktreeBaseDraft(project.worktreeBase ?? "");
     setConfirmDelete(false);
     setEditing(true);
     clearError();
@@ -59,6 +64,7 @@ export function ProjectCard({ project }: { project: ProjectWithStats }) {
     const trimmedName = nameDraft.trim();
     const trimmedSlug = slugDraft.trim();
     const trimmedPath = pathDraft.trim();
+    const trimmedWorktreeBase = worktreeBaseDraft.trim();
 
     if (!trimmedName || !trimmedSlug) {
       showError("Name and slug are required");
@@ -68,8 +74,10 @@ export function ProjectCard({ project }: { project: ProjectWithStats }) {
     const nameChanged = trimmedName !== project.name;
     const slugChanged = trimmedSlug !== project.slug;
     const pathChanged = trimmedPath !== (project.path ?? "");
+    const worktreeBaseChanged =
+      trimmedWorktreeBase !== (project.worktreeBase ?? "");
 
-    if (!nameChanged && !slugChanged && !pathChanged) {
+    if (!nameChanged && !slugChanged && !pathChanged && !worktreeBaseChanged) {
       setEditing(false);
       return;
     }
@@ -79,6 +87,7 @@ export function ProjectCard({ project }: { project: ProjectWithStats }) {
         ...(nameChanged ? { name: trimmedName } : {}),
         ...(slugChanged ? { slug: trimmedSlug } : {}),
         ...(pathChanged ? { path: trimmedPath } : {}),
+        ...(worktreeBaseChanged ? { worktreeBase: trimmedWorktreeBase } : {}),
       });
       setEditing(false);
       clearError();
@@ -161,6 +170,17 @@ export function ProjectCard({ project }: { project: ProjectWithStats }) {
               onChange={(e) => setPathDraft(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="/path/to/repo"
+            />
+          </fieldset>
+          <fieldset className="fieldset">
+            <legend className="fieldset-legend">Worktree Base</legend>
+            <input
+              type="text"
+              className="input input-sm w-full font-mono text-xs"
+              value={worktreeBaseDraft}
+              onChange={(e) => setWorktreeBaseDraft(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="/path/to/worktrees"
             />
           </fieldset>
           <ErrorBanner error={error} onDismiss={clearError} />
@@ -275,6 +295,14 @@ export function ProjectCard({ project }: { project: ProjectWithStats }) {
             title={project.path}
           >
             {project.path}
+          </code>
+        )}
+        {project.worktreeBase && (
+          <code
+            className="block truncate text-base-content/40 text-xs"
+            title={project.worktreeBase}
+          >
+            wt: {project.worktreeBase}
           </code>
         )}
         <ErrorBanner error={error} onDismiss={clearError} />

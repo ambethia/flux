@@ -26,6 +26,7 @@ export function SettingsForm() {
   // ── Project identity form state ──────────────────────────────────
   const [name, setName] = useState("");
   const [path, setPath] = useState("");
+  const [worktreeBase, setWorktreeBase] = useState("");
   const [projectDirty, setProjectDirty] = useState(false);
   const [projectSaved, setProjectSaved] = useState(false);
   const {
@@ -37,6 +38,7 @@ export function SettingsForm() {
   const [saveProject] = useTrackedAction(async () => {
     const trimmedName = name.trim();
     const trimmedPath = path.trim();
+    const trimmedWorktreeBase = worktreeBase.trim();
 
     if (!trimmedName) {
       showProjectError("Project name is required");
@@ -45,8 +47,10 @@ export function SettingsForm() {
 
     const nameChanged = trimmedName !== project?.name;
     const pathChanged = trimmedPath !== (project?.path ?? "");
+    const worktreeBaseChanged =
+      trimmedWorktreeBase !== (project?.worktreeBase ?? "");
 
-    if (!nameChanged && !pathChanged) {
+    if (!nameChanged && !pathChanged && !worktreeBaseChanged) {
       setProjectDirty(false);
       setProjectSaved(true);
       return;
@@ -55,6 +59,7 @@ export function SettingsForm() {
     await saveProjectFields({
       ...(nameChanged ? { name: trimmedName } : {}),
       ...(pathChanged ? { path: trimmedPath } : {}),
+      ...(worktreeBaseChanged ? { worktreeBase: trimmedWorktreeBase } : {}),
     });
 
     setProjectDirty(false);
@@ -66,6 +71,7 @@ export function SettingsForm() {
     if (!project) return;
     setName(project.name);
     setPath(project.path ?? "");
+    setWorktreeBase(project.worktreeBase ?? "");
     setProjectDirty(false);
   }, [project]);
 
@@ -331,6 +337,24 @@ export function SettingsForm() {
                 }}
                 placeholder="/path/to/repository"
               />
+            </fieldset>
+
+            <fieldset className="fieldset sm:col-span-2">
+              <legend className="fieldset-legend">Worktree Base</legend>
+              <input
+                type="text"
+                className="input w-full font-mono text-sm"
+                value={worktreeBase}
+                onChange={(e) => {
+                  setWorktreeBase(e.target.value);
+                  markProjectDirty();
+                }}
+                placeholder="/path/to/worktrees"
+              />
+              <p className="mt-1 text-base-content/60 text-xs">
+                Absolute directory where epic worktrees are created. Leave blank
+                to disable worktree-based epics for this project.
+              </p>
             </fieldset>
           </div>
 

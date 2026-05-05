@@ -8,6 +8,7 @@ export interface ProjectUpdateFields {
   name?: string;
   slug?: string;
   path?: string;
+  worktreeBase?: string;
 }
 
 /**
@@ -33,6 +34,9 @@ export function useUpdateProject(projectId: Id<"projects">) {
           const body: Record<string, string> = { path: fields.path };
           if (fields.name !== undefined) body.name = fields.name;
           if (fields.slug !== undefined) body.slug = fields.slug;
+          if (fields.worktreeBase !== undefined) {
+            body.worktreeBase = fields.worktreeBase;
+          }
 
           const res = await fetch(`/api/projects/${projectId}`, {
             method: "PATCH",
@@ -51,6 +55,9 @@ export function useUpdateProject(projectId: Id<"projects">) {
             projectId,
             ...(fields.name !== undefined ? { name: fields.name } : {}),
             ...(fields.slug !== undefined ? { slug: fields.slug } : {}),
+            ...(fields.worktreeBase !== undefined
+              ? { worktreeBase: fields.worktreeBase }
+              : {}),
           });
         }
       } finally {
