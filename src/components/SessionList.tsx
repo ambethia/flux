@@ -2,16 +2,10 @@ import { Link } from "@tanstack/react-router";
 import { usePaginatedQuery, useQuery } from "convex/react";
 import { useMemo, useState } from "react";
 import { api } from "$convex/_generated/api";
-import type { SessionPhaseValue, SessionStatusValue } from "$convex/schema";
+import type { SessionStatusValue } from "$convex/schema";
 import { SessionStatus } from "$convex/schema";
 import { useProjectId, useProjectSlug } from "../hooks/useProjectId";
-import {
-  formatDuration,
-  formatRelativeTime,
-  phaseLabel,
-  typeLabel,
-} from "../lib/format";
-import { SessionStatusBadge } from "./SessionStatusBadge";
+import { SessionTableRow } from "./SessionTableRow";
 import { SortableHeader, useSortableTable, useSorted } from "./SortableHeader";
 
 type StatusFilter = SessionStatusValue | null;
@@ -31,35 +25,13 @@ const SESSION_STATUS_ORDER: Record<string, number> = {
   [SessionStatus.Failed]: 2,
 };
 
-function buildStatusTooltip(session: {
-  status: SessionStatusValue;
-  phase?: SessionPhaseValue;
-  note?: string | null;
-  transitionSummary?: string | null;
-}) {
-  const parts: string[] = [];
-
-  if (session.transitionSummary) {
-    parts.push(session.transitionSummary);
-  } else if (session.status === SessionStatus.Running) {
-    parts.push(
-      session.phase
-        ? `Still running in ${phaseLabel(session.phase)}.`
-        : "Still running.",
-    );
-  }
-
-  if (session.note) {
-    parts.push(`Agent note: ${session.note}`);
-  }
-
-  return parts.length > 0 ? parts.join("\n\n") : undefined;
-}
-
 export function SessionList() {
   const projectId = useProjectId();
   const projectSlug = useProjectSlug();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
+  const [expandedSessionIds, setExpandedSessionIds] = useState<
+    Record<string, boolean>
+  >({});
 
   const {
     results: sessions,
@@ -162,6 +134,7 @@ export function SessionList() {
           <table className="table-zebra table">
             <thead>
               <tr>
+                <th className="w-0" aria-label="Expand session details" />
                 <SortableHeader
                   label="Type"
                   sortKey="type"
@@ -208,102 +181,65 @@ export function SessionList() {
               </tr>
             </thead>
             <tbody>
-              {sortedSessions.map((session) => (
-                <tr key={session._id} className="hover:bg-base-200">
-                  <td className="p-0">
-                    <Link
-                      to="/p/$projectSlug/sessions/$sessionId"
-                      params={{ projectSlug, sessionId: session._id }}
-                      className="block px-4 py-3"
-                    >
-                      {typeLabel(session.type)}
-                    </Link>
-                  </td>
-                  <td className="p-0">
-                    <Link
-                      to="/p/$projectSlug/sessions/$sessionId"
-                      params={{ projectSlug, sessionId: session._id }}
-                      className="block px-4 py-3 text-sm"
-                    >
-                      {session.phase ? phaseLabel(session.phase) : "—"}
-                    </Link>
-                  </td>
-                  <td className="p-0">
-                    <Link
-                      to="/p/$projectSlug/sessions/$sessionId"
-                      params={{ projectSlug, sessionId: session._id }}
-                      className="block px-4 py-3"
-                    >
-                      <SessionStatusBadge
-                        status={session.status}
-                        title={buildStatusTooltip(session)}
-                      />
-                    </Link>
-                  </td>
-                  <td>
-                    {session.issueShortId && session.issueId ? (
-                      <Link
-                        to="/p/$projectSlug/issues/$issueId"
-                        params={{ projectSlug, issueId: session.issueId }}
-                        className="link link-hover font-mono text-sm"
-                      >
-                        {session.issueShortId}
-                      </Link>
-                    ) : (
-                      <span className="text-base-content/40">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {session.createdIssues.length > 0 ? (
-                      <div className="flex max-w-72 flex-wrap gap-1">
-                        {session.createdIssues.map((createdIssue) => (
-                          <Link
-                            key={createdIssue._id}
-                            to="/p/$projectSlug/issues/$issueId"
-                            params={{
-                              projectSlug,
-                              issueId: createdIssue._id,
-                            }}
-                            title={createdIssue.title}
-                            className="badge badge-outline badge-sm font-mono transition-colors hover:border-primary hover:text-primary"
-                          >
-                            {createdIssue.shortId}
-                          </Link>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-base-content/40">—</span>
-                    )}
-                  </td>
-                  <td className="p-0">
-                    <Link
-                      to="/p/$projectSlug/sessions/$sessionId"
-                      params={{ projectSlug, sessionId: session._id }}
-                      className="block px-4 py-3 text-sm"
-                    >
-                      {session.agent}
-                    </Link>
-                  </td>
-                  <td className="p-0">
-                    <Link
-                      to="/p/$projectSlug/sessions/$sessionId"
-                      params={{ projectSlug, sessionId: session._id }}
-                      className="block px-4 py-3 text-sm"
-                    >
-                      {formatRelativeTime(session.startedAt)}
-                    </Link>
-                  </td>
-                  <td className="p-0">
-                    <Link
-                      to="/p/$projectSlug/sessions/$sessionId"
-                      params={{ projectSlug, sessionId: session._id }}
-                      className="block px-4 py-3 text-sm"
-                    >
-                      {formatDuration(session.startedAt, session.endedAt)}
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+              {sortedSessions.map((session) => {
+                const isExpanded = expandedSessionIds[session._id] ?? false;
+
+                return (
+                  <SessionTableRow
+                    key={session._id}
+                    session={session}
+                    projectSlug={projectSlug}
+                    isExpanded={isExpanded}
+                    onToggleExpanded={() =>
+                      setExpandedSessionIds((current) => ({
+                        ...current,
+                        [session._id]: !current[session._id],
+                      }))
+                    }
+                    detailColSpan={9}
+                    rowClassName="hover:bg-base-200"
+                    extraCells={
+                      <>
+                        <td>
+                          {session.issueShortId && session.issueId ? (
+                            <Link
+                              to="/p/$projectSlug/issues/$issueId"
+                              params={{ projectSlug, issueId: session.issueId }}
+                              className="link link-hover font-mono text-sm"
+                            >
+                              {session.issueShortId}
+                            </Link>
+                          ) : (
+                            <span className="text-base-content/40">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {session.createdIssues.length > 0 ? (
+                            <div className="flex max-w-72 flex-wrap gap-1">
+                              {session.createdIssues.map((createdIssue) => (
+                                <Link
+                                  key={createdIssue._id}
+                                  to="/p/$projectSlug/issues/$issueId"
+                                  params={{
+                                    projectSlug,
+                                    issueId: createdIssue._id,
+                                  }}
+                                  title={createdIssue.title}
+                                  className="badge badge-outline badge-sm font-mono transition-colors hover:border-primary hover:text-primary"
+                                >
+                                  {createdIssue.shortId}
+                                </Link>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-base-content/40">—</span>
+                          )}
+                        </td>
+                      </>
+                    }
+                  />
+                );
+              })}
             </tbody>
           </table>
           {paginationStatus === "CanLoadMore" && (
