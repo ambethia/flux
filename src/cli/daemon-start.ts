@@ -1,6 +1,12 @@
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { IS_LINUX, isDaemonLoaded, LABEL, plistPath } from "./daemon-common";
+import {
+  IS_LINUX,
+  isDaemonLoaded,
+  LABEL,
+  plistPath,
+  readDaemonConfig,
+} from "./daemon-common";
 import { daemonStartLinux } from "./daemon-linux";
 
 export async function daemonStart(): Promise<void> {
@@ -23,7 +29,7 @@ export async function daemonStart(): Promise<void> {
   }
 
   // Give the process a moment to spin up, then check status
-  const port = process.env.FLUX_PORT ?? "8042";
-  console.log(`\nVerify: curl http://localhost:${port}/health`);
+  const { fluxPort } = readDaemonConfig();
+  console.log(`\nVerify: curl http://localhost:${fluxPort}/health`);
   console.log(`Or run: flux daemon status`);
 }
