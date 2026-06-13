@@ -516,7 +516,7 @@ export function SettingsForm() {
             Override the default agent prompts for work, retro, and review
             phases. Leave empty to use defaults. See{" "}
             <a
-              href="https://github.com/anthropics/flux/blob/main/docs/custom-prompts.md"
+              href="https://github.com/ambethia/flux/blob/main/docs/custom-prompts.md"
               target="_blank"
               rel="noopener noreferrer"
               className="link"

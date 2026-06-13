@@ -99,6 +99,8 @@ function plannerTransitionSummary(disposition: DispositionValue): string {
       return "Planner finished and recorded its planning output.";
     case Disposition.Noop:
       return "Planner finished with no new work to queue.";
+    case Disposition.Blocked:
+      return "Planner paused work on an issue until its blocker is cleared.";
     case Disposition.Fault:
       return "Planner reported an operational problem and stopped.";
     default: {
@@ -210,6 +212,10 @@ class ProjectRunner {
   private plannerCronRef: { stop(): void } | null = null;
   /** Current cron schedule from .flux — used to detect changes. */
   private plannerSchedule: string | null = null;
+  /** Whether automatic scheduling is enabled for this runner. */
+  private autoScheduleEnabled = true;
+  /** Focus epic — when set, only pick issues from this epic (critical/high standalone still interrupt). */
+  private focusEpicId?: Id<"epics">;
 
   constructor(
     projectId: Id<"projects">,
@@ -367,7 +373,8 @@ class ProjectRunner {
     // Recover orphaned sessions before subscribing
     const stats = await this.recoverOrphanedSessions();
 
-    if (options.autoSchedule !== false) {
+    this.autoScheduleEnabled = options.autoSchedule !== false;
+    if (this.autoScheduleEnabled) {
       this.startAutoSchedule();
     }
 
@@ -375,7 +382,11 @@ class ProjectRunner {
     await this.configurePlanner();
 
     // If planner is overdue (e.g. never run), trigger it now
-    if (this.plannerPending && this.state === OrchestratorState.Idle) {
+    if (
+      this.autoScheduleEnabled &&
+      this.plannerPending &&
+      this.state === OrchestratorState.Idle
+    ) {
       this.plannerPending = false;
       this.triggerPlanner();
     }
@@ -388,10 +399,36 @@ class ProjectRunner {
    * Does not affect manual runs, status, kill, etc.
    */
   setAutoSchedule(enabled: boolean): void {
+    this.autoScheduleEnabled = enabled;
     if (enabled) {
       this.startAutoSchedule();
+      this.configurePlanner().catch((err) =>
+        console.error(
+          "[ProjectRunner] configurePlanner() failed while enabling auto-schedule:",
+          err,
+        ),
+      );
     } else {
       this.stopAutoSchedule();
+      this.plannerPending = false;
+      if (this.plannerCronRef) {
+        this.plannerCronRef.stop();
+        this.plannerCronRef = null;
+      }
+    }
+  }
+
+  /**
+   * Update focusEpicId and restart the ready-issues subscription if active,
+   * so the new filter takes effect immediately without a daemon restart.
+   */
+  setFocusEpic(focusEpicId: Id<"epics"> | undefined): void {
+    if (this.focusEpicId === focusEpicId) return; // No change
+    this.focusEpicId = focusEpicId;
+    if (this.unsubscribeReady) {
+      // Subscription is active — restart it with the new focusEpicId
+      this.stopAutoSchedule();
+      this.startAutoSchedule();
     }
   }
 
@@ -822,6 +859,24 @@ class ProjectRunner {
     return parseDisposition(allLines, this.provider.name);
   }
 
+  private async deferBlockedIssue(
+    issueId: Id<"issues">,
+    shortId: string,
+    note: string,
+  ): Promise<void> {
+    const blockerNote = note.trim();
+    if (!blockerNote) {
+      throw new Error(
+        `[ProjectRunner] deferBlockedIssue: empty blocker note for ${shortId}`,
+      );
+    }
+    console.log(`[ProjectRunner] Blocking ${shortId}: ${blockerNote}`);
+    await getConvexClient().mutation(api.issues.defer, {
+      issueId,
+      note: blockerNote,
+    });
+  }
+
   // ── PID watchdog ────────────────────────────────────────────────────
 
   private static readonly PID_WATCHDOG_INTERVAL_MS = 15_000;
@@ -1198,6 +1253,12 @@ class ProjectRunner {
       active.workDisposition = disposition;
     }
 
+    if (disposition === Disposition.Blocked) {
+      await this.deferBlockedIssue(issueId, issue.shortId, note);
+      this.finalize();
+      return true;
+    }
+
     try {
       const autoCommitted = await autoCommitDirtyTree(
         cwd,
@@ -1354,6 +1415,19 @@ class ProjectRunner {
       return true;
     }
 
+    if (
+      retroResult.success &&
+      retroResult.disposition === Disposition.Blocked
+    ) {
+      await this.deferBlockedIssue(
+        active.issueId,
+        issue.shortId,
+        retroResult.note,
+      );
+      this.finalize();
+      return true;
+    }
+
     // Determine whether commits exist. Normally carried forward from
     // handleWorkExit, but recovered sessions (adoptOrphanedSession) start
     // with hasCommits=null — compute from git in that case.
@@ -1476,6 +1550,27 @@ class ProjectRunner {
       });
       this.finalize();
       return false;
+    }
+
+    if (disposition === Disposition.Blocked) {
+      try {
+        await autoCommitDirtyTree(
+          cwd,
+          issue.shortId,
+          String(sessionId),
+          SessionPhase.Review,
+          active.process.pid,
+        );
+      } catch (err) {
+        console.warn(
+          `[ProjectRunner] Auto-commit after blocked review failed for ${issue.shortId} — ` +
+            "uncommitted changes remain in working tree:",
+          err,
+        );
+      }
+      await this.deferBlockedIssue(issueId, issue.shortId, note);
+      this.finalize();
+      return true;
     }
 
     const newIterations = await convex.mutation(
@@ -1896,6 +1991,20 @@ class ProjectRunner {
 
     const newSchedule = config?.planner?.schedule ?? null;
 
+    // Automatic planner runs are disabled for disabled projects.
+    if (!this.autoScheduleEnabled) {
+      if (this.plannerCronRef) {
+        this.plannerCronRef.stop();
+        this.plannerCronRef = null;
+        console.log(
+          `[ProjectRunner] Stopped planner cron because auto-scheduling is disabled (was: ${this.plannerSchedule})`,
+        );
+      }
+      this.plannerSchedule = newSchedule;
+      this.plannerPending = false;
+      return;
+    }
+
     // Schedule unchanged — nothing to do
     if (newSchedule === this.plannerSchedule) return;
 
@@ -2156,7 +2265,7 @@ class ProjectRunner {
     );
 
     // If a planner cron tick fired while busy, run the planner now before picking up issues
-    if (this.plannerPending) {
+    if (this.autoScheduleEnabled && this.plannerPending) {
       this.plannerPending = false;
       this.triggerPlanner();
       return;

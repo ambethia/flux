@@ -20,6 +20,12 @@ function dispositionLabel(disposition: DispositionValue): {
         className: "badge-info",
         icon: "fa-circle-minus",
       };
+    case Disposition.Blocked:
+      return {
+        label: "Blocked",
+        className: "badge-warning",
+        icon: "fa-circle-pause",
+      };
     case Disposition.Fault:
       return {
         label: "Fault",
@@ -51,7 +57,9 @@ export function DispositionCallout({
           ? "border-error/30 bg-error/10"
           : disposition === Disposition.Done
             ? "border-success/30 bg-success/10"
-            : "border-info/30 bg-info/10"
+            : disposition === Disposition.Blocked
+              ? "border-warning/30 bg-warning/10"
+              : "border-info/30 bg-info/10"
       }`}
     >
       <div className="flex items-center gap-2">

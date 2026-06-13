@@ -30,6 +30,7 @@ import { Disposition, SessionPhase as Phase } from "./types";
 function buildDispositionSchema(descriptions: {
   done: string;
   noop: string;
+  blocked: string;
   fault: string;
   note: string;
 }): string {
@@ -38,10 +39,11 @@ function buildDispositionSchema(descriptions: {
     properties: {
       disposition: {
         type: "string",
-        enum: ["done", "noop", "fault"],
+        enum: ["done", "noop", "blocked", "fault"],
         description: [
           `"done": ${descriptions.done}`,
           `"noop": ${descriptions.noop}`,
+          `"blocked": ${descriptions.blocked}`,
           `"fault": ${descriptions.fault}`,
         ].join(". "),
       },
@@ -59,28 +61,36 @@ const DISPOSITION_SCHEMAS: Record<SessionPhase, string> = {
   [Phase.Work]: buildDispositionSchema({
     done: "Task completed successfully — work was performed and committed",
     noop: "No work needed — already fixed, duplicate, or not applicable",
+    blocked:
+      "Task cannot proceed until an external blocker is cleared — capture the blocker clearly so a planner or human can reopen it later",
     fault:
       "Could NOT complete the task due to an operational problem (missing access, unclear requirements, tooling failure) — not a code quality judgment",
-    note: "What you did (for done), why no work was needed (for noop), or what blocked you (for fault)",
+    note: "What you did (for done), why no work was needed (for noop), what is blocking progress and what must change to resume (for blocked), or what blocked you operationally (for fault)",
   }),
   [Phase.Retro]: buildDispositionSchema({
     done: "Created follow-up issues from findings",
     noop: "Reflected and found nothing actionable",
+    blocked:
+      "Retro surfaced a blocker state that needs follow-up before work should resume",
     fault: "Could not complete the retro due to an operational problem",
-    note: "Summary of findings or why the retro could not complete",
+    note: "Summary of findings, the blocker and resume criteria, or why the retro could not complete",
   }),
   [Phase.Review]: buildDispositionSchema({
     done: "Review completed — fixed things inline, created follow-up issues, or both",
     noop: "Review completed — code is clean, no issues found",
+    blocked:
+      "Review cannot finish until an external blocker is resolved and the issue should pause until then",
     fault:
       "Could NOT complete the review due to an operational problem (not a code quality judgment)",
-    note: "Summary of review findings and actions taken, or what blocked you",
+    note: "Summary of review findings and actions taken, the blocker and resume criteria, or what blocked you",
   }),
   [Phase.Planner]: buildDispositionSchema({
-    done: "Planner completed — reprioritized, created, closed, or deferred issues",
+    done: "Planner completed — reprioritized, created, closed, deferred, or reopened issues",
     noop: "Backlog is healthy — no changes needed",
+    blocked:
+      "Planner identified a blocked issue state and recorded or maintained the pause until resume criteria are met",
     fault: "Could not complete planner run due to an operational problem",
-    note: "Summary of changes made (for done), why no changes needed (for noop), or what went wrong (for fault)",
+    note: "Summary of changes made (for done), why no changes needed (for noop), what blocker state was maintained or restored (for blocked), or what went wrong (for fault)",
   }),
 };
 

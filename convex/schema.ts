@@ -134,12 +134,14 @@ export const closeTypeValidator = v.union(
 export const Disposition = {
   Done: "done",
   Noop: "noop",
+  Blocked: "blocked",
   Fault: "fault",
 } as const;
 
 export const dispositionValidator = v.union(
   v.literal(Disposition.Done),
   v.literal(Disposition.Noop),
+  v.literal(Disposition.Blocked),
   v.literal(Disposition.Fault),
 );
 

@@ -165,6 +165,7 @@ class Orchestrator {
           }
 
           runner.setAutoSchedule(project.enabled === true);
+          runner.setFocusEpic(config?.focusEpicId ?? undefined);
         }
       }
     }

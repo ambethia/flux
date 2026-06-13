@@ -9,7 +9,7 @@ export default function registerFluxDispositionExtension(pi) {
       properties: {
         disposition: {
           type: "string",
-          enum: ["done", "noop", "fault"],
+          enum: ["done", "noop", "blocked", "fault"],
           description: "Final Flux disposition for the session.",
         },
         note: {

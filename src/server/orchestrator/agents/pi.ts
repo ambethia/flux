@@ -195,6 +195,7 @@ function addPiInstructions(prompt: string): string {
     "Allowed dispositions:",
     "- `done` = task completed successfully",
     "- `noop` = no work was needed",
+    "- `blocked` = progress must stop until an external blocker is resolved",
     "- `fault` = you could not complete due to an operational problem",
     "",
     "Compatibility note: if the tool is unavailable for some reason, end with this exact fallback marker:",

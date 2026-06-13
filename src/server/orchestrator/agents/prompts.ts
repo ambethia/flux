@@ -610,7 +610,8 @@ When you are finished, output a JSON block as the LAST thing you write — after
 Valid disposition values:
 - \`"done"\` — task completed successfully
 - \`"noop"\` — no changes needed (task was already done or not applicable)
-- \`"fault"\` — task failed or could not be completed (explain in note)
+- \`"blocked"\` — progress must stop until an external blocker is resolved (explain the blocker and what should happen before resuming)
+- \`"fault"\` — task failed or could not be completed due to an operational problem (explain in note)
 
 The note should be 1-2 sentences. Do not output anything after the JSON block.`;
 
@@ -622,7 +623,7 @@ const VALID_DISPOSITIONS = new Set<string>(Object.values(Disposition));
  * Parse the disposition JSON from agent output lines.
  *
  * Strategy: scan backward through the last 50 lines to find the last
- * `{"disposition": "done|noop|fault", "note": "..."}` object. The agent
+ * `{"disposition": "done|noop|blocked|fault", "note": "..."}` object. The agent
  * is instructed to output it as the very last thing, so it's near the end.
  *
  * Handles both raw text lines and Claude's stream-json envelope format.

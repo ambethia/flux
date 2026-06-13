@@ -136,6 +136,17 @@ describe("parseDisposition", () => {
       });
     });
 
+    test("parses blocked disposition", () => {
+      const result = parseDisposition([
+        '{"disposition": "blocked", "note": "Waiting on API credentials before implementation can continue"}',
+      ]);
+      expect(result).toEqual({
+        success: true,
+        disposition: "blocked",
+        note: "Waiting on API credentials before implementation can continue",
+      });
+    });
+
     test("parses fault disposition", () => {
       const result = parseDisposition([
         '{"disposition": "fault", "note": "missing API credentials"}',
@@ -387,6 +398,21 @@ describe("parseDisposition", () => {
 // ── buildReviewPrompt ───────────────────────────────────────────────
 
 describe("buildReviewPrompt", () => {
+  test("documents blocked disposition for OpenCode output", () => {
+    const prompt = buildReviewPrompt({
+      shortId: "FLUX-100",
+      title: "Test Issue",
+      diff: "diff content",
+      commitLog: "commit log",
+      relatedIssues: [],
+      reviewIteration: 1,
+      maxReviewIterations: 10,
+    }, "opencode");
+
+    expect(prompt).toContain('`"blocked"`');
+    expect(prompt).toContain("progress must stop until an external blocker is resolved");
+  });
+
   test("includes previous review context when provided", () => {
     const prompt = buildReviewPrompt({
       shortId: "FLUX-100",
